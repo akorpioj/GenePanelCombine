@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PanelApp Gene Filter - Flask</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles if needed, or can be done with Tailwind classes */
+        body { font-family: 'Inter', sans-serif; }
+        .form-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    </style>
+     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">
+
+    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
+        <header class="mb-6 sm:mb-8 text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">🔬 PanelApp Gene Filter</h1>
+            <p class="text-gray-600 mt-2">
+                Select up to {{ max_panels }} gene panels, filter by gene status, and download the combined list.
+            </p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-6 space-y-3">
+                {% for category, message in messages %}
+                    <div class="p-4 rounded-md text-sm
+                        {% if category == 'error' or category == 'danger' %} bg-red-100 text-red-700 border border-red-300
+                        {% elif category == 'warning' %} bg-yellow-100 text-yellow-700 border border-yellow-300
+                        {% elif category == 'success' %} bg-green-100 text-green-700 border border-green-300
+                        {% else %} bg-blue-100 text-blue-700 border border-blue-300
+                        {% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="mb-6 p-4 border border-sky-200 rounded-lg bg-sky-50 text-sm text-sky-700">
+            <h3 class="font-semibold mb-1">Note on Gene Ratings:</h3>
+            <ul class="list-disc list-inside ml-2">
+                <li><strong>Green (Confidence 3):</strong> High confidence in gene-disease association.</li>
+                <li><strong>Amber (Confidence 2):</strong> Moderate confidence.</li>
+                <li><strong>Red (Confidence 1):</strong> Low confidence, or evidence suggests no association for this panel.</li>
+            </ul>
+        </div>
+
+        <form method="POST" action="{{ url_for('generate_gene_list') }}" class="space-y-8">
+            {% set list_type_options = ["Whole gene panel", "Green genes", "Green and Amber genes", "Amber genes", "Red genes"] %}
+            
+            {% for i in range(1, max_panels + 1) %}
+            <div class="p-5 border border-gray-200 rounded-lg shadow-sm bg-gray-50">
+                <h2 class="text-xl font-semibold text-sky-600 mb-4">Panel {{ i }} Configuration</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="panel_id_{{ i }}" class="block text-sm font-medium text-gray-700 mb-1">Select Panel {{ i }}:</label>
+                        <select name="panel_id_{{ i }}" id="panel_id_{{ i }}" class="form-select mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm appearance-none">
+                            <option value="None">-- Not Selected --</option>
+                            {% if all_panels %}
+                                {% for panel in all_panels %}
+                                    <option value="{{ panel.id }}">{{ panel.display_name }}</option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="" disabled>Panel list unavailable</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="list_type_{{ i }}" class="block text-sm font-medium text-gray-700 mb-1">Select List Type for Panel {{ i }}:</label>
+                        <select name="list_type_{{ i }}" id="list_type_{{ i }}" class="form-select mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm appearance-none">
+                            {% for opt in list_type_options %}
+                                <option value="{{ opt }}">{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                <button type="submit"
+                        class="w-full sm:w-auto inline-flex justify-center items-center px-8 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition duration-150 ease-in-out">
+                    🚀 Generate Gene List
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <footer class="mt-12 text-center text-sm text-gray-500">
+        <p>Built with Flask & Genomics England PanelApp API.</p>
+        <p class="mt-1">Remember to verify results against official sources if using for clinical or research purposes.</p>
+    </footer>
+
+</body>
+</html>
