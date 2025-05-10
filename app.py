@@ -224,4 +224,4 @@ def generate_gene_list():
 if __name__ == '__main__':
     # For development, using Flask's built-in server.
     # For production, use a WSGI server like Gunicorn.
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
