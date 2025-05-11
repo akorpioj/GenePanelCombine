@@ -182,9 +182,20 @@ def index():
             # This means selected IDs might not appear if they are filtered out.
             source_list_for_display = all_panels_raw # Fallback to all if filter is empty
         else:
-            source_list_for_display = filtered_list
+            source_list_for_display = filtered_list or all_panels_raw
     else:
         source_list_for_display = all_panels_raw
+
+    # ──────────── preserve any already‐selected panels ────────────
+    # current_selections['panel_id_i'] holds the string ID if slot i was set
+    for i in range(1, MAX_PANELS_CONFIGURABLE + 1):
+        sel = current_selections.get(f'panel_id_{i}')
+        if sel and sel != 'None':
+            # find the full panel dict in the unfiltered master list
+            extra = next((p for p in all_panels_raw if str(p['id']) == sel), None)
+            if extra and extra not in source_list_for_display:
+                source_list_for_display.append(extra)
+    # ───────────────────────────────────────────────────────────────
 
     # Construct display_name for all panels that will be shown in dropdowns
     for panel in source_list_for_display:
