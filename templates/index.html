@@ -6,9 +6,8 @@
     <title>PanelApp Gene Filter - Flask</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles if needed, or can be done with Tailwind classes */
         body { font-family: 'Inter', sans-serif; }
-        .form-select {
+        .form-select-arrow { /* Renamed for clarity */
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
             background-position: right 0.5rem center;
             background-repeat: no-repeat;
@@ -17,8 +16,14 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
+        .form-input-custom:focus, .form-select-custom:focus { /* General focus style */
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            border-color: #2563eb; /* sky-600 */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); /* sky-500 with opacity */
+        }
     </style>
-     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">
 
@@ -26,7 +31,7 @@
         <header class="mb-6 sm:mb-8 text-center">
             <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">🔬 PanelApp Gene Filter</h1>
             <p class="text-gray-600 mt-2">
-                Select up to {{ max_panels }} gene panels, filter by gene status, and download the combined list.
+                Select up to {{ max_panels_configurable }} gene panels, filter by gene status, and download the combined list.
             </p>
         </header>
 
@@ -39,7 +44,7 @@
                         {% elif category == 'warning' %} bg-yellow-100 text-yellow-700 border border-yellow-300
                         {% elif category == 'success' %} bg-green-100 text-green-700 border border-green-300
                         {% else %} bg-blue-100 text-blue-700 border border-blue-300
-                        {% endif %}">
+                        {% endif %}" role="alert">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -47,41 +52,81 @@
             {% endif %}
         {% endwith %}
 
+        <form method="GET" action="{{ url_for('index') }}" id="filterPanelsForm" class="mb-8 p-5 border border-gray-200 rounded-lg shadow-sm bg-gray-50">
+            <h2 class="text-xl font-semibold text-sky-600 mb-3">Filter Panel List</h2>
+            <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+                <div class="flex-grow">
+                    <label for="search_term_input" class="block text-sm font-medium text-gray-700 mb-1">
+                        Search term (in name, disease group/sub-group, description) (<small>WARNING! Clearing the filter will clear your selections!</small>):
+                    </label>
+                    <input type="text" name="search_term" id="search_term_input" value="{{ search_term | default('') }}"
+                           placeholder="e.g., malformation, cardiac, neuro"
+                           class="form-input-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm">
+                </div>
+                <button type="submit"
+                        class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition duration-150 ease-in-out">
+                    Filter Panels
+                </button>
+                 {% if search_term %}
+                <a href="{{ url_for('index') }}"
+                   class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition duration-150 ease-in-out">
+                    Clear Filter
+                </a>
+                {% endif %}
+            </div>
+            {% for i in range(1, max_panels_configurable + 1) %}
+                <input type="hidden" name="selected_panel_id_{{ i }}" id="filter_hidden_panel_id_{{ i }}">
+                <input type="hidden" name="selected_list_type_{{ i }}" id="filter_hidden_list_type_{{ i }}">
+            {% endfor %}
+        </form>
+
         <div class="mb-6 p-4 border border-sky-200 rounded-lg bg-sky-50 text-sm text-sky-700">
             <h3 class="font-semibold mb-1">Note on Gene Ratings:</h3>
             <ul class="list-disc list-inside ml-2">
-                <li><strong>Green (Confidence 3):</strong> High confidence in gene-disease association.</li>
+                <li><strong>Green (Confidence 3):</strong> High confidence.</li>
                 <li><strong>Amber (Confidence 2):</strong> Moderate confidence.</li>
-                <li><strong>Red (Confidence 1):</strong> Low confidence, or evidence suggests no association for this panel.</li>
+                <li><strong>Red (Confidence 1):</strong> Low confidence / evidence against.</li>
             </ul>
         </div>
 
-        <form method="POST" action="{{ url_for('generate_gene_list') }}" class="space-y-8">
+        <form method="POST" action="{{ url_for('generate_gene_list') }}" id="generateGeneListForm" class="space-y-8">
+             <input type="hidden" name="search_term_hidden" value="{{ search_term | default('') }}">
+
             {% set list_type_options = ["Whole gene panel", "Green genes", "Green and Amber genes", "Amber genes", "Red genes"] %}
             
-            {% for i in range(1, max_panels + 1) %}
+            {% for i in range(1, max_panels_configurable + 1) %}
             <div class="p-5 border border-gray-200 rounded-lg shadow-sm bg-gray-50">
                 <h2 class="text-xl font-semibold text-sky-600 mb-4">Panel {{ i }} Configuration</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="panel_id_{{ i }}" class="block text-sm font-medium text-gray-700 mb-1">Select Panel {{ i }}:</label>
-                        <select name="panel_id_{{ i }}" id="panel_id_{{ i }}" class="form-select mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm appearance-none">
+                        <label for="main_panel_id_{{ i }}" class="block text-sm font-medium text-gray-700 mb-1">Select Panel {{ i }}:</label>
+                        <select name="main_panel_id_{{ i }}" id="main_panel_id_{{ i }}" 
+                                onchange="updateHiddenFilterFieldsOnChange()"
+                                class="form-select-arrow form-select-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm appearance-none">
                             <option value="None">-- Not Selected --</option>
                             {% if all_panels %}
                                 {% for panel in all_panels %}
-                                    <option value="{{ panel.id }}">{{ panel.display_name }}</option>
+                                    <option value="{{ panel.id }}" 
+                                            {% if current_selections and current_selections['panel_id_' + i|string] == panel.id|string %}selected{% endif %}>
+                                        {{ panel.display_name }}
+                                    </option>
                                 {% endfor %}
                             {% else %}
-                                <option value="" disabled>Panel list unavailable</option>
+                                <option value="" disabled>Panel list unavailable or filter yielded no results</option>
                             {% endif %}
                         </select>
                     </div>
 
                     <div>
-                        <label for="list_type_{{ i }}" class="block text-sm font-medium text-gray-700 mb-1">Select List Type for Panel {{ i }}:</label>
-                        <select name="list_type_{{ i }}" id="list_type_{{ i }}" class="form-select mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm appearance-none">
+                        <label for="main_list_type_{{ i }}" class="block text-sm font-medium text-gray-700 mb-1">Select List Type for Panel {{ i }}:</label>
+                        <select name="main_list_type_{{ i }}" id="main_list_type_{{ i }}" 
+                                onchange="updateHiddenFilterFieldsOnChange()"
+                                class="form-select-arrow form-select-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm appearance-none">
                             {% for opt in list_type_options %}
-                                <option value="{{ opt }}">{{ opt }}</option>
+                                <option value="{{ opt }}"
+                                        {% if current_selections and current_selections['list_type_' + i|string] == opt %}selected{% endif %}>
+                                    {{ opt }}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -100,8 +145,39 @@
 
     <footer class="mt-12 text-center text-sm text-gray-500">
         <p>Built with Flask & Genomics England PanelApp API.</p>
-        <p class="mt-1">Remember to verify results against official sources if using for clinical or research purposes.</p>
+        <p class="mt-1">Remember to verify results against official sources.</p>
     </footer>
+
+<script>
+    function updateHiddenFilterFields() {
+        const maxPanels = {{ max_panels_configurable }};
+        for (let i = 1; i <= maxPanels; i++) {
+            const mainPanelIdSelect = document.getElementById(`main_panel_id_${i}`);
+            const mainListTypeSelect = document.getElementById(`main_list_type_${i}`);
+            
+            const hiddenPanelIdInput = document.getElementById(`filter_hidden_panel_id_${i}`);
+            const hiddenListTypeInput = document.getElementById(`filter_hidden_list_type_${i}`);
+
+            if (mainPanelIdSelect && hiddenPanelIdInput) {
+                hiddenPanelIdInput.value = mainPanelIdSelect.value;
+            }
+            if (mainListTypeSelect && hiddenListTypeInput) {
+                hiddenListTypeInput.value = mainListTypeSelect.value;
+            }
+        }
+        // console.log("Hidden fields updated for filter form.");
+    }
+
+    // Function to be called by onchange events
+    function updateHiddenFilterFieldsOnChange() {
+        updateHiddenFilterFields();
+    }
+
+    // Call once on page load to initialize hidden fields if selections are already set by Flask
+    document.addEventListener('DOMContentLoaded', function() {
+        updateHiddenFilterFields();
+    });
+</script>
 
 </body>
 </html>
