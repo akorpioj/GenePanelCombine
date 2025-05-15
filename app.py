@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, flash, url_for, redirect
+from flask import Flask, render_template, request, send_file, flash, jsonify, redirect, url_for
 import os
 import requests
 import pandas as pd
@@ -7,7 +7,8 @@ import logging
 import openpyxl
 
 app = Flask(__name__)
-app.secret_key = 'your_very_secret_key'  # Important for flash messages
+app.secret_key = os.getenv("SECRET_KEY", "dev")
+#app.secret_key = 'your_very_secret_key'  # Important for flash messages
 
 # --- Configuration & Constants ---
 BASE_API_URL = "https://panelapp.genomicsengland.co.uk/api/v1/"
@@ -18,8 +19,20 @@ CONFIDENCE_MAPPING = {
 }
 # For displaying labels if needed, though not directly used in this Flask version's filtering logic
 # CONFIDENCE_LABELS = {v: k for k, v in CONFIDENCE_MAPPING.items()}
+LIST_TYPE_GREEN = "Green genes"
+LIST_TYPE_GREEN_AND_AMBER = "Green and Amber genes"
+LIST_TYPE_AMBER = "Amber genes"
+LIST_TYPE_RED = "Red genes"
+LIST_TYPE_ALL = "Whole gene panel"
+list_type_options = [LIST_TYPE_ALL, LIST_TYPE_GREEN, LIST_TYPE_GREEN_AND_AMBER, LIST_TYPE_AMBER, LIST_TYPE_RED]
+GENE_FILTER = { LIST_TYPE_ALL: [1,2,3],
+                LIST_TYPE_GREEN: [3],
+                LIST_TYPE_GREEN_AND_AMBER: [2,3],
+                LIST_TYPE_AMBER: [2],
+                LIST_TYPE_RED: [1]
+                }
 
-MAX_PANELS_CONFIGURABLE = 3 # Define how many panel selection groups are on the form
+MAX_PANELS = 3 # Define how many panel selection groups are on the form
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -87,6 +100,7 @@ def get_panel_genes_data_from_api(panel_id):
     """
     Fetches gene details for a specific panel ID from the PanelApp API.
     """
+    logger.info("get_panel_gene_from_api")
     if not panel_id: return []
     url = f"{BASE_API_URL}panels/{panel_id}/"
     logger.info(f"Fetching genes for panel ID: {panel_id}")
@@ -117,105 +131,38 @@ def filter_genes_from_panel_data(panel_genes_data, list_type_selection):
 
         if not gene_symbol: continue
 
-        if list_type_selection == "Whole gene panel":
+        if confidence in GENE_FILTER[list_type_selection]:
             filtered_gene_symbols.append(gene_symbol)
-        elif list_type_selection == "Green genes":
-            if confidence == CONFIDENCE_MAPPING["Green"]:
-                filtered_gene_symbols.append(gene_symbol)
-        elif list_type_selection == "Green and Amber genes":
-            if confidence == CONFIDENCE_MAPPING["Green"] or \
-               confidence == CONFIDENCE_MAPPING["Amber"]:
-                filtered_gene_symbols.append(gene_symbol)
-        elif list_type_selection == "Amber genes":
-            if confidence == CONFIDENCE_MAPPING["Amber"]:
-                filtered_gene_symbols.append(gene_symbol)
-        elif list_type_selection == "Red genes":
-            if confidence == CONFIDENCE_MAPPING["Red"]:
-                filtered_gene_symbols.append(gene_symbol)
+
     return filtered_gene_symbols
 
 # --- Flask Routes ---
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def index():
-    """
-    Renders the main page, populating panel selection dropdowns.
-    """
-    search_term = request.args.get('search_term', '').strip().lower()
+    logger.info("index")
+    # No more server-side filtering
+    return render_template('index.html', 
+                           max_panels=MAX_PANELS,
+                           list_type_options=list_type_options)
 
-    # Retrieve current selections for panels from query parameters
-    current_selections = {}
-    for i in range(1, MAX_PANELS_CONFIGURABLE + 1):
-        panel_id_key = f'selected_panel_id_{i}'
-        list_type_key = f'selected_list_type_{i}'
-        current_selections[f'panel_id_{i}'] = request.args.get(panel_id_key)
-        current_selections[f'list_type_{i}'] = request.args.get(list_type_key)
-
-    logger.info(f"Index route. Search: '{search_term}', Current Selections: {current_selections}")
-
+@app.route("/api/panels")
+def api_panels():
+    logger.info("api_panels")
+    # (re)fetch or cache your master list here
     all_panels_raw = get_all_panels_from_api()
 
-    if not all_panels_raw and get_all_panels_from_api.cache == []: # API fetch failed
-        flash("Could not load panel list from Genomics England PanelApp. The API might be down or an error occurred. Please try again later.", "danger")
-        return render_template('index.html', all_panels=[], max_panels_configurable=MAX_PANELS_CONFIGURABLE, search_term=search_term, current_selections=current_selections)
+    # inject a display_name for the client
+    processed = []
+    for p in all_panels_raw:
+        p2 = p.copy()
+        p2["display_name"] = f"{p['name']} (v{p['version']}, ID: {p['id']})"
+        processed.append(p2)
+    processed.sort(key=lambda x: x["display_name"])
+    return jsonify(processed)
 
-    processed_panels_for_display = []
-    source_list_for_filtering = all_panels_raw
-
-    if search_term:
-        logger.info(f"Filtering panels with search term: '{search_term}'")
-        filtered_list = []
-        for panel in source_list_for_filtering:
-            # Check search term against relevant fields
-            if (search_term in panel.get('name', '').lower() or
-                search_term in panel.get('disease_group', '').lower() or
-                search_term in panel.get('disease_sub_group', '').lower() or
-                search_term in panel.get('description', '').lower()):
-                filtered_list.append(panel)
-
-        if not filtered_list:
-            flash(f"No panels found matching '{request.args.get('search_term', '')}'. Displaying full list or previous filter state if applicable.", "info")
-            # If filter yields no results, we might want to show all panels.
-            # Or, if current_selections are present, it implies user was working with a list,
-            # so perhaps we should preserve the list that allowed those selections.
-            # For now, if search yields nothing, the dropdowns will be based on all_panels_raw.
-            # This means selected IDs might not appear if they are filtered out.
-            source_list_for_display = all_panels_raw # Fallback to all if filter is empty
-        else:
-            source_list_for_display = filtered_list or all_panels_raw
-    else:
-        source_list_for_display = all_panels_raw
-
-    # ──────────── preserve any already‐selected panels ────────────
-    # current_selections['panel_id_i'] holds the string ID if slot i was set
-    for i in range(1, MAX_PANELS_CONFIGURABLE + 1):
-        sel = current_selections.get(f'panel_id_{i}')
-        if sel and sel != 'None':
-            # find the full panel dict in the unfiltered master list
-            extra = next((p for p in all_panels_raw if str(p['id']) == sel), None)
-            if extra and extra not in source_list_for_display:
-                source_list_for_display.append(extra)
-    # ───────────────────────────────────────────────────────────────
-
-    # Construct display_name for all panels that will be shown in dropdowns
-    for panel in source_list_for_display:
-        panel_copy = panel.copy() # Avoid modifying cached items
-        panel_copy['display_name'] = f"{panel.get('name', 'N/A')} (v{panel.get('version', 'N/A')}, ID: {panel.get('id')})"
-        processed_panels_for_display.append(panel_copy)
-    
-    if processed_panels_for_display: # Sort if list is not empty
-      sorted_display_panels = sorted(processed_panels_for_display, key=lambda x: x.get('display_name', ''))
-    else:
-      sorted_display_panels = []
-
-    return render_template('index.html', 
-                           all_panels=sorted_display_panels, 
-                           max_panels_configurable=MAX_PANELS_CONFIGURABLE, 
-                           search_term=search_term, 
-                           current_selections=current_selections)
-
-@app.route('/generate_gene_list', methods=['POST'])
-def generate_gene_list():
+@app.route('/generate', methods=['POST'])
+def generate():
     """
     Handles form submission, processes selected panels, filters genes,
     and returns an Excel file.
@@ -226,7 +173,7 @@ def generate_gene_list():
     # Values from the POST form for generating the list
     search_term_from_post_form = request.form.get('search_term_hidden', '') # Get search term if passed from main form
 
-    for i in range(1, MAX_PANELS_CONFIGURABLE + 1):
+    for i in range(1, MAX_PANELS + 1):
         panel_id_str = request.form.get(f'main_panel_id_{i}') # Names from the main form
         list_type = request.form.get(f'main_list_type_{i}')
 
@@ -247,7 +194,7 @@ def generate_gene_list():
         # Redirect back to index, trying to preserve search term and selections
         # This requires GET parameters, so we build them.
         redirect_params = {'search_term': search_term_from_post_form}
-        for i in range(1, MAX_PANELS_CONFIGURABLE + 1):
+        for i in range(1, MAX_PANELS + 1):
             redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'main_panel_id_{i}')
             redirect_params[f'selected_list_type_{i}'] = request.form.get(f'main_list_type_{i}')
         return redirect(url_for('index', **redirect_params))
@@ -264,7 +211,7 @@ def generate_gene_list():
     if not final_unique_gene_set:
         flash("No genes found for the selected criteria.", "info")
         redirect_params = {'search_term': search_term_from_post_form}
-        for i in range(1, MAX_PANELS_CONFIGURABLE + 1):
+        for i in range(1, MAX_PANELS + 1):
             redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'main_panel_id_{i}')
             redirect_params[f'selected_list_type_{i}'] = request.form.get(f'main_list_type_{i}')
         return redirect(url_for('index', **redirect_params))
@@ -282,17 +229,11 @@ def generate_gene_list():
         logger.error(f"Error generating Excel: {e}")
         flash(f"Error generating Excel file: {e}", "error")
         redirect_params = {'search_term': search_term_from_post_form}
-        for i in range(1, MAX_PANELS_CONFIGURABLE + 1):
+        for i in range(1, MAX_PANELS + 1):
             redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'main_panel_id_{i}')
             redirect_params[f'selected_list_type_{i}'] = request.form.get(f'main_list_type_{i}')
         return redirect(url_for('index', **redirect_params))
-
-    # Flashing success message before sending file can be tricky as it might not be displayed
-    # if the browser immediately starts a download.
-    # Consider a separate download page or JavaScript for better UX if this is an issue.
-    # For now, the browser will just download the file.
-    #flash(f"Successfully generated a list of {len(final_unique_gene_set)} unique genes.", "success")
-    
+   
     return send_file(
         excel_output,
         as_attachment=True,
@@ -303,4 +244,5 @@ def generate_gene_list():
 if __name__ == '__main__':
     # For development, using Flask's built-in server.
     # For production, use a WSGI server like Gunicorn.
-    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
+    #app.run(host="0.0.0.0", port=8080), debug=True)

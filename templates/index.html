@@ -1,43 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PanelApp Gene Filter - Flask</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .form-select-arrow {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 0.5rem center;
-            background-repeat: no-repeat;
-            background-size: 1.5em 1.5em;
-            padding-right: 2.5rem;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-        .form-input-custom:focus, .form-select-custom:focus {
-            outline: 2px solid transparent;
-            outline-offset: 2px;
-            border-color: #2563eb; 
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); 
-        }
-        .btn-clear {
-            @apply px-3 py-1 text-xs font-medium text-red-600 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500 transition ease-in-out duration-150;
-        }
-        .btn-clear-all {
-             @apply w-full sm:w-auto inline-flex justify-center items-center px-6 py-2 border border-orange-400 text-sm font-medium rounded-md shadow-sm text-orange-700 bg-orange-100 hover:bg-orange-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition duration-150 ease-in-out;
-        }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PanelApp Gene Filter - Flask</title>
 
-    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
+  <!-- Include the generated Tailwind CSS file -->
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  
+  <!-- Inter font -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
+</head>
+<body class="bg-red-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">
+
+    <div class="bg-red-100 p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
         <header class="mb-6 sm:mb-8 text-center">
             <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">🔬 PanelApp Gene Filter</h1>
             <p class="text-gray-600 mt-2">
-                Select up to {{ max_panels_configurable }} gene panels, filter by gene status, and download the combined list.
+                Select up to {{ max_panels }} gene panels, filter by gene status, and download the combined list.
             </p>
         </header>
 
@@ -58,40 +43,6 @@
             {% endif %}
         {% endwith %}
 
-        <form method="GET" action="{{ url_for('index') }}" id="filterPanelsForm" class="mb-8 p-5 border border-gray-200 rounded-lg shadow-sm bg-gray-50">
-            <h2 class="text-xl font-semibold text-sky-600 mb-3">Filter Panel List</h2>
-            <div class="flex flex-col sm:flex-row sm:items-end gap-3">
-                <div class="flex-grow">
-                    <label for="search_term_input" class="block text-sm font-medium text-gray-700 mb-1">
-                        Search term (in name, disease group/sub-group):
-                    </label>
-                    <input type="text" name="search_term" id="search_term_input" value="{{ search_term | default('') }}"
-                           placeholder="e.g., malformation, cardiac, neuro"
-                           class="form-input-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm">
-                </div>
-                <button type="submit"
-                        class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition duration-150 ease-in-out">
-                    Filter Panels
-                </button>
-                 {% if search_term or current_selections %}
-                 <a href="{{ url_for('index') }}" 
-                    class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition duration-150 ease-in-out"
-                    title="Clear search term and all panel configurations">
-                     Clear Search & All Selections
-                 </a>
-                 {% endif %}
-            </div>
-            {% for i in range(1, max_panels_configurable + 1) %}
-                <input type="hidden" name="selected_panel_id_{{ i }}" id="filter_hidden_panel_id_{{ i }}">
-                <input type="hidden" name="selected_list_type_{{ i }}" id="filter_hidden_list_type_{{ i }}">
-            {% endfor %}
-            <div class="mt-4">
-                 <button type="button" onclick="clearAllConfiguredPanelSelections()" class="btn-clear-all">
-                    Clear All Panel Selections (Keep Search Term)
-                </button>
-            </div>
-        </form>
-
         <div class="mb-6 p-4 border border-sky-200 rounded-lg bg-sky-50 text-sm text-sky-700">
             <h3 class="font-semibold mb-1">Note on Gene Ratings:</h3>
             <ul class="list-disc list-inside ml-2">
@@ -101,49 +52,51 @@
             </ul>
         </div>
 
-        <form method="POST" action="{{ url_for('generate_gene_list') }}" id="generateGeneListForm" class="space-y-8">
-            <input type="hidden" name="search_term_hidden" value="{{ search_term | default('') }}">
-            {% set list_type_options = ["Whole gene panel", "Green genes", "Green and Amber genes", "Amber genes", "Red genes"] %}
-            
-            {% for i in range(1, max_panels_configurable + 1) %}
+        <h2 class="text-xl font-semibold text-sky-600 mb-3">Filter Panel List</h2>
+        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div class="flex-grow">
+                <label for="panelSearch" class="block text-sm font-medium text-gray-700 mb-1">
+                    Search term (in name, disease group/sub-group, description):
+                </label>
+                <input type="text" name="panelSearch" id="search_term_input" value="{{ search_term | default('') }}"
+                       placeholder="e.g., malformation, cardiac, neuro"
+                       class="form-input-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm">
+            </div>
+            <div>
+                <button type="button" onclick="clearAll();" class="btn-clear-all">
+                    Clear All 🗑️
+                </button>
+            </div>
+        </div>
+
+        <form id="generateForm" method="POST" action="{{ url_for('generate') }}" class="space-y-8">
+
+            {% for i in range(1, max_panels+1) %}
             <div class="p-5 border border-gray-200 rounded-lg shadow-sm bg-gray-50">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-semibold text-sky-600">Panel {{ i }} Configuration</h2>
-                    <button type="button" onclick="clearIndividualPanelSelection({{ i }})" class="btn-clear">Clear Panel {{i}}</button>
+                    <button type="button" onclick="clearPanel({{ i }});" class="btn btn-clear">Clear Panel {{ i }}</button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="main_panel_id_{{ i }}" class="block text-sm font-medium text-gray-700 mb-1">Select Panel {{ i }}:</label>
-                        <select name="main_panel_id_{{ i }}" id="main_panel_id_{{ i }}" 
-                                onchange="updateHiddenFilterFieldsOnChange()"
+                        <label for="panel_id_{{i}}" class="block text-sm font-medium text-gray-700 mb-1">Select Panel {{i}}:</label>
+                        <select name="panel_id_{{i}}" id="panel_id_{{i}}" 
                                 class="form-select-arrow form-select-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm appearance-none">
-                            <option value="None">-- Not Selected --</option>
-                            {% if all_panels %}
-                                {% for panel in all_panels %}
-                                    <option value="{{ panel.id }}" 
-                                            {% if current_selections and current_selections['panel_id_' + i|string] == panel.id|string %}selected{% endif %}>
-                                        {{ panel.display_name }}
-                                    </option>
-                                {% endfor %}
-                            {% else %}
-                                <option value="" disabled>Panel list unavailable or filter yielded no results</option>
-                            {% endif %}
                         </select>
                     </div>
                     <div>
-                        <label for="main_list_type_{{ i }}" class="block text-sm font-medium text-gray-700 mb-1">Select List Type for Panel {{ i }}:</label>
-                        <select name="main_list_type_{{ i }}" id="main_list_type_{{ i }}" 
-                                onchange="updateHiddenFilterFieldsOnChange()"
+                        <label for="list_type_{{i}}" class="block text-sm font-medium text-gray-700 mb-1">Select List Type for Panel {{ i }}:</label>
+                        <select name="list_type_{{i}}" id="list_type_{{i}}" 
                                 class="form-select-arrow form-select-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm appearance-none">
                             {% for opt in list_type_options %}
-                                <option value="{{ opt }}"
+                                <option value="{{opt}}"
                                         {% if current_selections and current_selections['list_type_' + i|string] == opt %}selected{% endif %}>
                                     {{ opt }}
                                 </option>
                             {% endfor %}
                         </select>
                     </div>
-                </div>
+                </div>    
             </div>
             {% endfor %}
 
@@ -156,62 +109,122 @@
         </form>
     </div>
 
-    <footer class="mt-12 text-center text-sm text-gray-500">
-        <p>Built with Flask & Genomics England PanelApp API.</p>
-        <p class="mt-1">Remember to verify results against official sources.</p>
-    </footer>
+<footer class="mt-12 text-center text-sm text-gray-500">
+    <p>Built with Flask & Genomics England PanelApp API.</p>
+    <p class="mt-1">Remember to verify results against official sources.</p>
+</footer>
 
 <script>
-    const MAX_PANELS = {{ max_panels_configurable }}; 
+    let allPanels = [];
+    const maxPanels = {{ max_panels }};
+    const listTypeOptions = {{list_type_options | safe}};
 
-    function updateHiddenFilterFields() {
-        for (let i = 1; i <= MAX_PANELS; i++) {
-            const mainPanelIdSelect = document.getElementById(`main_panel_id_${i}`);
-            const mainListTypeSelect = document.getElementById(`main_list_type_${i}`);
-            
-            const hiddenPanelIdInput = document.getElementById(`filter_hidden_panel_id_${i}`);
-            const hiddenListTypeInput = document.getElementById(`filter_hidden_list_type_${i}`);
+    document.addEventListener("DOMContentLoaded", () => {
+        fetch("{{ url_for('api_panels') }}")
+        .then(r => r.json())
+        .then(data => {
+          allPanels = data;
+          populateAll();
+        });
 
-            if (mainPanelIdSelect && hiddenPanelIdInput) {
-                hiddenPanelIdInput.value = mainPanelIdSelect.value;
-            }
-            if (mainListTypeSelect && hiddenListTypeInput) {
-                hiddenListTypeInput.value = mainListTypeSelect.value;
-            }
-        }
-    }
-
-    function updateHiddenFilterFieldsOnChange() {
-        updateHiddenFilterFields();
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        updateHiddenFilterFields(); 
+      document.getElementById("search_term_input")
+        .addEventListener("input", debounce(populateAll, 300));
     });
 
-    function clearIndividualPanelSelection(i) {
-        // 1) Clear the visible selects
-        const panelSelect = document.getElementById(`main_panel_id_${i}`);
-        const listTypeSelect = document.getElementById(`main_list_type_${i}`);
-        if (panelSelect)    panelSelect.value = "None";
-        if (listTypeSelect) listTypeSelect.selectedIndex = 0;
+  // list all the string fields you want to search
+  const fieldsToSearch = [
+    'display_name',
+    'description',
+    'disease_group',
+    'disease_sub_group',
+  ];
 
-        // 2) Now sync the hidden inputs so the GET form really “forgets” this panel
-        updateHiddenFilterFields();
+  function matches(panel, term) {
+    const txt = term.toLowerCase();
+    return fieldsToSearch.some(key => {
+      const val = panel[key];
+      if (!val) return false;
+      // if it’s an array, check each element:
+      if (Array.isArray(val)) {
+        return val.some(item => item.toLowerCase().includes(txt));
+      }
+      // otherwise treat it as a string
+      return String(val).toLowerCase().includes(txt);
+    });
+  }
+
+    function populateAll() {
+      const term = document.getElementById("search_term_input")
+                         .value.trim().toLowerCase();
+
+      const filtered = allPanels.filter(p => matches(p, term));
+
+      for (let i = 1; i <= maxPanels; i++) {
+        const select = document.getElementById(`panel_id_${i}`);
+        const current = select.value || "None";
+        updateSelectOptions(select, filtered, current);
+      }
     }
 
-    function clearAllConfiguredPanelSelections() {
-        const currentUrlParams = new URLSearchParams(window.location.search);
-        const newUrlParams = new URLSearchParams();
+    function updateSelectOptions(select, list, current) {
+      // start with a "None" option
+      const options = [{ id: "None", display_name: "None" }];
+      const seen = new Set(["None"]);
 
-        // Preserve search_term if it exists and is not empty
-        const searchTerm = currentUrlParams.get('search_term');
-        if (searchTerm && searchTerm.trim() !== '') {
-            newUrlParams.append('search_term', searchTerm);
-        }
-        // All panel selections are intentionally omitted from newUrlParams
+      // add all filtered
+      list.forEach(p => {
+        options.push(p);
+        seen.add(String(p.id));
+      });
+
+      // if current selection was cleared but isn't in filtered, re-include it
+      if (current && current !== "None" && !seen.has(current)) {
+        const extra = allPanels.find(p => String(p.id) === current);
+        if (extra) options.push(extra), seen.add(current);
+      }
+
+      // sort (“None” stays first)
+      options.sort((a, b) => {
+        if (a.id === "None") return -1;
+        if (b.id === "None") return 1;
+        return a.display_name.localeCompare(b.display_name);
+      });
+
+      // rebuild DOM
+      select.innerHTML = "";
+      options.forEach(opt => {
+        const o = document.createElement("option");
+        o.value = opt.id;
+        o.textContent = opt.display_name;
+        if (String(opt.id) === String(current)) o.selected = true;
+        select.append(o);
+      });
+    }
+
+    function clearPanel(i) {
+      const sel = document.getElementById(`panel_id_${i}`);
+      const sel2 = document.getElementById(`list_type_${i}`);
+      sel.value = "None";
+      sel2.value = listTypeOptions[0];
+    }    function debounce(fn, delay) {
+      let t;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), delay);
+      };
+    }
+
+    function clearAll() {
+        // Clear search input
+        document.getElementById('search_term_input').value = '';
         
-        window.location.href = window.location.pathname + '?' + newUrlParams.toString();
+        // Clear all panel selections
+        for (let i = 1; i <= maxPanels; i++) {
+            clearPanel(i);
+        }
+        
+        // Refresh the panel list without any filters
+        populateAll();
     }
 </script>
 
