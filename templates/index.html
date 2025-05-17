@@ -22,7 +22,7 @@
         <header class="mb-6 sm:mb-8 text-center">
             <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">🔬 PanelApp Gene Filter</h1>
             <p class="text-gray-600 mt-2">
-                Select up to {{ max_panels }} gene panels, filter by gene status, and download the combined list.
+                Select up to {{ max_panels }} gene panels, filter by gene rating, and download the combined list.
             </p>
         </header>
 
@@ -53,10 +53,17 @@
         </div>
 
         <h2 class="text-xl font-semibold text-sky-600 mb-3">Filter Panel List</h2>
-        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
             <div class="flex-grow">
+                <p class="text-sm text-gray-500 mb-1">
+                  Search for specific panels by name, disease group/sub-group, or description.
+                  Start typing in the search field and the drop-down lists of the panels are updated.
+                  Selections that you've already made are not removed from the list.
+                  If you want to see all available panels, just clear the search term.
+                  You can also clear all selections and the search term using the button below.
+                </p>
                 <label for="panelSearch" class="block text-sm font-medium text-gray-700 mb-1">
-                    Search term (in name, disease group/sub-group, description):
+                    Search term:
                 </label>
                 <input type="text" name="panelSearch" id="search_term_input" value="{{ search_term | default('') }}"
                        placeholder="e.g., malformation, cardiac, neuro"

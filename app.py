@@ -174,8 +174,8 @@ def generate():
     search_term_from_post_form = request.form.get('search_term_hidden', '') # Get search term if passed from main form
 
     for i in range(1, MAX_PANELS + 1):
-        panel_id_str = request.form.get(f'main_panel_id_{i}') # Names from the main form
-        list_type = request.form.get(f'main_list_type_{i}')
+        panel_id_str = request.form.get(f'panel_id_{i}') # Names from the main form
+        list_type = request.form.get(f'list_type_{i}')
 
         if panel_id_str and panel_id_str != "None" and list_type: # "None" is value for empty selection
             try:
@@ -195,8 +195,8 @@ def generate():
         # This requires GET parameters, so we build them.
         redirect_params = {'search_term': search_term_from_post_form}
         for i in range(1, MAX_PANELS + 1):
-            redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'main_panel_id_{i}')
-            redirect_params[f'selected_list_type_{i}'] = request.form.get(f'main_list_type_{i}')
+            redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'panel_id_{i}')
+            redirect_params[f'selected_list_type_{i}'] = request.form.get(f'list_type_{i}')
         return redirect(url_for('index', **redirect_params))
 
     logger.info(f"Processing {len(selected_panel_configs_for_generation)} panel configurations for gene list.")
@@ -212,8 +212,8 @@ def generate():
         flash("No genes found for the selected criteria.", "info")
         redirect_params = {'search_term': search_term_from_post_form}
         for i in range(1, MAX_PANELS + 1):
-            redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'main_panel_id_{i}')
-            redirect_params[f'selected_list_type_{i}'] = request.form.get(f'main_list_type_{i}')
+            redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'panel_id_{i}')
+            redirect_params[f'selected_list_type_{i}'] = request.form.get(f'list_type_{i}')
         return redirect(url_for('index', **redirect_params))
 
     logger.info(f"Total unique genes for Excel: {len(final_unique_gene_set)}")
@@ -230,8 +230,8 @@ def generate():
         flash(f"Error generating Excel file: {e}", "error")
         redirect_params = {'search_term': search_term_from_post_form}
         for i in range(1, MAX_PANELS + 1):
-            redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'main_panel_id_{i}')
-            redirect_params[f'selected_list_type_{i}'] = request.form.get(f'main_list_type_{i}')
+            redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'panel_id_{i}')
+            redirect_params[f'selected_list_type_{i}'] = request.form.get(f'list_type_{i}')
         return redirect(url_for('index', **redirect_params))
    
     return send_file(
@@ -246,3 +246,4 @@ if __name__ == '__main__':
     # For production, use a WSGI server like Gunicorn.
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
     #app.run(host="0.0.0.0", port=8080), debug=True)
+s
