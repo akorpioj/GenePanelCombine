@@ -114,7 +114,10 @@
                 </button>
             </div>
         </form>
-    </div>
+        <form method="POST" action="{{ url_for('clear_cache') }}" class="mb-4 text-right">
+            <button type="submit" class="btn-clear-all">Clear Cache 🧹</button>
+        </form>
+      </div>
 
 <footer class="mt-12 text-center text-sm text-gray-500">
     <p>Built with Flask & Genomics England PanelApp API.</p>

@@ -5,10 +5,13 @@ import pandas as pd
 import io
 import logging
 import openpyxl
+import pytz
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "dev")
-#app.secret_key = 'your_very_secret_key'  # Important for flash messages
+# In production, set the secret key via environment variable only
+app.secret_key = os.getenv("SECRET_KEY")
+# app.secret_key = 'your_very_secret_key'  # DO NOT use hardcoded secrets in production
 
 # --- Configuration & Constants ---
 BASE_API_URL = "https://panelapp.genomicsengland.co.uk/api/v1/"
@@ -38,6 +41,26 @@ MAX_PANELS = 3 # Define how many panel selection groups are on the form
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# --- Cache clear control ---
+last_cache_clear_time = None
+CACHE_CLEAR_INTERVAL = timedelta(hours=2)
+
+@app.route('/clear_cache', methods=['POST'])
+def clear_cache():
+    global last_cache_clear_time
+    helsinki = pytz.timezone('Europe/Helsinki')
+    now = datetime.now(helsinki)
+    if last_cache_clear_time is not None and (now - last_cache_clear_time) < CACHE_CLEAR_INTERVAL:
+        wait_time = CACHE_CLEAR_INTERVAL - (now - last_cache_clear_time)
+        flash(f"Cache can only be cleared every 2 hours. Please wait {wait_time} longer.", "warning")
+    else:
+        get_all_panels_from_api.cache = None
+        get_all_panels_from_api.cache_time = None
+        get_all_panels_from_api.next_refresh = None
+        last_cache_clear_time = now
+        flash("Panel cache cleared!", "success")
+    return redirect(url_for('index'))
+
 # --- Helper Functions ((largely unchanged, minor logging adjustments) ---
 
 def get_all_panels_from_api():
@@ -45,11 +68,19 @@ def get_all_panels_from_api():
     Fetches all available panels from the PanelApp API, handling pagination.
     Returns a list of panel dictionaries, sorted by name.
     Caches results in a simple way for the duration of the app run (for a more robust cache, use Flask-Caching).
+    The cache is refreshed every day at 7:00 Helsinki time.
     """
-    if hasattr(get_all_panels_from_api, "cache") and get_all_panels_from_api.cache:
+    helsinki = pytz.timezone('Europe/Helsinki')
+    now = datetime.now(helsinki)
+    # Check if cache exists and is still valid
+    cache = getattr(get_all_panels_from_api, "cache", None)
+    cache_time = getattr(get_all_panels_from_api, "cache_time", None)
+    next_refresh = getattr(get_all_panels_from_api, "next_refresh", None)
+    if cache is not None and next_refresh is not None and now < next_refresh:
         logger.info("Returning cached panel list.")
-        return get_all_panels_from_api.cache
+        return cache
 
+    # Fetch from API
     panels = []
     url = f"{BASE_API_URL}panels/"
     page_count = 0
@@ -78,23 +109,35 @@ def get_all_panels_from_api():
             # Do not flash here, let the route handle UI messages based on context
             #flash(f"Error fetching panels from API: {e}", "error")
             get_all_panels_from_api.cache = [] # Cache empty list on error to prevent re-fetch attempts
+            get_all_panels_from_api.cache_time = now
+            get_all_panels_from_api.next_refresh = now + timedelta(hours=1)
             return [] # Return empty on error
         except ValueError as e:
             logger.error(f"API Error (get_all_panels - JSON parsing): {e}")
             #flash(f"Error parsing panel data from API: {e}", "error")
             get_all_panels_from_api.cache = []
+            get_all_panels_from_api.cache_time = now
+            get_all_panels_from_api.next_refresh = now + timedelta(hours=1)
             return []
 
     if page_count == max_pages and url:
         logger.warning("Reached maximum page limit while fetching panels. List might be incomplete.")
         #flash("Panel list might be incomplete due to API pagination limits.", "warning")
 
-    # Store in simple in-memory cache
+    # Store in cache and set next refresh to next 7:00 Helsinki time
+    # Calculate next 7:00
+    next_7 = now.replace(hour=7, minute=0, second=0, microsecond=0)
+    if now >= next_7:
+        next_7 = next_7 + timedelta(days=1)
     get_all_panels_from_api.cache = panels
-    logger.info(f"Fetched and cached {len(panels)} panels.")
+    get_all_panels_from_api.cache_time = now
+    get_all_panels_from_api.next_refresh = next_7
+    logger.info(f"Fetched and cached {len(panels)} panels. Next refresh at {next_7}.")
     return panels
 
-get_all_panels_from_api.cache = None # Initialize cache attribute
+get_all_panels_from_api.cache = None
+get_all_panels_from_api.cache_time = None
+get_all_panels_from_api.next_refresh = None
 
 def get_panel_genes_data_from_api(panel_id):
     """
@@ -351,7 +394,6 @@ def generate():
     )
 
 if __name__ == '__main__':
-    # For development, using Flask's built-in server.
-    # For production, use a WSGI server like Gunicorn.
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
-    #app.run(host="0.0.0.0", port=8080), debug=True)
+    # For development only. In production, use a WSGI server like Gunicorn or uWSGI.
+    # app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
+    pass  # Production deployments should use a WSGI entrypoint, not __main__
