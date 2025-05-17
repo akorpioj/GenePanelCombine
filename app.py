@@ -169,6 +169,8 @@ def generate():
     """
     final_unique_gene_set = set()
     selected_panel_configs_for_generation = []
+    panel_full_gene_data = []  # Store full gene data for each panel
+    panel_names = []           # Store panel names for sheet naming
 
     # Values from the POST form for generating the list
     search_term_from_post_form = request.form.get('search_term_hidden', '') # Get search term if passed from main form
@@ -201,11 +203,26 @@ def generate():
 
     logger.info(f"Processing {len(selected_panel_configs_for_generation)} panel configurations for gene list.")
 
-    for config in selected_panel_configs_for_generation:
+    for idx, config in enumerate(selected_panel_configs_for_generation, 1):
         raw_genes_for_panel = get_panel_genes_data_from_api(config["id"])
+        # Save full panel gene data for Excel
+        panel_full_gene_data.append(raw_genes_for_panel)
+        # Try to get a panel name for the sheet
+        panel_name = f"Panel {idx}"
+        try:
+            # Try to get the panel name from the API data
+            all_panels = get_all_panels_from_api()
+            match = next((p for p in all_panels if p["id"] == config["id"]), None)
+            if match:
+                panel_name = match["name"]
+        except Exception:
+            pass
+        panel_names.append(panel_name)
+        # Filtered genes for combined list
         if raw_genes_for_panel:
             filtered_genes = filter_genes_from_panel_data(raw_genes_for_panel, config["list_type"])
-            for gene_symbol in filtered_genes: final_unique_gene_set.add(gene_symbol)
+            for gene_symbol in filtered_genes:
+                final_unique_gene_set.add(gene_symbol)
             logger.info(f"Panel ID {config['id']}: Added {len(filtered_genes)} genes.")
 
     if not final_unique_gene_set:
@@ -219,11 +236,41 @@ def generate():
     logger.info(f"Total unique genes for Excel: {len(final_unique_gene_set)}")
     
     # Create DataFrame and Excel file
-    df = pd.DataFrame(sorted(list(final_unique_gene_set)), columns=['GeneSymbol'])
     excel_output = io.BytesIO()
     try:
         with pd.ExcelWriter(excel_output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='FilteredGeneList')
+            # Write each panel's full gene list to its own sheet
+            for idx, (panel_genes, panel_name) in enumerate(zip(panel_full_gene_data, panel_names), 1):
+                if panel_genes:
+                    # Only keep specified fields
+                    keep_fields = [
+                        'entity_type', 'entity_name', 'confidence_level', 'publications', 'evidence', 'phenotype', 'mode_of_inheritance'
+                    ]
+                    # Clean up values: if value is a list like ["foo"], convert to foo
+                    def clean_value(val):
+                        if isinstance(val, list) and len(val) == 1:
+                            return val[0]
+                        if isinstance(val, list):
+                            return ', '.join(str(v) for v in val)
+                        if isinstance(val, str) and val.startswith("['") and val.endswith("']"):
+                            return val[2:-2]
+                        return val
+                    cleaned = []
+                    for gene in panel_genes:
+                        row = {k: clean_value(gene.get(k, '')) for k in keep_fields}
+                        cleaned.append(row)
+                    df_panel = pd.DataFrame(cleaned)
+                    # Use a safe sheet name (Excel max 31 chars, no special chars)
+                    safe_name = f"Panel {idx}"
+                    if panel_name:
+                        safe_name = panel_name[:27]  # leave room for idx
+                    safe_name = f"{safe_name} ({idx})" if safe_name else f"Panel {idx}"
+                    for ch in ['\\', '/', '*', '?', ':', '[', ']']:
+                        safe_name = safe_name.replace(ch, '')
+                    df_panel.to_excel(writer, index=False, sheet_name=safe_name)
+            # Write the combined filtered gene list
+            df_combined = pd.DataFrame(sorted(list(final_unique_gene_set)), columns=['GeneSymbol'])
+            df_combined.to_excel(writer, index=False, sheet_name='Combined list')
         excel_output.seek(0) # Reset stream position
     except Exception as e:
         logger.error(f"Error generating Excel: {e}")
@@ -246,4 +293,3 @@ if __name__ == '__main__':
     # For production, use a WSGI server like Gunicorn.
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
     #app.run(host="0.0.0.0", port=8080), debug=True)
-s
