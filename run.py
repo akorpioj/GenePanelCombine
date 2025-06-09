@@ -1,10 +1,5 @@
 import os
-from app import create_app # Import the factory function
-import db_init # Import the database initialization script
-# db_init.py is imported to ensure the database is initialized before the app runs 
-# and to avoid circular imports. It will run when this script is executed.
-# db_init.py handles the database setup and user creation logic.
-
+from app import create_app # Import the factory fun
 # run.py - Entry point for the Flask application
 
 # Create the application instance with the appropriate configuration

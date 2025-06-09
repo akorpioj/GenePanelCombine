@@ -1,13 +1,9 @@
-#from flask_sqlalchemy import SQLAlchemy
-# from flask_migrate import Migrate
 from flask_login import LoginManager
-# from flask_mail import Mail # Example for another common extension
-from .models import User # Import User model to avoid circular imports
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask import redirect, url_for, flash
+from sqlalchemy import SQLAlchemy
 
-#db = SQLAlchemy()
+db = SQLAlchemy()
 #migrate = Migrate()
 
 login_manager = LoginManager()

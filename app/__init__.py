@@ -1,9 +1,9 @@
 from flask import Flask, render_template # Added render_template for error handlers
 from .config_settings import DevelopmentConfig, ProductionConfig, TestingConfig # Your config classes
-from .models import db
-from .extensions import login_manager, limiter # Your uninitialized extensions
+from .extensions import db, login_manager, limiter # Your uninitialized extensions
 import os
 from flask import redirect, url_for, flash
+from .models import db_init
 
 # Configuration mapping
 config_by_name = {
@@ -41,7 +41,7 @@ def create_app(config_name=None):
         pass # Folder already exists
 
     # Initialize Flask extensions with the app instance
-    db.init_app(app)
+    db_init(app, db) # Initialize the database and create an admin user if needed
     # migrate.init_app(app, db) # Flask-Migrate needs both app and db
     login_manager.init_app(app)
     #mail.init_app(app) # Initialize other extensions
