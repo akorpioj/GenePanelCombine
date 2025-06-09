@@ -3,6 +3,8 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Admin Dashboard</h2>
+    
+    <!-- Cache Information -->
     <div class="card mt-4">
         <div class="card-header">
             <h4>Cache Information</h4>
@@ -16,6 +18,93 @@
             </form>
         </div>
     </div>
+
+    <!-- Visit Statistics -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h4>Visit Statistics</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5>Today's Visits</h5>
+                            <h2 class="text-primary">{{ stats.visits_today }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5>Last 7 Days</h5>
+                            <h2 class="text-primary">{{ stats.visits_last_week }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5>Unique Visitors</h5>
+                            <h2 class="text-primary">{{ stats.unique_visitors }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Statistics -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h4>Download Statistics</h4>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5>Today's Downloads</h5>
+                            <h2 class="text-success">{{ stats.downloads_today }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5>Last 7 Days Downloads</h5>
+                            <h2 class="text-success">{{ stats.downloads_last_week }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h5>Recent Downloads</h5>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Panel IDs</th>
+                            <th>List Types</th>
+                            <th>Gene Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for download in stats.recent_downloads %}
+                        <tr>
+                            <td>{{ download.download_date.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>{{ download.panel_ids }}</td>
+                            <td>{{ download.list_types }}</td>
+                            <td>{{ download.gene_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <div class="mt-3">
         <a href="{{ url_for('admin.logout') }}" class="btn btn-danger">Logout</a>
     </div>

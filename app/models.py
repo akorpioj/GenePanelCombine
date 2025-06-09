@@ -19,6 +19,21 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+class Visit(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(45), nullable=False)  # IPv6 can be up to 45 chars
+    visit_date = db.Column(db.DateTime, nullable=False)
+    path = db.Column(db.String(255), nullable=False)
+    user_agent = db.Column(db.String(255))
+
+class PanelDownload(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(45), nullable=False)
+    download_date = db.Column(db.DateTime, nullable=False)
+    panel_ids = db.Column(db.String(255), nullable=False)  # Comma-separated list of panel IDs
+    list_types = db.Column(db.String(255), nullable=False)  # Comma-separated list of list types
+    gene_count = db.Column(db.Integer)  # Number of genes in the downloaded list
+
 def db_init(app):
     """
     Initializes a connection pool for a Cloud SQL instance of Postgres
@@ -76,4 +91,3 @@ def db_init(app):
                 print("Database already initialized and admin user exists.")
         except Exception as e:
             print(f"Error initializing database: {e}")            
-            raise

@@ -3,7 +3,7 @@ from .config_settings import DevelopmentConfig, ProductionConfig, TestingConfig 
 from .extensions import login_manager, limiter # Your uninitialized extensions
 import os
 from flask import redirect, url_for, flash
-from .models import db_init
+from .models import db_init, db
 
 # Configuration mapping
 config_by_name = {
@@ -22,7 +22,40 @@ def create_app(config_name=None):
     """
     app = Flask(__name__, instance_relative_config=True)
 
-    # Determine which configuration to load
+    # Add visit logging middleware
+    @app.before_request
+    def log_visit():
+        from datetime import datetime
+        from .models import Visit, db
+        from flask import request
+                
+        # Skip static files and some endpoints
+        if request.endpoint and (
+            'static' in request.endpoint or 
+            request.endpoint == 'admin.dashboard' or  # Skip admin dashboard
+            request.endpoint == 'main.api_panels'  # Skip API endpoints
+        ):
+            return
+
+        # Get the real IP address, considering proxy headers
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ip and ',' in ip:  # Get the first IP if multiple are present
+            ip = ip.split(',')[0].strip()
+            
+        visit = Visit(
+            ip_address=ip,
+            visit_date=datetime.utcnow(),
+            path=request.path,
+            user_agent=request.user_agent.string if request.user_agent else None
+        )
+        
+        try:
+            db.session.add(visit)
+            db.session.commit()
+        except:
+            db.session.rollback()  # Don't let logging errors affect the request
+
+    # Continue with existing configuration
     if config_name is None:
         config_name = os.getenv('FLASK_CONFIG', 'default')    
     selected_config = config_by_name.get(config_name, DevelopmentConfig)

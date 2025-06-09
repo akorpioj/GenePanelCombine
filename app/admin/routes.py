@@ -35,9 +35,43 @@ def logout():
 @login_required
 @limiter.limit("60 per hour")
 def dashboard():
+    from ..models import Visit, PanelDownload
+    from datetime import datetime, timedelta
+    from sqlalchemy import func, desc
+
+    # Get cache info
     cache_info = {
         'last_refresh': getattr(get_all_panels_from_api, 'cache_time', None),
         'next_refresh': getattr(get_all_panels_from_api, 'next_refresh', None),
         'panel_count': len(getattr(get_all_panels_from_api, 'cache', [])) if getattr(get_all_panels_from_api, 'cache', None) else 0
     }
-    return render_template('admin.html', cache_info=cache_info)
+
+    # Get visit statistics
+    today = datetime.utcnow().date()
+    last_week = today - timedelta(days=7)
+    
+    visits_today = Visit.query.filter(func.date(Visit.visit_date) == today).count()
+    visits_last_week = Visit.query.filter(Visit.visit_date >= last_week).count()
+    unique_visitors = Visit.query.with_entities(Visit.ip_address).distinct().count()
+
+    # Get download statistics
+    downloads_today = PanelDownload.query.filter(func.date(PanelDownload.download_date) == today).count()
+    downloads_last_week = PanelDownload.query.filter(PanelDownload.download_date >= last_week).count()
+    
+    # Get most downloaded panels
+    recent_downloads = PanelDownload.query\
+        .filter(PanelDownload.download_date >= last_week)\
+        .order_by(desc(PanelDownload.download_date))\
+        .limit(10)\
+        .all()
+
+    stats = {
+        'visits_today': visits_today,
+        'visits_last_week': visits_last_week,
+        'unique_visitors': unique_visitors,
+        'downloads_today': downloads_today,
+        'downloads_last_week': downloads_last_week,
+        'recent_downloads': recent_downloads
+    }
+
+    return render_template('admin.html', cache_info=cache_info, stats=stats)
