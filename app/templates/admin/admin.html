@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Admin Dashboard</h2>
+    <div class="card mt-4">
+        <div class="card-header">
+            <h4>Cache Information</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Last Cache Refresh:</strong> {{ cache_info.last_refresh|default('Never', true) }}</p>
+            <p><strong>Next Scheduled Refresh:</strong> {{ cache_info.next_refresh|default('Not scheduled', true) }}</p>
+            <p><strong>Cached Panels:</strong> {{ cache_info.panel_count }}</p>
+            <form action="{{ url_for('main.clear_cache') }}" method="POST" class="mt-3">
+                <button type="submit" class="btn btn-warning">Clear Cache</button>
+            </form>
+        </div>
+    </div>
+    <div class="mt-3">
+        <a href="{{ url_for('admin.logout') }}" class="btn btn-danger">Logout</a>
+    </div>
+</div>
+{% endblock %}

@@ -76,7 +76,7 @@
             </div>
         </div>
 
-        <form id="generateForm" method="POST" action="{{ url_for('generate') }}" class="space-y-8">
+        <form id="generateForm" method="POST" action="{{ url_for('main.generate') }}" class="space-y-8">
 
             {% for i in range(1, max_panels+1) %}
             <div class="p-5 border border-gray-200 rounded-lg shadow-sm bg-gray-50">
@@ -114,7 +114,7 @@
                 </button>
             </div>
         </form>
-        <form method="POST" action="{{ url_for('clear_cache') }}" class="mb-4 text-right">
+        <form method="POST" action="{{ url_for('main.clear_cache') }}" class="mb-4 text-right">
             <button type="submit" class="btn-clear-all">Clear Cache 🧹</button>
         </form>
       </div>
@@ -130,7 +130,7 @@
     const listTypeOptions = {{list_type_options | safe}};
 
     document.addEventListener("DOMContentLoaded", () => {
-        fetch("{{ url_for('api_panels') }}")
+        fetch("{{ url_for('main.api_panels') }}")
         .then(r => r.json())
         .then(data => {
           allPanels = data;

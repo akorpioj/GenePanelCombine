@@ -1,5 +1,4 @@
-from flask import Flask, render_template, request, send_file, flash, jsonify, redirect, url_for
-import os
+from flask import render_template, request, send_file, flash, jsonify, redirect, url_for
 import requests
 import pandas as pd
 import io
@@ -7,11 +6,9 @@ import logging
 import openpyxl
 import pytz
 from datetime import datetime, timedelta
-
-app = Flask(__name__)
-# In production, set the secret key via environment variable only
-app.secret_key = os.getenv("SECRET_KEY")
-# app.secret_key = 'your_very_secret_key'  # DO NOT use hardcoded secrets in production
+from app.config_settings import Config
+from app.extensions import limiter 
+from . import main_bp # Import the Blueprint object defined in __init__.py
 
 # --- Configuration & Constants ---
 BASE_API_URL = "https://panelapp.genomicsengland.co.uk/api/v1/"
@@ -45,7 +42,8 @@ logger = logging.getLogger(__name__)
 last_cache_clear_time = None
 CACHE_CLEAR_INTERVAL = timedelta(hours=2)
 
-@app.route('/clear_cache', methods=['POST'])
+@main_bp.route('/clear_cache', methods=['POST'])
+@limiter.limit("2 per hour")  # Limit cache clearing
 def clear_cache():
     global last_cache_clear_time
     helsinki = pytz.timezone('Europe/Helsinki')
@@ -59,7 +57,7 @@ def clear_cache():
         get_all_panels_from_api.next_refresh = None
         last_cache_clear_time = now
         flash("Panel cache cleared!", "success")
-    return redirect(url_for('index'))
+    return redirect(url_for('main.index'))
 
 # --- Helper Functions ((largely unchanged, minor logging adjustments) ---
 
@@ -181,7 +179,8 @@ def filter_genes_from_panel_data(panel_genes_data, list_type_selection):
 
 # --- Flask Routes ---
 
-@app.route('/')
+@main_bp.route('/')
+@limiter.limit("30 per minute")
 def index():
     logger.info("index")
     # No more server-side filtering
@@ -189,7 +188,8 @@ def index():
                            max_panels=MAX_PANELS,
                            list_type_options=list_type_options)
 
-@app.route("/api/panels")
+@main_bp.route("/api/panels")
+@limiter.limit("10 per minute")
 def api_panels():
     logger.info("api_panels")
     # (re)fetch or cache your master list here
@@ -204,7 +204,8 @@ def api_panels():
     processed.sort(key=lambda x: x["display_name"])
     return jsonify(processed)
 
-@app.route('/generate', methods=['POST'])
+@main_bp.route('/generate', methods=['POST'])
+@limiter.limit("30 per hour")  # More strict limit for resource-intensive operation
 def generate():
     """
     Handles form submission, processes selected panels, filters genes,
@@ -242,7 +243,7 @@ def generate():
         for i in range(1, MAX_PANELS + 1):
             redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'panel_id_{i}')
             redirect_params[f'selected_list_type_{i}'] = request.form.get(f'list_type_{i}')
-        return redirect(url_for('index', **redirect_params))
+        return redirect(url_for('main.index', **redirect_params))
 
     logger.info(f"Processing {len(selected_panel_configs_for_generation)} panel configurations for gene list.")
 
@@ -274,7 +275,7 @@ def generate():
         for i in range(1, MAX_PANELS + 1):
             redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'panel_id_{i}')
             redirect_params[f'selected_list_type_{i}'] = request.form.get(f'list_type_{i}')
-        return redirect(url_for('index', **redirect_params))
+        return redirect(url_for('main.index', **redirect_params))
 
     logger.info(f"Total unique genes for Excel: {len(final_unique_gene_set)}")
     
@@ -384,7 +385,7 @@ def generate():
         for i in range(1, MAX_PANELS + 1):
             redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'panel_id_{i}')
             redirect_params[f'selected_list_type_{i}'] = request.form.get(f'list_type_{i}')
-        return redirect(url_for('index', **redirect_params))
+        return redirect(url_for('main.index', **redirect_params))
    
     return send_file(
         excel_output,
@@ -392,8 +393,3 @@ def generate():
         download_name='filtered_gene_list.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-
-if __name__ == '__main__':
-    # For development only. In production, use a WSGI server like Gunicorn or uWSGI.
-    # app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
-    pass  # Production deployments should use a WSGI entrypoint, not __main__

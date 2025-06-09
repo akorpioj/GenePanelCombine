@@ -1,6 +1,7 @@
 export default {
   plugins: {
     '@tailwindcss/postcss': {},
+    'autoprefixer': {},
   },
 };
 // This configuration file is for PostCSS, which is a tool for transforming CSS with JavaScript plugins.
