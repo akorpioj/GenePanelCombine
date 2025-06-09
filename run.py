@@ -8,7 +8,6 @@ app = create_app(config_name)
     
 if __name__ == '__main__':
     # Get port from environment variable or default to 8080
-    #port = int(os.environ.get('PORT', 8080))
+    port = int(os.environ.get('PORT', 8080))
     # In development, run with debug. In production, Gunicorn will be used
-    #app.run(port=port)
-    pass
+    app.run(port=port)

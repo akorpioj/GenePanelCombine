@@ -11,10 +11,10 @@ db = SQLAlchemy()  # Add this line to define db
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)  # Increased length for scrypt hash
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password) #, method='pbkdf2:sha256')
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -27,20 +27,24 @@ def db_init(app):
     """# These variables are set in the Cloud Run environment.
     db_pass = os.getenv("DB_PASS")                  # e.g. 'my-db-password'
 
-    # --- Cloud SQL Python Connector Initialization ---
+    # --- Cloud SQL Python Connector Initialization ---   
     if app.config["CLOUD_SQL_CONNECTION_NAME"]:
-        connector = Connector()
+        try:
+            connector = Connector()
 
-        def getconn() -> sqlalchemy.engine.base.Connection:
-            conn = connector.connect(
-                app.config["CLOUD_SQL_CONNECTION_NAME"],
-                "pg8000",
-                user=app.config["DB_USER"],
-                password=app.config["DB_PASS"],
-                db=app.config["DB_NAME"],
-                ip_type=IPTypes.PRIVATE # Use IPTypes.PUBLIC for public IP
-            )
-            return conn
+            def getconn() -> sqlalchemy.engine.base.Connection:
+                conn = connector.connect(
+                    app.config["CLOUD_SQL_CONNECTION_NAME"],
+                    "pg8000",
+                    user=app.config["DB_USER"],
+                    password=app.config["DB_PASS"],
+                    db=app.config["DB_NAME"],
+                    ip_type=IPTypes.PRIVATE if os.getenv('CLOUD_RUN') else IPTypes.PUBLIC
+                )
+                return conn
+        except Exception as e:
+            app.logger.error(f"Failed to initialize Cloud SQL connector: {e}")
+            raise
 
         app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql+pg8000://"
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {

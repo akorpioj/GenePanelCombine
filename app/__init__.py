@@ -24,14 +24,18 @@ def create_app(config_name=None):
 
     # Determine which configuration to load
     if config_name is None:
-        config_name = os.getenv('FLASK_CONFIG', 'default')
-
+        config_name = os.getenv('FLASK_CONFIG', 'default')    
     selected_config = config_by_name.get(config_name, DevelopmentConfig)
     app.config.from_object(selected_config) # Load the selected config object
 
     # Load configuration from instance/config.py, if it exists (overrides above)
     # silent=True means it won't fail if the file doesn't exist.
     app.config.from_pyfile('config.py', silent=True)
+
+    # Debug output for configuration
+    app.logger.info(f"DB_USER: {app.config.get('DB_USER')}")
+    app.logger.info(f"DB_NAME: {app.config.get('DB_NAME')}")
+    app.logger.info(f"CLOUD_SQL_CONNECTION_NAME: {app.config.get('CLOUD_SQL_CONNECTION_NAME')}")
 
     # Ensure the instance folder exists (Flask creates it on first access if needed,
     # but explicit creation can be useful if other parts of your app expect it).
