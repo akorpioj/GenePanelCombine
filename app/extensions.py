@@ -1,9 +1,8 @@
 from flask_login import LoginManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from sqlalchemy import SQLAlchemy
 
-db = SQLAlchemy()
+#db = SQLAlchemy()
 #migrate = Migrate()
 
 login_manager = LoginManager()

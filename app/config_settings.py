@@ -14,7 +14,7 @@ class Config:
     DB_PASS = os.getenv("DB_PASS")
     DB_NAME = os.getenv("DB_NAME")
     DB_HOST = os.getenv("DB_HOST")
-    CLOUD_SQL_CONNECTION_NAME = os.getenv("CLOUD_SQL_CONNECTION_NAME")    
+    CLOUD_SQL_CONNECTION_NAME = os.getenv("CLOUD_SQL_CONNECTION_NAME") # e.g. 'project:region:instance'
 
 # Add other application-wide configurations here
 class DevelopmentConfig(Config):
