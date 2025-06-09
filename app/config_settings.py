@@ -14,7 +14,6 @@ class Config:
     DB_PASS = os.getenv("DB_PASS")
     DB_NAME = os.getenv("DB_NAME")
     DB_HOST = os.getenv("DB_HOST")
-    CLOUD_SQL_CONNECTION_NAME = os.getenv("CLOUD_SQL_CONNECTION_NAME") # e.g. 'project:region:instance'
 
 # Add other application-wide configurations here
 class DevelopmentConfig(Config):
@@ -33,11 +32,7 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
-    # In production, SECRET_KEY and DATABASE_URL MUST be set via environment variables or instance/config.py
-    # Add any production-specific settings here, e.g., enabling more robust logging
-    SQLALCHEMY_DATABASE_URI = (
-        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@{Config.DB_HOST}/{Config.DB_NAME}'
-        if Config.DB_HOST != 'localhost'
-        else f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@/{Config.DB_NAME}'
-        f'?host=/cloudsql/{Config.CLOUD_SQL_CONNECTION_NAME}'
-    )
+    # SQLALCHEMY_DATABASE_URI will be configured dynamically at app startup
+    # using the Cloud SQL Python Connector, so we can leave it as None here.
+    SQLALCHEMY_DATABASE_URI = None # Set in models.py
+    CLOUD_SQL_CONNECTION_NAME = os.getenv("CLOUD_SQL_CONNECTION_NAME", "gene-panel-combine:europe-north1:gene-panel-user-db") # e.g. 'project:region:instance'

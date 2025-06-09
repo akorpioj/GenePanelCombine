@@ -25,33 +25,28 @@ def db_init(app):
     using the Cloud SQL Python Connector. The application is configured to use
     this pool for all database operations.
     """# These variables are set in the Cloud Run environment.
-    instance_connection_name = os.getenv("CLOUD_SQL_CONNECTION_NAME") # e.g. 'project:region:instance'
-    db_user = os.getenv("DB_USER")                  # e.g. 'my-db-user'
     db_pass = os.getenv("DB_PASS")                  # e.g. 'my-db-password'
-    db_name = os.getenv("DB_NAME")                  # e.g. 'my-database'
 
-    # Initialize the Cloud SQL Python Connector
-    connector = Connector()
+    # --- Cloud SQL Python Connector Initialization ---
+    if app.config["CLOUD_SQL_CONNECTION_NAME"]:
+        connector = Connector()
 
-    # The Cloud SQL Python Connector automatically handles IAM DB Authentication
-    def getconn() -> sqlalchemy.engine.base.Connection:
-        conn = connector.connect(
-            instance_connection_name,
-            "pg8000",
-            user=db_user,
-            password=db_pass,
-            db=db_name,
-            ip_type=IPTypes.PRIVATE
-        )
-        return conn
+        def getconn() -> sqlalchemy.engine.base.Connection:
+            conn = connector.connect(
+                app.config["CLOUD_SQL_CONNECTION_NAME"],
+                "pg8000",
+                user=app.config["DB_USER"],
+                password=app.config["DB_PASS"],
+                db=app.config["DB_NAME"],
+                ip_type=IPTypes.PRIVATE # Use IPTypes.PUBLIC for public IP
+            )
+            return conn
 
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        "creator": getconn,
-        "pool_size": 5,
-        "max_overflow": 2,
-        "pool_timeout": 30,
-        "pool_recycle": 1800,
-    }
+        app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql+pg8000://"
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            "creator": getconn
+        }
+    # --- End of Connector Logic ---
 
     db.init_app(app)
 
