@@ -3,7 +3,7 @@ from flask import render_template, redirect, url_for, flash, request
 from app.main.routes import get_all_panels_from_api
 from . import admin_bp # Import the Blueprint object defined in __init__.py
 
-from ..models import User
+from ..models import User, db
 from flask_login import current_user, login_user, logout_user, login_required
 from ..extensions import limiter
 
@@ -75,3 +75,29 @@ def dashboard():
     }
 
     return render_template('admin.html', cache_info=cache_info, stats=stats)
+
+@admin_bp.route('/change-password', methods=['POST'])
+@login_required
+def change_password():
+    current_password = request.form.get('current_password')
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+    
+    if not current_password or not new_password or not confirm_password:
+        flash('All password fields are required', 'error')
+        return redirect(url_for('admin.dashboard'))
+    
+    if new_password != confirm_password:
+        flash('New passwords do not match', 'error')
+        return redirect(url_for('admin.dashboard'))
+    
+    if not current_user.check_password(current_password):
+        flash('Current password is incorrect', 'error')
+        return redirect(url_for('admin.dashboard'))
+    
+    # Update the password
+    current_user.set_password(new_password)
+    db.session.commit()
+    
+    flash('Password successfully updated', 'success')
+    return redirect(url_for('admin.dashboard'))

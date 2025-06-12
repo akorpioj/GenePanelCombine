@@ -12,7 +12,7 @@ def test_auth():
             return
             
         # Test authentication
-        test_password = os.getenv('DB_PASS', '99Crypt!Cave')
+        test_password = os.getenv('DB_PASS', 'password')
         if admin.check_password(test_password):
             print("✅ Authentication successful!")
         else:
