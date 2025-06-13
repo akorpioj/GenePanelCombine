@@ -12,7 +12,23 @@ from . import main_bp # Import the Blueprint object defined in __init__.py
 from ..models import Visit, PanelDownload, db
 
 # --- Configuration & Constants ---
-BASE_API_URL = "https://panelapp.genomicsengland.co.uk/api/v1/"
+UK_API_URL = "https://panelapp.genomicsengland.co.uk/api/v1/"
+AUS_API_URL = "https://panelapp-aus.org/api/v1/"
+BASE_API_URL = UK_API_URL  # Keep for backward compatibility
+
+API_CONFIGS = {
+    'uk': {
+        'name': 'UK PanelApp',
+        'url': UK_API_URL,
+        'panels_endpoint': 'panels/'
+    },
+    'aus': {
+        'name': 'Australian PanelApp',
+        'url': AUS_API_URL,
+        'panels_endpoint': 'panels/'
+    }
+}
+
 CONFIDENCE_MAPPING = {
     "Green": 3,
     "Amber": 2,
@@ -51,41 +67,56 @@ def clear_cache():
     now = datetime.now(helsinki)
     if last_cache_clear_time is not None and (now - last_cache_clear_time) < CACHE_CLEAR_INTERVAL:
         wait_time = CACHE_CLEAR_INTERVAL - (now - last_cache_clear_time)
-        flash(f"Cache can only be cleared every 2 hours. Please wait {wait_time} longer.", "warning")
+        flash(f"Cache can only be cleared every 2 hours. Please wait {wait_time} longer.", "warning")    
     else:
-        get_all_panels_from_api.cache = None
-        get_all_panels_from_api.cache_time = None
-        get_all_panels_from_api.next_refresh = None
+        # Clear both UK and AUS caches
+        get_all_panels_from_api.cache_uk = None
+        get_all_panels_from_api.cache_time_uk = None
+        get_all_panels_from_api.next_refresh_uk = None
+        get_all_panels_from_api.cache_aus = None
+        get_all_panels_from_api.cache_time_aus = None
+        get_all_panels_from_api.next_refresh_aus = None
         last_cache_clear_time = now
         flash("Panel cache cleared!", "success")
     return redirect(url_for('main.index'))
 
 # --- Helper Functions ((largely unchanged, minor logging adjustments) ---
 
-def get_all_panels_from_api():
+def get_all_panels_from_api(api_source='uk'):
     """
-    Fetches all available panels from the PanelApp API, handling pagination.
+    Fetches all available panels from the specified PanelApp API, handling pagination.
+    Args:
+        api_source: Either 'uk' or 'aus' to specify which API to use
     Returns a list of panel dictionaries, sorted by name.
-    Caches results in a simple way for the duration of the app run (for a more robust cache, use Flask-Caching).
-    The cache is refreshed every day at 7:00 Helsinki time.
     """
     helsinki = pytz.timezone('Europe/Helsinki')
     now = datetime.now(helsinki)
+
+    # Use separate cache for each API
+    cache_attr = f"cache_{api_source}"
+    cache_time_attr = f"cache_time_{api_source}"
+    next_refresh_attr = f"next_refresh_{api_source}"
+
     # Check if cache exists and is still valid
-    cache = getattr(get_all_panels_from_api, "cache", None)
-    cache_time = getattr(get_all_panels_from_api, "cache_time", None)
-    next_refresh = getattr(get_all_panels_from_api, "next_refresh", None)
+    cache = getattr(get_all_panels_from_api, cache_attr, None)
+    cache_time = getattr(get_all_panels_from_api, cache_time_attr, None)
+    next_refresh = getattr(get_all_panels_from_api, next_refresh_attr, None)
+    
     if cache is not None and next_refresh is not None and now < next_refresh:
-        logger.info("Returning cached panel list.")
-        return cache
+        logger.info(f"Returning cached panel list for {api_source}.")
+        return cache    # Get API configuration
+    api_config = API_CONFIGS.get(api_source)
+    if not api_config:
+        logger.error(f"Invalid API source: {api_source}")
+        return []
 
     # Fetch from API
     panels = []
-    url = f"{BASE_API_URL}panels/"
+    url = f"{api_config['url']}{api_config['panels_endpoint']}"
     page_count = 0
     max_pages = 50  # Safety break for pagination
 
-    logger.info("Fetching panel list from API...")
+    logger.info(f"Fetching panel list from {api_config['name']}...")
     while url and page_count < max_pages:
         page_count += 1
         try:
@@ -97,10 +128,10 @@ def get_all_panels_from_api():
                     "id": panel_data.get("id"),
                     "name": panel_data.get("name", "N/A"),
                     "version": panel_data.get("version", "N/A"),
-                    "disease_group": panel_data.get("disease_group", ""), # Ensure empty string if None for search
-                    "disease_sub_group": panel_data.get("disease_sub_group", ""), # Ensure empty string
+                    "disease_group": panel_data.get("disease_group", ""),
+                    "disease_sub_group": panel_data.get("disease_sub_group", ""),
                     "description": panel_data.get("description", ""),
-                    # display_name is now constructed in the route after filtering                    
+                    "api_source": api_source  # Add source information
                 })
             url = data.get("next")
         except requests.exceptions.RequestException as e:
@@ -134,18 +165,28 @@ def get_all_panels_from_api():
     logger.info(f"Fetched and cached {len(panels)} panels. Next refresh at {next_7}.")
     return panels
 
-get_all_panels_from_api.cache = None
-get_all_panels_from_api.cache_time = None
-get_all_panels_from_api.next_refresh = None
+# Initialize separate caches for each API
+get_all_panels_from_api.cache_uk = None
+get_all_panels_from_api.cache_time_uk = None
+get_all_panels_from_api.next_refresh_uk = None
+get_all_panels_from_api.cache_aus = None
+get_all_panels_from_api.cache_time_aus = None
+get_all_panels_from_api.next_refresh_aus = None
 
-def get_panel_genes_data_from_api(panel_id):
+def get_panel_genes_data_from_api(panel_id, api_source='uk'):
     """
-    Fetches gene details for a specific panel ID from the PanelApp API.
+    Fetches gene details for a specific panel ID from the specified PanelApp API.
     """
     logger.info("get_panel_gene_from_api")
     if not panel_id: return []
-    url = f"{BASE_API_URL}panels/{panel_id}/"
-    logger.info(f"Fetching genes for panel ID: {panel_id}")
+    
+    api_config = API_CONFIGS.get(api_source)
+    if not api_config:
+        logger.error(f"Invalid API source: {api_source}")
+        return []
+    
+    url = f"{api_config['url']}panels/{panel_id}/"
+    logger.info(f"Fetching genes for panel ID: {panel_id} from {api_config['name']}")
     try:
         response = requests.get(url, timeout=20)
         response.raise_for_status()
@@ -193,14 +234,17 @@ def index():
 @limiter.limit("10 per minute")
 def api_panels():
     logger.info("api_panels")
+    api_source = request.args.get('source', 'uk')
+    
     # (re)fetch or cache your master list here
-    all_panels_raw = get_all_panels_from_api()
+    all_panels_raw = get_all_panels_from_api(api_source)
 
     # inject a display_name for the client
     processed = []
     for p in all_panels_raw:
         p2 = p.copy()
-        p2["display_name"] = f"{p['name']} (v{p['version']}, ID: {p['id']})"
+        source_emoji = "🇬🇧" if p.get('api_source') == 'uk' else "🇦🇺"
+        p2["display_name"] = f"{source_emoji} {p['name']} (v{p['version']}, ID: {p['id']})"
         processed.append(p2)
     processed.sort(key=lambda x: x["display_name"])
     return jsonify(processed)
@@ -215,22 +259,26 @@ def generate():
     final_unique_gene_set = set()
     selected_panel_configs_for_generation = []
     panel_full_gene_data = []  # Store full gene data for each panel
-    panel_names = []           # Store panel names for sheet naming
-
-    # Values from the POST form for generating the list
+    panel_names = []           # Store panel names for sheet naming    # Values from the POST form for generating the list
     search_term_from_post_form = request.form.get('search_term_hidden', '') # Get search term if passed from main form
 
     for i in range(1, MAX_PANELS + 1):
-        panel_id_str = request.form.get(f'panel_id_{i}') # Names from the main form
+        panel_id = None
+        api_source = None
+        panel_id_str = request.form.get(f'panel_id_{i}')
+        logger.info(f"generate: {panel_id_str}")
+        if panel_id_str != "None":
+            panel_id, api_source = panel_id_str.split('-', 1)
         list_type = request.form.get(f'list_type_{i}')
 
+        logger.info(f"generate: {list_type} {api_source}")
         if panel_id_str and panel_id_str != "None" and list_type: # "None" is value for empty selection
-            try:
-                panel_id = int(panel_id_str)
+            try: 
                 selected_panel_configs_for_generation.append({
-                    "id": panel_id,
+                    "id": int(panel_id),
                     "list_type": list_type,
-                    "form_index": i # For logging/error messages
+                    "form_index": i, # For logging/error messages
+                    "api_source": api_source
                 })
             except ValueError:
                 flash(f"Invalid panel ID received for panel slot {i}.", "error")
@@ -246,17 +294,16 @@ def generate():
             redirect_params[f'selected_list_type_{i}'] = request.form.get(f'list_type_{i}')
         return redirect(url_for('main.index', **redirect_params))
 
-    logger.info(f"Processing {len(selected_panel_configs_for_generation)} panel configurations for gene list.")
-
+    logger.info(f"Processing {len(selected_panel_configs_for_generation)} panel configurations for gene list.")    
     for idx, config in enumerate(selected_panel_configs_for_generation, 1):
-        raw_genes_for_panel = get_panel_genes_data_from_api(config["id"])
+        raw_genes_for_panel = get_panel_genes_data_from_api(config["id"], config["api_source"])
         # Save full panel gene data for Excel
         panel_full_gene_data.append(raw_genes_for_panel)
         # Try to get a panel name for the sheet
         panel_name = f"Panel {idx}"
         try:
             # Try to get the panel name from the API data
-            all_panels = get_all_panels_from_api()
+            all_panels = get_all_panels_from_api(config["api_source"])
             match = next((p for p in all_panels if p["id"] == config["id"]), None)
             if match:
                 panel_name = match["name"]
@@ -269,6 +316,7 @@ def generate():
             for gene_symbol in filtered_genes:
                 final_unique_gene_set.add(gene_symbol)
             logger.info(f"Panel ID {config['id']}: Added {len(filtered_genes)} genes.")
+
     if not final_unique_gene_set:
         flash("No genes found for the selected criteria.", "info")
         redirect_params = {'search_term': search_term_from_post_form}

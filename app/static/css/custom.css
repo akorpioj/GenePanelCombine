@@ -28,3 +28,28 @@ body { font-family: 'Inter', sans-serif; }
 .btn-clear-all {
     @apply w-full sm:w-auto inline-flex justify-center items-center px-6 py-2 border border-orange-400 text-sm font-medium rounded-md shadow-sm text-orange-700 bg-orange-100 hover:bg-orange-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition duration-150 ease-in-out;
 }
+
+.tab-button {
+    border-bottom-color: transparent;
+    color: #64748b;
+}
+
+.tab-button:hover {
+    color: #0369a1;
+    border-bottom-color: #0369a1;
+}
+
+.tab-button.active {
+    color: #0369a1;
+    border-bottom-color: #0369a1;
+    font-weight: 600;
+}
+
+/* Add source indicator for selected panels */
+.panel-source-uk {
+    border-left: 4px solid #0369a1;
+}
+
+.panel-source-aus {
+    border-left: 4px solid #15803d;
+}

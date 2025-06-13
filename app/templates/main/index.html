@@ -6,7 +6,6 @@
   <title>PanelApp Gene Filter - Flask</title>
 
   <!-- Include the generated Tailwind CSS file -->
-
   <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   
@@ -15,6 +14,13 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
     rel="stylesheet"
   >
+
+  <!-- Initialize constants -->
+  <script>
+    const maxPanels = {{ max_panels }};
+    const listTypeOptions = {{ list_type_options | safe }};
+  </script>
+  <script src="{{ url_for('static', filename='js/panels.js') }}"></script>
 </head>
 <body class="bg-red-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">
 
@@ -22,9 +28,23 @@
         <header class="mb-6 sm:mb-8 text-center">
             <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">🔬 PanelApp Gene Filter</h1>
             <p class="text-gray-600 mt-2">
-                Select up to {{ max_panels }} gene panels, filter by gene rating, and download the combined list.
+                Select up to {{ max_panels }} gene panels from UK and Australian PanelApp, filter by gene rating, and download the combined list.
             </p>
         </header>
+
+        <!-- API Selection Tabs -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex" aria-label="Tabs">
+                    <button onclick="switchAPI('uk')" id="uk-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm cursor-pointer tab-button active" data-api="uk">
+                        🇬🇧 UK PanelApp
+                    </button>
+                    <button onclick="switchAPI('aus')" id="aus-tab" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm cursor-pointer tab-button" data-api="aus">
+                        🇦🇺 Australian PanelApp
+                    </button>
+                </nav>
+            </div>
+        </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -77,6 +97,8 @@
         </div>
 
         <form id="generateForm" method="POST" action="{{ url_for('main.generate') }}" class="space-y-8">
+            <!-- Hidden input for keeping track of API sources -->
+            <div id="panel-sources"></div>
 
             {% for i in range(1, max_panels+1) %}
             <div class="p-5 border border-gray-200 rounded-lg shadow-sm bg-gray-50">
@@ -90,6 +112,7 @@
                         <select name="panel_id_{{i}}" id="panel_id_{{i}}" 
                                 class="form-select-arrow form-select-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm appearance-none">
                         </select>
+                        <input type="hidden" name="api_source_{{i}}" id="api_source_{{i}}" value="uk">
                     </div>
                     <div>
                         <label for="list_type_{{i}}" class="block text-sm font-medium text-gray-700 mb-1">Select List Type for Panel {{ i }}:</label>
@@ -120,123 +143,9 @@
       </div>
 
 <footer class="mt-12 text-center text-sm text-gray-500">
-    <p>Built with Flask & Genomics England PanelApp API.</p>
+    <p>Built with Flask & Genomics England + Australia PanelApp APIs.</p>
     <p class="mt-1">Remember to verify results against official sources.</p>
 </footer>
-
-<script>
-    let allPanels = [];
-    const maxPanels = {{ max_panels }};
-    const listTypeOptions = {{list_type_options | safe}};
-
-    document.addEventListener("DOMContentLoaded", () => {
-        fetch("{{ url_for('main.api_panels') }}")
-        .then(r => r.json())
-        .then(data => {
-          allPanels = data;
-          populateAll();
-        });
-
-      document.getElementById("search_term_input")
-        .addEventListener("input", debounce(populateAll, 300));
-    });
-
-  // list all the string fields you want to search
-  const fieldsToSearch = [
-    'display_name',
-    'description',
-    'disease_group',
-    'disease_sub_group',
-  ];
-
-  function matches(panel, term) {
-    const txt = term.toLowerCase();
-    return fieldsToSearch.some(key => {
-      const val = panel[key];
-      if (!val) return false;
-      // if it’s an array, check each element:
-      if (Array.isArray(val)) {
-        return val.some(item => item.toLowerCase().includes(txt));
-      }
-      // otherwise treat it as a string
-      return String(val).toLowerCase().includes(txt);
-    });
-  }
-
-    function populateAll() {
-      const term = document.getElementById("search_term_input")
-                         .value.trim().toLowerCase();
-
-      const filtered = allPanels.filter(p => matches(p, term));
-
-      for (let i = 1; i <= maxPanels; i++) {
-        const select = document.getElementById(`panel_id_${i}`);
-        const current = select.value || "None";
-        updateSelectOptions(select, filtered, current);
-      }
-    }
-
-    function updateSelectOptions(select, list, current) {
-      // start with a "None" option
-      const options = [{ id: "None", display_name: "None" }];
-      const seen = new Set(["None"]);
-
-      // add all filtered
-      list.forEach(p => {
-        options.push(p);
-        seen.add(String(p.id));
-      });
-
-      // if current selection was cleared but isn't in filtered, re-include it
-      if (current && current !== "None" && !seen.has(current)) {
-        const extra = allPanels.find(p => String(p.id) === current);
-        if (extra) options.push(extra), seen.add(current);
-      }
-
-      // sort (“None” stays first)
-      options.sort((a, b) => {
-        if (a.id === "None") return -1;
-        if (b.id === "None") return 1;
-        return a.display_name.localeCompare(b.display_name);
-      });
-
-      // rebuild DOM
-      select.innerHTML = "";
-      options.forEach(opt => {
-        const o = document.createElement("option");
-        o.value = opt.id;
-        o.textContent = opt.display_name;
-        if (String(opt.id) === String(current)) o.selected = true;
-        select.append(o);
-      });
-    }
-
-    function clearPanel(i) {
-      const sel = document.getElementById(`panel_id_${i}`);
-      const sel2 = document.getElementById(`list_type_${i}`);
-      sel.value = "None";
-      sel2.value = listTypeOptions[0];
-    }    function debounce(fn, delay) {
-      let t;
-      return (...args) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn(...args), delay);
-      };
-    }
-
-    function clearAll() {
-        // Clear search input
-        document.getElementById('search_term_input').value = '';
-        
-        // Clear all panel selections
-        for (let i = 1; i <= maxPanels; i++) {
-            clearPanel(i);
-        }
-        
-        // Refresh the panel list without any filters
-        populateAll();
-    }
-</script>
 
 </body>
 </html>
