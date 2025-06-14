@@ -174,6 +174,7 @@ def upload_user_panel():
     from flask import session
     files = request.files.getlist('user_panel_file')
     if not files or all(f.filename == '' for f in files):
+        logger.error("No files uploaded in /upload_user_panel")
         return jsonify({'success': False, 'error': 'No file(s) uploaded.'}), 400
     session['uploaded_panels'] = []
     session.modified = True
@@ -213,3 +214,20 @@ def upload_user_panel():
         return jsonify({'success': True, 'results': results})
     else:
         return jsonify({'success': False, 'results': results}), 400
+
+@main_bp.route('/uploaded_user_panels', methods=['GET'])
+def uploaded_user_panels():
+    from flask import session
+    user_panels = session.get('uploaded_panels', [])
+    files = [panel.get('sheet_name', 'UserPanel') for panel in user_panels]
+    return jsonify({'files': files})
+
+@main_bp.route('/remove_user_panel', methods=['POST'])
+def remove_user_panel():
+    from flask import session, request
+    sheet_name = request.json.get('sheet_name')
+    user_panels = session.get('uploaded_panels', [])
+    new_panels = [p for p in user_panels if p.get('sheet_name') != sheet_name]
+    session['uploaded_panels'] = new_panels
+    session.modified = True
+    return jsonify({'success': True, 'removed': sheet_name})

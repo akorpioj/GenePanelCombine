@@ -203,13 +203,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 fileInput.dispatchEvent(new Event('change'));
             }
         });
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length > 0) {
-                if (dropZoneText) dropZoneText.textContent = fileInput.files[0].name;
-            } else {
-                if (dropZoneText) dropZoneText.textContent = 'Drag & drop your file here, or click to select';
-            }
-        });
         dropZone.addEventListener('click', () => {
             e.stopPropagation(); // Prevents the event from reaching uploadArea
             fileInput.click()
@@ -217,20 +210,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     // User panel upload form submit
     const userPanelForm = document.getElementById('userPanelForm');
+    // --- User Panel Upload: Track and manage uploaded files ---
     if (userPanelForm) {
         userPanelForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            const fileInput = document.getElementById('user_panel_file');
-            const files = fileInput.files;
-            const statusDiv = document.getElementById('upload-panel-status');
-            if (!files || files.length === 0) {
-                statusDiv.textContent = 'No file selected.';
-                statusDiv.style.color = 'red';
+            if (uploadedFiles.length === 0) {
+                uploadStatusDiv.textContent = 'No file selected.';
+                uploadStatusDiv.style.color = 'red';
                 switchAPI('upload');
                 return;
             }
             // Optional: preview logic for CSV/TSV (show for first file only)
-            const file = files[0];
+            const file = uploadedFiles[0];
             const ext = file.name.split('.').pop().toLowerCase();
             if (ext === 'csv' || ext === 'tsv') {
                 const reader = new FileReader();
@@ -246,41 +237,160 @@ document.addEventListener("DOMContentLoaded", () => {
                             if (row[geneIdx]) genes.push(row[geneIdx].trim());
                         }
                         if (genes.length > 0) {
-                            statusDiv.textContent = `Loaded ${genes.length} genes from first file. Uploading...`;
-                            statusDiv.style.color = 'green';
+                            uploadStatusDiv.textContent = `Loaded ${genes.length} genes from first file. Uploading...`;
+                            uploadStatusDiv.style.color = 'green';
                         } else {
-                            statusDiv.textContent = 'No genes found in first file. Uploading anyway...';
-                            statusDiv.style.color = 'orange';
+                            uploadStatusDiv.textContent = 'No genes found in first file. Uploading anyway...';
+                            uploadStatusDiv.style.color = 'orange';
                         }
                     } else {
-                        statusDiv.textContent = 'No "Genes" column found in first file. Uploading anyway...';
-                        statusDiv.style.color = 'orange';
+                        uploadStatusDiv.textContent = 'No "Genes" column found in first file. Uploading anyway...';
+                        uploadStatusDiv.style.color = 'orange';
                     }
                 };
                 reader.readAsText(file);
             }
             // Actual upload to /upload_user_panel
             const formData = new FormData();
-            for (let i = 0; i < files.length; i++) {
-                formData.append('user_panel_file', files[i]);
-            }
+            uploadedFiles.forEach(f => formData.append('user_panel_file', f));
             fetch('/upload_user_panel', {
                 method: 'POST',
                 body: formData
             })
             .then(response => {
                 if (response.ok) {
-                    statusDiv.textContent = 'Upload successful!';
-                    statusDiv.style.color = 'green';
+                    uploadStatusDiv.textContent = 'Upload successful!';
+                    uploadStatusDiv.style.color = 'green';
+                    uploadedFiles = [];
+                    renderUploadedFiles();
+                    showBackendUploadedFiles();
                 } else {
-                    statusDiv.textContent = 'Upload failed.';
-                    statusDiv.style.color = 'red';
+                    uploadStatusDiv.textContent = 'Upload failed.';
+                    uploadStatusDiv.style.color = 'red';
                 }
             })
             .catch(() => {
-                statusDiv.textContent = 'Upload failed.';
-                statusDiv.style.color = 'red';
+                uploadStatusDiv.textContent = 'Upload failed.';
+                uploadStatusDiv.style.color = 'red';
             });
         });
     }
+    let uploadedFiles = [];
+    const uploadStatusDiv = document.getElementById('upload-panel-status');
+    const uploadedListDiv = document.createElement('div');
+    uploadedListDiv.id = 'uploaded-files-list';
+    uploadStatusDiv.parentNode.insertBefore(uploadedListDiv, uploadStatusDiv.nextSibling);
+
+    function renderUploadedFiles() {
+        uploadedListDiv.innerHTML = '';
+        if (uploadedFiles.length === 0) {
+            // Also clear the drop zone text if no files are selected
+            if (dropZoneText) dropZoneText.textContent = 'Drag & drop your file here, or click to select';
+            /*fileInput.value = '';*/
+            return;
+        }
+        const ul = document.createElement('ul');
+        ul.className = 'mt-2 mb-2';
+        uploadedFiles.forEach((file, idx) => {
+            const li = document.createElement('li');
+            li.className = 'flex items-center justify-between bg-sky-50 border border-sky-200 rounded px-2 py-1 mb-1';
+            li.textContent = file.name;
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = 'Remove';
+            removeBtn.className = 'ml-2 text-xs text-red-600 hover:underline';
+            removeBtn.onclick = function() {
+                uploadedFiles.splice(idx, 1);
+                renderUploadedFiles();
+            };
+            li.appendChild(removeBtn);
+            ul.appendChild(li);
+        });
+        uploadedListDiv.appendChild(ul);
+    }
+
+    // Intercept file input changes to prevent duplicate names and update list
+    fileInput.addEventListener('change', () => {
+
+        const newFiles = Array.from(fileInput.files);
+        let added = false, duplicate = false;
+        newFiles.forEach(f => {
+            if (uploadedFiles.some(u => u.name === f.name)) {
+                duplicate = true;
+            } else {
+                uploadedFiles.push(f);
+                added = true;
+            }
+        });
+        if (duplicate) {
+            uploadStatusDiv.textContent = 'Duplicate file name(s) not allowed.';
+            uploadStatusDiv.style.color = 'red';
+        } else if (added) {
+            uploadStatusDiv.textContent = '';
+        }
+        renderUploadedFiles();
+        // Clear file input so same file can be reselected if removed
+        if (fileInput.files.length > 0) {
+            if (dropZoneText) dropZoneText.textContent = fileInput.files[0].name;
+        } else {
+            if (dropZoneText) dropZoneText.textContent = 'Drag & drop your file here, or click to select';
+            /*fileInput.value = '';*/
+        }
+    });
+
+    // --- Fetch and display already uploaded files from backend on tab switch ---
+    async function fetchUploadedFilesFromBackend() {
+        try {
+            const resp = await fetch('/uploaded_user_panels');
+            if (!resp.ok) return [];
+            const data = await resp.json();
+            return data.files || [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async function showBackendUploadedFiles() {
+        const backendFiles = await fetchUploadedFilesFromBackend();
+        let backendListDiv = document.getElementById('backend-uploaded-files-list');
+        if (!backendListDiv) {
+            backendListDiv = document.createElement('div');
+            backendListDiv.id = 'backend-uploaded-files-list';
+            uploadedListDiv.parentNode.insertBefore(backendListDiv, uploadedListDiv);
+        }
+        backendListDiv.innerHTML = '';
+        if (backendFiles.length === 0) return;
+        const ul = document.createElement('ul');
+        ul.className = 'mb-2';
+        backendFiles.forEach(name => {
+            const li = document.createElement('li');
+            li.className = 'flex items-center bg-green-50 border border-green-200 rounded px-2 py-1 mb-1 text-green-800';
+            li.textContent = name + ' (already uploaded)';
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = 'Remove';
+            removeBtn.className = 'ml-2 text-xs text-red-600 hover:underline';
+            removeBtn.onclick = async function() {
+                const resp = await fetch('/remove_user_panel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sheet_name: name })
+                });
+                if (resp.ok) {
+                    li.remove();
+                    uploadStatusDiv.textContent = `Removed ${name}`;
+                    uploadStatusDiv.style.color = 'green';
+                } else {
+                    uploadStatusDiv.textContent = `Failed to remove ${name}`;
+                    uploadStatusDiv.style.color = 'red';
+                }
+            };
+            li.appendChild(removeBtn);
+            ul.appendChild(li);
+        });
+        backendListDiv.appendChild(ul);
+    }
+
+    // Show backend files when switching to upload tab
+    document.getElementById('upload-tab').addEventListener('click', showBackendUploadedFiles);
+    // Also show on page load if upload tab is default
+    if (currentAPI === 'upload') showBackendUploadedFiles();
 });

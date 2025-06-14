@@ -26,11 +26,12 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     # Use SQLite for local development with absolute path
-    #DB_FILE = os.path.join(Config.INSTANCE_PATH, 'gene_panel.db')
-    #SQLALCHEMY_DATABASE_URI = f'sqlite:///{DB_FILE}'
+    DB_FILE = os.path.join(Config.INSTANCE_PATH, 'gene_panel.db')
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{DB_FILE}'
+    CLOUD_SQL_CONNECTION_NAME = None
     # Original PostgreSQL config commented out for reference
-    DB_PORT = 5433  # Match the port in start_cloud_sql_proxy.ps1
-    SQLALCHEMY_DATABASE_URI = f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:{DB_PORT}/{Config.DB_NAME}'
+    #DB_PORT = 5433  # Match the port in start_cloud_sql_proxy.ps1
+    #SQLALCHEMY_DATABASE_URI = f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:{DB_PORT}/{Config.DB_NAME}'
 
 # Add any development-specific settings, e.g., MAIL_SUPPRESS_SEND = True
 class TestingConfig(Config):
