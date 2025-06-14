@@ -6,7 +6,7 @@ from .utils import filter_genes_from_panel_data
 from .utils import MAX_PANELS
 from .utils import logger
 
-def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form):
+def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form, uploaded_panels=None):
     # Create DataFrame and Excel file
     excel_output = io.BytesIO()
     try:
@@ -63,6 +63,34 @@ def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_genera
                         for cell in row:
                             cell.border = border
                     ws.auto_filter.ref = ws.dimensions
+            # Add uploaded user panels as separate sheets
+            if uploaded_panels:
+                for sheet_name, gene_list in uploaded_panels:
+                    # Excel sheet names max 31 chars, remove special chars
+                    safe_name = sheet_name[:31]
+                    for ch in ['\\', '/', '*', '?', ':', '[', ']']:
+                        safe_name = safe_name.replace(ch, '')
+                    df_user = pd.DataFrame({'Genes': gene_list})
+                    df_user.to_excel(writer, index=False, sheet_name=safe_name)
+                    ws = writer.book[safe_name]
+                    from openpyxl.styles import Font, PatternFill, Border, Side
+                    header_fill = PatternFill(start_color="FFDEEAF6", end_color="FFDEEAF6", fill_type="solid")
+                    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+                    for col_idx, col in enumerate(df_user.columns, 1):
+                        cell = ws.cell(row=1, column=col_idx)
+                        cell.font = Font(bold=True)
+                        cell.fill = header_fill
+                        value = str(df_user.columns[col_idx-1])
+                        if not df_user.empty:
+                            first_row_val = str(df_user.iloc[0, col_idx-1])
+                            width = max(len(value), len(first_row_val)) + 2
+                        else:
+                            width = len(value) + 2
+                        ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
+                    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+                        for cell in row:
+                            cell.border = border
+                    ws.auto_filter.ref = ws.dimensions
             # Write the combined filtered gene list with panel names and list types
             # Build a mapping from gene symbol to (panel name, list type)
             gene_to_panels = {}
@@ -72,6 +100,14 @@ def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_genera
                     if gene_symbol not in gene_to_panels:
                         gene_to_panels[gene_symbol] = []
                     gene_to_panels[gene_symbol].append((panel_name, config["list_type"]))
+            # Add user panel file names to gene_to_panels
+            if uploaded_panels:
+                for sheet_name, gene_list in uploaded_panels:
+                    for gene_symbol in gene_list:
+                        if gene_symbol not in gene_to_panels:
+                            gene_to_panels[gene_symbol] = []
+                        # Use the user panel file name as the panel name, and 'User upload' as the list type
+                        gene_to_panels[gene_symbol].append((sheet_name, 'User upload'))
             combined_rows = []
             for gene_symbol in sorted(list(final_unique_gene_set)):
                 # Join all panel names and list types for this gene

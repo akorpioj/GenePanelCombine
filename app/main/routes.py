@@ -7,6 +7,8 @@ from .excel import generate_excel_file
 from .utils import get_all_panels_from_api, get_panel_genes_data_from_api, filter_genes_from_panel_data
 from .utils import list_type_options, MAX_PANELS
 from .utils import logger
+from werkzeug.utils import secure_filename
+import pandas as pd
 
 # --- Flask Routes ---
 
@@ -84,6 +86,21 @@ def generate():
         return redirect(url_for('main.index', **redirect_params))
 
     logger.info(f"Processing {len(selected_panel_configs_for_generation)} panel configurations for gene list.")    
+
+    # Handle user-uploaded panels stored in session (from /upload_user_panel)
+    from flask import session
+    uploaded_panels = []
+    user_panels = session.get('uploaded_panels', set())
+    for panel in user_panels:
+        sheet_name = panel.get('sheet_name', 'UserPanel')[:31]
+        genes = panel.get('genes', [])
+        if genes:
+            uploaded_panels.append((sheet_name, genes))
+            logger.info(f"session panel '{sheet_name}' with {len(genes)} genes.")
+    # Optionally clear session after use (uncomment if you want one-time use)
+    # session['uploaded_panels'] = []
+    # session.modified = True
+
     for idx, config in enumerate(selected_panel_configs_for_generation, 1):
         raw_genes_for_panel = get_panel_genes_data_from_api(config["id"], config["api_source"])
         panel_full_gene_data.append(raw_genes_for_panel)
@@ -105,7 +122,15 @@ def generate():
                 final_unique_gene_set.add(gene_symbol)
             logger.info(f"Panel ID {config['id']}: Added {len(filtered_genes)} genes.")
 
-    if not final_unique_gene_set:
+    # Add genes from all uploaded panels (including session panels) to the combined list
+    for sheet_name, genes in uploaded_panels:
+        for gene in genes:
+            final_unique_gene_set.add(gene)
+    if uploaded_panels:
+        logger.info(f"Added {sum(len(genes) for _, genes in uploaded_panels)} genes from uploaded panels to combined list.")
+
+    # Add uploaded panel sheets to be included in Excel
+    if not final_unique_gene_set and not uploaded_panels:
         flash("No genes found for the selected criteria.", "info")
         redirect_params = {'search_term': search_term_from_post_form}
         for i in range(1, MAX_PANELS + 1):
@@ -134,5 +159,57 @@ def generate():
         logger.error("Failed to log panel download")
 
     logger.info(f"Total unique genes for Excel: {len(final_unique_gene_set)}")
+    logger.info(f"Panel names: {panel_names}")
+    logger.info(f"User panels: {uploaded_panels}")
     
-    return generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form)
+    return generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form, uploaded_panels=uploaded_panels)
+
+@main_bp.route('/upload_user_panel', methods=['POST'])
+@limiter.limit("30 per hour")
+def upload_user_panel():
+    """
+    Receives one or more user-uploaded gene panel files (Excel, CSV, or TSV), parses them, and stores the gene lists in the session for later use.
+    Returns JSON with status and gene counts, or error message.
+    """
+    from flask import session
+    files = request.files.getlist('user_panel_file')
+    if not files or all(f.filename == '' for f in files):
+        return jsonify({'success': False, 'error': 'No file(s) uploaded.'}), 400
+    session['uploaded_panels'] = []
+    session.modified = True
+    user_panels = []
+    results = []
+    for file in files:
+        if not file or not file.filename:
+            continue
+        filename = secure_filename(file.filename)
+        ext = filename.split('.')[-1].lower()
+        try:
+            if ext in ['csv', 'tsv']:
+                sep = '\t' if ext == 'tsv' else ','
+                df = pd.read_csv(file, sep=sep)
+            elif ext in ['xls', 'xlsx']:
+                df = pd.read_excel(file)
+            else:
+                results.append({'filename': filename, 'success': False, 'error': 'Unsupported file type.'})
+                continue
+            if 'Genes' not in df.columns:
+                results.append({'filename': filename, 'success': False, 'error': 'No "Genes" column found.'})
+                continue
+            genes = [str(g).strip() for g in df['Genes'] if pd.notnull(g) and str(g).strip()]
+            sheetname = filename.rsplit('.', 1)[0][:31]  # Limit sheet name to 31 characters
+            if sheetname not in user_panels:
+                user_panels.append({'sheet_name': sheetname, 'genes': genes})
+                results.append({'filename': filename, 'success': True, 'gene_count': len(genes), 'sheet_name': filename.rsplit('.', 1)[0][:31]})
+            else:
+                logger.error(f"Duplicate panel name '{sheetname}' found in uploaded files.")
+                results.append({'filename': filename, 'success': False, 'error': f'Duplicate panel name: {sheetname}'})
+        except Exception as e:
+            logger.error(f"Failed to parse uploaded panel {filename}: {e}")
+            results.append({'filename': filename, 'success': False, 'error': f'Failed to parse file: {e}'})
+    session['uploaded_panels'] = user_panels
+    session.modified = True
+    if any(r['success'] for r in results):
+        return jsonify({'success': True, 'results': results})
+    else:
+        return jsonify({'success': False, 'results': results}), 400

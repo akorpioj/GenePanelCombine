@@ -20,8 +20,15 @@ function switchAPI(apiSource) {
         btn.classList.remove('active');
     });
     document.getElementById(`${apiSource}-tab`).classList.add('active');
+    // Show/hide upload form
+    document.getElementById('upload-panel-form').style.display = (apiSource === 'upload') ? '' : 'none';
+    // Show/hide panelapp-section
+    var panelAppSection = document.getElementById('panelapp-section');
+    if (panelAppSection) {
+        panelAppSection.style.display = (apiSource === 'upload') ? 'none' : '';
+    }
     // Update panel lists
-    populateAll();
+    if (apiSource !== 'upload') populateAll();
 }
 
 // list all the string fields you want to search
@@ -144,12 +151,136 @@ function debounce(fn, delay) {
     };
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    // Fetch UK panels initially
-    fetchPanels('uk');
-    // Fetch Australian panels in the background
-    fetchPanels('aus');
+// Fetch UK and AUS panels immediately on script load
+fetchPanels('uk');
+fetchPanels('aus');
 
-    document.getElementById("search_term_input")
-        .addEventListener("input", debounce(populateAll, 300));
+// All DOM-related code must be inside DOMContentLoaded
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Logging for debug
+    console.log("Event: DOMContentLoaded");
+    // Search input event
+    const searchInput = document.getElementById("search_term_input");
+    if (searchInput) {
+        searchInput.addEventListener("input", debounce(populateAll, 300));
+    }
+    // Drag-and-drop support for user panel upload
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('user_panel_file');
+    const dropZoneText = document.getElementById('drop-zone-text');
+    if (dropZone && fileInput) {
+        dropZone.style.position = 'relative';
+        dropZone.style.cursor = 'pointer';
+        if (dropZoneText) dropZoneText.style.pointerEvents = 'none';
+        fileInput.style.opacity = 0;
+        fileInput.style.width = '100%';
+        fileInput.style.height = '100%';
+        fileInput.style.position = 'absolute';
+        fileInput.style.left = 0;
+        fileInput.style.top = 0;
+        fileInput.style.zIndex = 2;
+        fileInput.style.display = 'block';
+        dropZone.appendChild(fileInput);
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('bg-sky-100', 'border-sky-600');
+            });
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('bg-sky-100', 'border-sky-600');
+            });
+        });
+        dropZone.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                if (dropZoneText) dropZoneText.textContent = fileInput.files[0].name;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                if (dropZoneText) dropZoneText.textContent = fileInput.files[0].name;
+            } else {
+                if (dropZoneText) dropZoneText.textContent = 'Drag & drop your file here, or click to select';
+            }
+        });
+        dropZone.addEventListener('click', () => {
+            e.stopPropagation(); // Prevents the event from reaching uploadArea
+            fileInput.click()
+        });
+    }
+    // User panel upload form submit
+    const userPanelForm = document.getElementById('userPanelForm');
+    if (userPanelForm) {
+        userPanelForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('user_panel_file');
+            const files = fileInput.files;
+            const statusDiv = document.getElementById('upload-panel-status');
+            if (!files || files.length === 0) {
+                statusDiv.textContent = 'No file selected.';
+                statusDiv.style.color = 'red';
+                switchAPI('upload');
+                return;
+            }
+            // Optional: preview logic for CSV/TSV (show for first file only)
+            const file = files[0];
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext === 'csv' || ext === 'tsv') {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    let genes = [];
+                    let delimiter = (ext === 'tsv') ? '\t' : ',';
+                    let lines = evt.target.result.split(/\r?\n/);
+                    let header = lines[0].split(delimiter);
+                    let geneIdx = header.findIndex(h => h.trim().toLowerCase() === 'genes');
+                    if (geneIdx !== -1) {
+                        for (let i = 1; i < lines.length; i++) {
+                            let row = lines[i].split(delimiter);
+                            if (row[geneIdx]) genes.push(row[geneIdx].trim());
+                        }
+                        if (genes.length > 0) {
+                            statusDiv.textContent = `Loaded ${genes.length} genes from first file. Uploading...`;
+                            statusDiv.style.color = 'green';
+                        } else {
+                            statusDiv.textContent = 'No genes found in first file. Uploading anyway...';
+                            statusDiv.style.color = 'orange';
+                        }
+                    } else {
+                        statusDiv.textContent = 'No "Genes" column found in first file. Uploading anyway...';
+                        statusDiv.style.color = 'orange';
+                    }
+                };
+                reader.readAsText(file);
+            }
+            // Actual upload to /upload_user_panel
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('user_panel_file', files[i]);
+            }
+            fetch('/upload_user_panel', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    statusDiv.textContent = 'Upload successful!';
+                    statusDiv.style.color = 'green';
+                } else {
+                    statusDiv.textContent = 'Upload failed.';
+                    statusDiv.style.color = 'red';
+                }
+            })
+            .catch(() => {
+                statusDiv.textContent = 'Upload failed.';
+                statusDiv.style.color = 'red';
+            });
+        });
+    }
 });
