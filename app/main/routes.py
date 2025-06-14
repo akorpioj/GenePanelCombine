@@ -1,5 +1,4 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for
-import logging
 from datetime import datetime
 from app.extensions import limiter 
 from . import main_bp # Import the Blueprint object defined in __init__.py
@@ -87,16 +86,15 @@ def generate():
     logger.info(f"Processing {len(selected_panel_configs_for_generation)} panel configurations for gene list.")    
     for idx, config in enumerate(selected_panel_configs_for_generation, 1):
         raw_genes_for_panel = get_panel_genes_data_from_api(config["id"], config["api_source"])
-        # Save full panel gene data for Excel
         panel_full_gene_data.append(raw_genes_for_panel)
-        # Try to get a panel name for the sheet
-        panel_name = f"Panel {idx}"
+        # Add GB or AUS before the panel name
+        panel_prefix = "GB" if config["api_source"] == "uk" else "AUS"
+        panel_name = f"{panel_prefix} Panel {idx}"
         try:
-            # Try to get the panel name from the API data
             all_panels = get_all_panels_from_api(config["api_source"])
             match = next((p for p in all_panels if p["id"] == config["id"]), None)
             if match:
-                panel_name = match["name"]
+                panel_name = f"{panel_prefix} {match['name']}"
         except Exception:
             pass
         panel_names.append(panel_name)
