@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 last_cache_clear_time = None
 CACHE_CLEAR_INTERVAL = timedelta(hours=2)
 
-MAX_PANELS = 3 # Define how many panel selection groups are on the form
+MAX_PANELS = 5 # Define how many panel selection groups are on the form
 
 # --- Helper Functions --- #
 

@@ -230,7 +230,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     let delimiter = (ext === 'tsv') ? '\t' : ',';
                     let lines = evt.target.result.split(/\r?\n/);
                     let header = lines[0].split(delimiter);
-                    let geneIdx = header.findIndex(h => h.trim().toLowerCase() === 'genes');
+                    let geneIdx = header.findIndex(h => {
+                        const colName = h.trim().toLowerCase();
+                        return ['gene', 'genes', 'entity_name', 'genesymbol'].includes(colName);
+                    });
                     if (geneIdx !== -1) {
                         for (let i = 1; i < lines.length; i++) {
                             let row = lines[i].split(delimiter);
@@ -244,7 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             uploadStatusDiv.style.color = 'orange';
                         }
                     } else {
-                        uploadStatusDiv.textContent = 'No "Genes" column found in first file. Uploading anyway...';
+                        uploadStatusDiv.textContent = 'No gene column found in first file. Looking for: gene, genes, entity_name, or genesymbol. Uploading anyway...';
                         uploadStatusDiv.style.color = 'orange';
                     }
                 };

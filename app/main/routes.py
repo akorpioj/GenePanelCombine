@@ -194,10 +194,19 @@ def upload_user_panel():
             else:
                 results.append({'filename': filename, 'success': False, 'error': 'Unsupported file type.'})
                 continue
-            if 'Genes' not in df.columns:
-                results.append({'filename': filename, 'success': False, 'error': 'No "Genes" column found.'})
+            # Look for gene column with various common names (case-insensitive)
+            gene_column = None
+            acceptable_columns = ['gene', 'genes', 'entity_name', 'genesymbol']
+            for col in df.columns:
+                if col.strip().lower() in acceptable_columns:
+                    gene_column = col
+                    break
+            
+            if gene_column is None:
+                results.append({'filename': filename, 'success': False, 'error': 'No gene column found. Looking for: gene, genes, entity_name, or genesymbol.'})
                 continue
-            genes = [str(g).strip() for g in df['Genes'] if pd.notnull(g) and str(g).strip()]
+            
+            genes = [str(g).strip() for g in df[gene_column] if pd.notnull(g) and str(g).strip()]
             sheetname = filename.rsplit('.', 1)[0][:31]  # Limit sheet name to 31 characters
             if sheetname not in user_panels:
                 user_panels.append({'sheet_name': sheetname, 'genes': genes})
