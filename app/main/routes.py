@@ -77,6 +77,29 @@ def api_genes(entity_name):
         logger.error(f"Error searching for gene {entity_name}: {e}")
         return jsonify({'error': f'Failed to search for gene {entity_name}'}), 500
 
+@main_bp.route("/api/gene-suggestions")
+@limiter.limit("30 per minute")
+def api_gene_suggestions():
+    """
+    Provide autocomplete suggestions for gene names based on a query.
+    Returns a list of gene names that match the query.
+    """
+    query = request.args.get('q', '').strip().upper()
+    api_source = request.args.get('source', 'uk')
+    limit = min(int(request.args.get('limit', 10)), 20)  # Max 20 suggestions
+    
+    if len(query) < 2:
+        return jsonify([])
+    
+    try:
+        from .utils import get_gene_suggestions
+        suggestions = get_gene_suggestions(query, api_source, limit)
+        return jsonify(suggestions)
+        
+    except Exception as e:
+        logger.error(f"Error getting gene suggestions for {query}: {e}")
+        return jsonify([])
+
 @main_bp.route('/generate', methods=['POST'])
 @limiter.limit("30 per hour")  # More strict limit for resource-intensive operation
 def generate():

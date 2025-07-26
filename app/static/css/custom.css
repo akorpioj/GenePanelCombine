@@ -53,3 +53,22 @@ body { font-family: 'Inter', sans-serif; }
 .panel-source-aus {
     border-left: 4px solid #15803d;
 }
+
+/* Autocomplete styles */
+#autocomplete-suggestions {
+    z-index: 1000;
+}
+
+#autocomplete-suggestions div {
+    transition: background-color 0.15s ease-in-out;
+}
+
+#autocomplete-suggestions div:hover,
+#autocomplete-suggestions div.bg-sky-100 {
+    background-color: #e0f2fe !important;
+}
+
+#autocomplete-suggestions strong {
+    color: #0369a1;
+    font-weight: 600;
+}

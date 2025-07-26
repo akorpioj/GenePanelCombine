@@ -236,7 +236,7 @@ def get_gene_panels_from_api(entity_name, api_source='uk'):
     base_url = config['url']
     
     # Use the /genes/{entity_name}/ endpoint
-    url = f"{base_url}genes/{entity_name}/"
+    url = f"{base_url}genes/{entity_name.upper()}/"
     panels = []
     
     try:
@@ -284,5 +284,69 @@ def get_gene_panels_from_api(entity_name, api_source='uk'):
         return []
     except Exception as e:
         logger.error(f"Unexpected error in get_gene_panels: {e}")
+        return []
+
+def get_gene_suggestions(query, api_source='uk', limit=10):
+    """
+    Get gene name suggestions for autocomplete based on a query.
+    
+    Args:
+        query (str): The partial gene name to search for
+        api_source (str): 'uk' or 'aus' to specify which API to use
+        limit (int): Maximum number of suggestions to return
+    
+    Returns:
+        list: List of gene names that match the query
+    """
+    if api_source not in API_CONFIGS:
+        logger.error(f"Invalid API source: {api_source}")
+        return []
+    
+    if len(query) < 2:
+        return []
+    
+    config = API_CONFIGS[api_source]
+    base_url = config['url']
+    
+    # Use the genes endpoint with search parameters
+    url = f"{base_url}genes/"
+    suggestions = set()
+    
+    try:
+        logger.info(f"Fetching gene suggestions for '{query}' from {config['name']}")
+        
+        # Search for genes that start with the query
+        params = {
+            'search': query,
+            'page_size': limit * 3  # Get more results to filter better matches
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        results = data.get("results", [])
+        
+        for gene_entry in results:
+            entity_name = gene_entry.get("entity_name", "")
+            if entity_name and entity_name.upper().startswith(query.upper()):
+                suggestions.add(entity_name.upper())
+                if len(suggestions) >= limit:
+                    break
+        
+        # Convert to sorted list
+        suggestion_list = sorted(list(suggestions))[:limit]
+        
+        logger.info(f"Found {len(suggestion_list)} gene suggestions for '{query}'")
+        return suggestion_list
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API Error (get_gene_suggestions): {e}")
+        return []
+    except ValueError as e:
+        logger.error(f"API Error (get_gene_suggestions - JSON parsing): {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error in get_gene_suggestions: {e}")
         return []
 
