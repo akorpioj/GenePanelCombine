@@ -12,3 +12,16 @@ main_bp = Blueprint('main', __name__, template_folder='../templates/main', url_p
 # Import routes after Blueprint definition to avoid circular import issues
 # This line makes the routes defined in routes.py part of the auth_bp
 from . import routes
+
+# Add context processor for permission utilities
+@main_bp.app_context_processor
+def inject_permission_utils():
+    """Make permission utility functions available in templates"""
+    from .utils import user_can_upload, user_can_moderate, user_is_admin, get_user_display_name, get_user_role_display
+    return {
+        'user_can_upload': user_can_upload,
+        'user_can_moderate': user_can_moderate, 
+        'user_is_admin': user_is_admin,
+        'get_user_display_name': get_user_display_name,
+        'get_user_role_display': get_user_role_display
+    }

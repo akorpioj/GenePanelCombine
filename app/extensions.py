@@ -7,10 +7,16 @@ from flask_caching import Cache
 #migrate = Migrate()
 
 login_manager = LoginManager()
-# Configure LoginManager settings (can also be done in create_app after init_app)
-login_manager.login_view = 'login' # Endpoint for the login page (BlueprintName.ViewFunctionName)
-login_manager.login_message_category = 'info' # Category for flashed login_required messages
+# Configure LoginManager settings
+login_manager.login_view = 'auth.login'  # Updated to use auth blueprint
+login_manager.login_message_category = 'info'
 login_manager.login_message = "Please log in to access this page."
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login"""
+    from .models import User
+    return User.query.get(int(user_id))
 
 # Rate limiter configuration
 limiter = Limiter(key_func=get_remote_address,

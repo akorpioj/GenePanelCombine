@@ -1,0 +1,360 @@
+{% extends "auth/base.html" %}
+
+{% block title %}Manage Users{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
+        <p class="mt-2 text-sm text-gray-600">Manage user accounts, roles, and permissions.</p>
+    </div>
+    
+    <!-- User Statistics -->
+    <div class="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                        </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Total Users</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ user_stats.total }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Active Users</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ user_stats.active }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Admins</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ user_stats.admins }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Recent Signups</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ user_stats.recent }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters and Search -->
+    <div class="mb-6 bg-white shadow rounded-lg p-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+            <div class="flex space-x-4">
+                <div>
+                    <label for="role_filter" class="block text-sm font-medium text-gray-700">Filter by Role</label>
+                    <select id="role_filter" name="role_filter" 
+                            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="">All Roles</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="EDITOR">Editor</option>
+                        <option value="USER">User</option>
+                        <option value="VIEWER">Viewer</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="status_filter" class="block text-sm font-medium text-gray-700">Filter by Status</label>
+                    <select id="status_filter" name="status_filter" 
+                            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="">All Users</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex-1 max-w-lg">
+                <label for="search" class="sr-only">Search users</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <input id="search" name="search" type="text" 
+                           placeholder="Search by name, username, or email"
+                           class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Users Table -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <ul id="users-list" class="divide-y divide-gray-200">
+            {% for user in users %}
+            <li class="user-item" data-role="{{ user.role.value }}" data-status="{{ 'active' if user.is_active else 'inactive' }}" 
+                data-search="{{ (user.first_name or '') }} {{ (user.last_name or '') }} {{ user.username }} {{ user.email }}">
+                <div class="px-4 py-4 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 h-10 w-10">
+                            <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                <span class="text-sm font-medium text-gray-700">
+                                    {{ (user.first_name or user.username)[0].upper() }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <div class="flex items-center">
+                                <div class="text-sm font-medium text-gray-900">
+                                    {% if user.first_name or user.last_name %}
+                                        {{ user.first_name }} {{ user.last_name }}
+                                    {% else %}
+                                        {{ user.username }}
+                                    {% endif %}
+                                </div>
+                                {% if not user.is_active %}
+                                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Inactive
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                {{ user.email }} • @{{ user.username }}
+                            </div>
+                            {% if user.organization %}
+                            <div class="text-xs text-gray-400">
+                                {{ user.organization }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <div class="text-sm text-gray-900">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    {% if user.role == 'ADMIN' %}bg-purple-100 text-purple-800
+                                    {% elif user.role == 'EDITOR' %}bg-green-100 text-green-800
+                                    {% elif user.role == 'USER' %}bg-blue-100 text-blue-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ user.role.value }}
+                                </span>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                Joined {{ user.created_at.strftime('%b %d, %Y') }}
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button onclick="editUser({{ user.id }})" 
+                                    class="text-blue-600 hover:text-blue-900 text-sm font-medium">
+                                Edit
+                            </button>
+                            {% if user.id != current_user.id %}
+                            <button onclick="toggleUserStatus({{ user.id }}, {{ user.is_active|lower }})" 
+                                    class="text-{{ 'red' if user.is_active else 'green' }}-600 hover:text-{{ 'red' if user.is_active else 'green' }}-900 text-sm font-medium">
+                                {{ 'Deactivate' if user.is_active else 'Activate' }}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Edit User</h3>
+            <form id="editUserForm">
+                <input type="hidden" id="editUserId" name="user_id">
+                
+                <div class="mb-4">
+                    <label for="editUserRole" class="block text-sm font-medium text-gray-700">Role</label>
+                    <select id="editUserRole" name="role" 
+                            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="VIEWER">Viewer</option>
+                        <option value="USER">User</option>
+                        <option value="EDITOR">Editor</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="editUserActive" name="is_active" 
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                        <span class="ml-2 text-sm text-gray-700">Active</span>
+                    </label>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeEditModal()" 
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleFilter = document.getElementById('role_filter');
+    const statusFilter = document.getElementById('status_filter');
+    const searchInput = document.getElementById('search');
+    const usersList = document.getElementById('users-list');
+    
+    function filterUsers() {
+        const roleValue = roleFilter.value;
+        const statusValue = statusFilter.value;
+        const searchValue = searchInput.value.toLowerCase();
+        
+        const userItems = usersList.querySelectorAll('.user-item');
+        
+        userItems.forEach(item => {
+            const role = item.dataset.role;
+            const status = item.dataset.status;
+            const searchText = item.dataset.search.toLowerCase();
+            
+            let show = true;
+            
+            if (roleValue && role !== roleValue) show = false;
+            if (statusValue && status !== statusValue) show = false;
+            if (searchValue && !searchText.includes(searchValue)) show = false;
+            
+            item.style.display = show ? 'block' : 'none';
+        });
+    }
+    
+    roleFilter.addEventListener('change', filterUsers);
+    statusFilter.addEventListener('change', filterUsers);
+    searchInput.addEventListener('input', filterUsers);
+});
+
+function editUser(userId) {
+    // Fetch user data and populate modal
+    fetch(`/auth/api/user/${userId}`)
+        .then(response => response.json())
+        .then(user => {
+            document.getElementById('editUserId').value = user.id;
+            document.getElementById('editUserRole').value = user.role;
+            document.getElementById('editUserActive').checked = user.is_active;
+            document.getElementById('editUserModal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Error fetching user data:', error);
+            alert('Error loading user data');
+        });
+}
+
+function closeEditModal() {
+    document.getElementById('editUserModal').classList.add('hidden');
+}
+
+function toggleUserStatus(userId, currentStatus) {
+    const action = currentStatus ? 'deactivate' : 'activate';
+    if (confirm(`Are you sure you want to ${action} this user?`)) {
+        fetch(`/auth/api/user/${userId}/toggle-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error updating user status');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error updating user status');
+        });
+    }
+}
+
+document.getElementById('editUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const userId = formData.get('user_id');
+    
+    const data = {
+        role: formData.get('role'),
+        is_active: formData.get('is_active') === 'on'
+    };
+    
+    fetch(`/auth/api/user/${userId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeEditModal();
+            location.reload();
+        } else {
+            alert('Error updating user');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating user');
+    });
+});
+</script>
+{% endblock %}

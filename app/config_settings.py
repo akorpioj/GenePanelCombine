@@ -17,6 +17,7 @@ class Config:
     # Cloud SQL Configuration
     DB_USER = os.getenv("DB_USER")
     DB_PASS = os.getenv("DB_PASS")
+    DB_EMAIL = os.getenv("DB_EMAIL")
     DB_NAME = os.getenv("DB_NAME")
     DB_HOST = os.getenv("DB_HOST")
     CLOUD_SQL_CONNECTION_NAME = os.getenv("CLOUD_SQL_CONNECTION_NAME")
@@ -35,7 +36,7 @@ class DevelopmentConfig(Config):
     # Use SQLite for local development with absolute path
     DB_FILE = os.path.join(Config.INSTANCE_PATH, 'gene_panel.db')
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{DB_FILE}'
-    CLOUD_SQL_CONNECTION_NAME = None
+    # CLOUD_SQL_CONNECTION_NAME = None
     # Original PostgreSQL config commented out for reference
     #DB_PORT = 5433  # Match the port in start_cloud_sql_proxy.ps1
     #SQLALCHEMY_DATABASE_URI = f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:{DB_PORT}/{Config.DB_NAME}'

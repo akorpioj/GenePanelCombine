@@ -1,8 +1,15 @@
 import os
+import sys
 import logging
+
+# Add the project root to the Python path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
 from app import create_app
-from app.models import db, User
+from app.models import db, User, UserRole
 from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.security import generate_password_hash
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -25,8 +32,16 @@ def reset_db():
                 logger.info("Created all tables.")
 
                 # Create admin user
-                admin = User(username='admin')
-                admin.set_password(os.getenv('DB_PASS', 'password'))
+                admin = User(
+                    username='admin',
+                    email=os.getenv('DB_EMAIL', 'admin@panelmerge.local'),
+                    password_hash=generate_password_hash(os.getenv('DB_PASS', 'Admin123!')),
+                    first_name='Admin',
+                    last_name='User',
+                    role=UserRole.ADMIN,
+                    is_active=True,
+                    is_verified=True,
+                )
                 db.session.add(admin)
                 db.session.commit()
                 logger.info("Created admin user.")

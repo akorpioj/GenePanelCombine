@@ -1,0 +1,275 @@
+{% extends "auth/base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="min-h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                Create your account
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Or
+                <a href="{{ url_for('auth.login') }}" class="font-medium text-blue-600 hover:text-blue-500">
+                    sign in to your existing account
+                </a>
+            </p>
+            <div class="mt-4 p-3 bg-green-50 rounded-md">
+                <p class="text-sm text-green-700 text-center">
+                    <span class="font-medium">No account needed:</span> You can 
+                    <a href="{{ url_for('main.index') }}" class="underline hover:text-green-600">use PanelMerge as a guest</a> 
+                    with full access to upload panels and download gene lists.
+                </p>
+            </div>
+        </div>
+        
+        <form class="mt-8 space-y-6" method="POST" id="registerForm">
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="first_name" class="block text-sm font-medium text-gray-700">First Name</label>
+                        <input id="first_name" name="first_name" type="text" required 
+                               class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                               placeholder="First name"
+                               value="{{ request.form.first_name or '' }}">
+                    </div>
+                    <div>
+                        <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                        <input id="last_name" name="last_name" type="text" required 
+                               class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                               placeholder="Last name"
+                               value="{{ request.form.last_name or '' }}">
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username *</label>
+                    <input id="username" name="username" type="text" required 
+                           class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                           placeholder="Choose a username"
+                           value="{{ request.form.username or '' }}"
+                           autocomplete="off">
+                    <div id="username-feedback" class="mt-1 text-sm"></div>
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email Address *</label>
+                    <input id="email" name="email" type="email" required 
+                           class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                           placeholder="your.email@example.com"
+                           value="{{ request.form.email or '' }}"
+                           autocomplete="off">
+                    <div id="email-feedback" class="mt-1 text-sm"></div>
+                </div>
+
+                <div>
+                    <label for="organization" class="block text-sm font-medium text-gray-700">Organization</label>
+                    <input id="organization" name="organization" type="text" 
+                           class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                           placeholder="Your organization (optional)"
+                           value="{{ request.form.organization or '' }}">
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password *</label>
+                    <input id="password" name="password" type="password" required 
+                           class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                           placeholder="Create a strong password">
+                    <div id="password-requirements" class="mt-2 text-xs text-gray-600">
+                        Password must contain:
+                        <ul class="list-disc list-inside mt-1">
+                            <li id="req-length" class="text-red-500">At least 8 characters</li>
+                            <li id="req-uppercase" class="text-red-500">One uppercase letter</li>
+                            <li id="req-lowercase" class="text-red-500">One lowercase letter</li>
+                            <li id="req-number" class="text-red-500">One number</li>
+                            <li id="req-special" class="text-red-500">One special character</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm Password *</label>
+                    <input id="confirm_password" name="confirm_password" type="password" required 
+                           class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                           placeholder="Confirm your password">
+                    <div id="password-match" class="mt-1 text-sm"></div>
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" id="submitBtn" disabled
+                        class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gray-400 cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                        <svg class="h-5 w-5 text-gray-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                        </svg>
+                    </span>
+                    Create Account
+                </button>
+            </div>
+        </form>
+        
+        <div class="text-center">
+            <a href="{{ url_for('main.index') }}" class="text-blue-600 hover:text-blue-500">
+                ← Back to PanelMerge
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const usernameInput = document.getElementById('username');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    let usernameAvailable = false;
+    let emailAvailable = false;
+    let passwordValid = false;
+    let passwordsMatch = false;
+    
+    // Debounce function
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // Check username availability
+    const checkUsername = debounce(async function(username) {
+        if (username.length < 3) {
+            document.getElementById('username-feedback').innerHTML = '<span class="text-red-500">Username must be at least 3 characters</span>';
+            usernameAvailable = false;
+            updateSubmitButton();
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/auth/api/check-username?username=${encodeURIComponent(username)}`);
+            const data = await response.json();
+            const feedback = document.getElementById('username-feedback');
+            
+            if (data.available) {
+                feedback.innerHTML = '<span class="text-green-500">✓ Username available</span>';
+                usernameAvailable = true;
+            } else {
+                feedback.innerHTML = '<span class="text-red-500">✗ Username already taken</span>';
+                usernameAvailable = false;
+            }
+        } catch (error) {
+            document.getElementById('username-feedback').innerHTML = '<span class="text-gray-500">Unable to check availability</span>';
+            usernameAvailable = false;
+        }
+        updateSubmitButton();
+    }, 500);
+    
+    // Check email availability
+    const checkEmail = debounce(async function(email) {
+        if (!email.includes('@')) {
+            document.getElementById('email-feedback').innerHTML = '<span class="text-red-500">Please enter a valid email</span>';
+            emailAvailable = false;
+            updateSubmitButton();
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/auth/api/check-email?email=${encodeURIComponent(email)}`);
+            const data = await response.json();
+            const feedback = document.getElementById('email-feedback');
+            
+            if (data.available) {
+                feedback.innerHTML = '<span class="text-green-500">✓ Email available</span>';
+                emailAvailable = true;
+            } else {
+                feedback.innerHTML = '<span class="text-red-500">✗ Email already registered</span>';
+                emailAvailable = false;
+            }
+        } catch (error) {
+            document.getElementById('email-feedback').innerHTML = '<span class="text-gray-500">Unable to check availability</span>';
+            emailAvailable = false;
+        }
+        updateSubmitButton();
+    }, 500);
+    
+    // Password validation
+    function validatePassword(password) {
+        const requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /\d/.test(password),
+            special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+        };
+        
+        // Update visual indicators
+        document.getElementById('req-length').className = requirements.length ? 'text-green-500' : 'text-red-500';
+        document.getElementById('req-uppercase').className = requirements.uppercase ? 'text-green-500' : 'text-red-500';
+        document.getElementById('req-lowercase').className = requirements.lowercase ? 'text-green-500' : 'text-red-500';
+        document.getElementById('req-number').className = requirements.number ? 'text-green-500' : 'text-red-500';
+        document.getElementById('req-special').className = requirements.special ? 'text-green-500' : 'text-red-500';
+        
+        passwordValid = Object.values(requirements).every(req => req);
+        updateSubmitButton();
+    }
+    
+    // Password confirmation
+    function checkPasswordMatch() {
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        const feedback = document.getElementById('password-match');
+        
+        if (confirmPassword === '') {
+            feedback.innerHTML = '';
+            passwordsMatch = false;
+        } else if (password === confirmPassword) {
+            feedback.innerHTML = '<span class="text-green-500">✓ Passwords match</span>';
+            passwordsMatch = true;
+        } else {
+            feedback.innerHTML = '<span class="text-red-500">✗ Passwords do not match</span>';
+            passwordsMatch = false;
+        }
+        updateSubmitButton();
+    }
+    
+    // Update submit button state
+    function updateSubmitButton() {
+        const allValid = usernameAvailable && emailAvailable && passwordValid && passwordsMatch;
+        
+        if (allValid) {
+            submitBtn.disabled = false;
+            submitBtn.className = 'group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500';
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.className = 'group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gray-400 cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500';
+        }
+    }
+    
+    // Event listeners
+    usernameInput.addEventListener('input', function() {
+        checkUsername(this.value);
+    });
+    
+    emailInput.addEventListener('input', function() {
+        checkEmail(this.value);
+    });
+    
+    passwordInput.addEventListener('input', function() {
+        validatePassword(this.value);
+        if (confirmPasswordInput.value) {
+            checkPasswordMatch();
+        }
+    });
+    
+    confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+});
+</script>
+{% endblock %}

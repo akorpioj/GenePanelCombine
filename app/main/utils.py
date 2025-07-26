@@ -4,6 +4,7 @@ import pytz
 from datetime import datetime, timedelta
 from flask import flash
 from flask import redirect, url_for
+from flask_login import current_user
 from . import main_bp  # Import the Blueprint object defined in __init__.py
 from app.extensions import limiter  # Import the limiter instance if needed
 # from flask import current_app  # Import current_app if you need to access app context
@@ -356,4 +357,59 @@ def get_gene_suggestions(query, api_source='uk', limit=10):
     except Exception as e:
         logger.error(f"Unexpected error in get_gene_suggestions: {e}")
         return []
+
+
+# --- Permission Utilities ---
+
+def user_can_upload():
+    """
+    Check if the current user (authenticated or guest) can upload files.
+    Currently allows all users (guests and authenticated) to have USER-level access.
+    """
+    if current_user.is_authenticated:
+        return current_user.can_upload()
+    else:
+        # Allow guest users to upload - USER-level access for all
+        return True
+
+def user_can_moderate():
+    """
+    Check if the current user can moderate content.
+    Only authenticated users with EDITOR role or higher can moderate.
+    """
+    if current_user.is_authenticated:
+        return current_user.can_moderate()
+    else:
+        # Guest users cannot moderate
+        return False
+
+def user_is_admin():
+    """
+    Check if the current user is an admin.
+    Only authenticated users with ADMIN role.
+    """
+    if current_user.is_authenticated:
+        return current_user.is_admin()
+    else:
+        # Guest users are not admins
+        return False
+
+def get_user_display_name():
+    """
+    Get a display name for the current user.
+    Returns the user's full name if authenticated, or 'Guest' if not.
+    """
+    if current_user.is_authenticated:
+        return current_user.get_full_name()
+    else:
+        return "Guest User"
+
+def get_user_role_display():
+    """
+    Get a display-friendly role name for the current user.
+    """
+    if current_user.is_authenticated:
+        return current_user.role.value.title()
+    else:
+        return "Guest (User-level access)"
 

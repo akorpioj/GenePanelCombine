@@ -1,14 +1,19 @@
+import os
+import sys
+
+# Add the project root to the Python path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
 from app import create_app
 from app.models import User, db
-import os
 
 def check_db():
     app = create_app('development')
     with app.app_context():
         # Check if the database file exists
-        db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+        db_path = app.config['CLOUD_SQL_CONNECTION_NAME']
         print(f"Database path: {db_path}")
-        print(f"Database exists: {os.path.exists(db_path)}\n")
         
         # Check if table exists
         try:

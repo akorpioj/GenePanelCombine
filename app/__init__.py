@@ -94,11 +94,14 @@ def create_app(config_name=None):
         return User.query.get(int(user_id))
     
     # Register Blueprints
-    from .main import main_bp # Assuming main_bp is defined in my_app/main/__init__.py
+    from .main import main_bp
     app.register_blueprint(main_bp)
 
-    from .admin import admin_bp # Assuming auth_bp is defined in my_app/admin/__init__.py
+    from .admin import admin_bp
     app.register_blueprint(admin_bp)
+
+    from .auth import auth_bp  # Register the new auth blueprint
+    app.register_blueprint(auth_bp)
 
     # You could register other Blueprints here
     # from .api import api_bp
@@ -126,7 +129,8 @@ def create_app(config_name=None):
     @app.shell_context_processor
     def make_shell_context():
         """Makes variables automatically available in the 'flask shell'."""
-        return {'db': db, 'User': User} # Add other models or objects you use often
+        from .models import User, UserRole, Visit, PanelDownload
+        return {'db': db, 'User': User, 'UserRole': UserRole, 'Visit': Visit, 'PanelDownload': PanelDownload}
 
     app.logger.info(f"Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
     app.logger.info(f"Configuration loaded: {config_name}")
