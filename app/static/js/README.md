@@ -46,6 +46,7 @@ This directory contains the modularized JavaScript codebase for the PanelMerge a
 ### `modules/panelManager.js` - Panel Management
 - **Purpose**: Handle panel selection, filtering, and UI updates
 - **Functions**:
+  - `setLoadingState()`: Set loading state for panel dropdowns
   - `populateAll()`: Populate panel dropdowns with filtered results
   - `updateSelectOptions()`: Update select element options
   - `clearPanel()`: Clear specific panel selection
@@ -90,6 +91,9 @@ Related functionality is grouped together, making it easier to locate and modify
 ### 6. **Maintainability**
 Changes to one module don't require understanding the entire codebase, reducing maintenance overhead.
 
+### 7. **User Experience**
+Loading states provide visual feedback to users while data is being fetched from APIs.
+
 ## Usage
 
 The application uses ES6 modules, so the HTML template includes:
@@ -98,6 +102,22 @@ The application uses ES6 modules, so the HTML template includes:
 ```
 
 Global variables from the template (maxPanels, listTypeOptions) are automatically picked up by the state module.
+
+## Loading States
+
+The application now includes user-friendly loading states for panel dropdowns:
+
+### Implementation
+- Panel dropdowns show "Loading panels..." when data is being fetched
+- Loading option is disabled and visually distinct (grayed out, italic text)
+- Loading state automatically clears when real data is populated
+- Smart detection prevents showing loading state when data is already available
+
+### Technical Details
+- HTML templates include initial `<option value="Loading" disabled selected>Loading panels...</option>`
+- `setLoadingState()` function manages loading state display
+- CSS styles provide visual distinction for loading states
+- Loading state is shown during API source switches and initial page load
 
 ## Migration Notes
 

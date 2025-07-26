@@ -248,6 +248,9 @@
   .collapse {
     visibility: collapse;
   }
+  .visible {
+    visibility: visible;
+  }
   .absolute {
     position: absolute;
   }
@@ -797,6 +800,9 @@
   }
   .text-yellow-800 {
     color: var(--color-yellow-800);
+  }
+  .italic {
+    font-style: italic;
   }
   .shadow-2xl {
     --tw-shadow: 0 25px 50px -12px var(--tw-shadow-color, rgb(0 0 0 / 0.25));

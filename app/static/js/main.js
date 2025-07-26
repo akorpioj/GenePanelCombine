@@ -5,7 +5,7 @@
 
 // Import modules
 import { fetchPanels, switchAPI } from './modules/api.js';
-import { clearAll } from './modules/panelManager.js';
+import { clearAll, setLoadingState } from './modules/panelManager.js';
 import { initializeAutocomplete } from './modules/autocomplete.js';
 import { initializeDragAndDrop, initializeFileUpload } from './modules/fileUpload.js';
 import { openPanelComparison } from './modules/panelComparison.js';
@@ -15,6 +15,9 @@ import { openPanelComparison } from './modules/panelComparison.js';
  */
 function initializeApp() {
     console.log("PanelMerge: Initializing application");
+    
+    // Set initial loading state for panel selects
+    setLoadingState();
     
     // Initialize all components
     initializeAutocomplete();

@@ -8,9 +8,35 @@ import { matches } from './utils.js';
 import { fetchPanelsByGene } from './api.js';
 
 /**
+ * Set loading state for all panel selects
+ */
+export function setLoadingState() {
+    for (let i = 1; i <= maxPanels; i++) {
+        const select = document.getElementById(`panel_id_${i}`);
+        if (select) {
+            // Only set loading if the select is currently empty or has no real options
+            const hasRealOptions = Array.from(select.options).some(opt => 
+                opt.value !== "Loading" && opt.value !== "None" && opt.value !== ""
+            );
+            
+            if (!hasRealOptions) {
+                select.innerHTML = '<option value="Loading" disabled selected>Loading panels...</option>';
+                select.classList.remove('panel-source-uk', 'panel-source-aus');
+            }
+        }
+    }
+}
+
+/**
  * Populate all panel select dropdowns with filtered results
  */
 export async function populateAll() {
+    // Check if we have data for the current API
+    if (!allPanels[currentAPI] || allPanels[currentAPI].length === 0) {
+        console.log(`No data available for ${currentAPI} source, keeping loading state`);
+        return;
+    }
+
     const term = document.getElementById("search_term_input")
         .value.trim().toLowerCase();
 

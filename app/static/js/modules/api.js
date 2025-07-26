@@ -48,8 +48,9 @@ export function switchAPI(apiSource) {
     
     // Update panel lists
     if (apiSource !== 'upload') {
-        // Use dynamic import to avoid circular dependency
+        // Set loading state first, then populate
         import('./panelManager.js').then(module => {
+            module.setLoadingState();
             module.populateAll().catch(console.error);
         });
     }
