@@ -1,12 +1,16 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from datetime import datetime
-from app.extensions import limiter 
+from app.extensions import limiter, cache
 from . import main_bp # Import the Blueprint object defined in __init__.py
 from ..models import PanelDownload, db
 from .excel import generate_excel_file
 from .utils import get_all_panels_from_api, get_panel_genes_data_from_api, filter_genes_from_panel_data
 from .utils import list_type_options, MAX_PANELS
 from .utils import logger
+from .cache_utils import (
+    get_cached_all_panels, get_cached_panel_genes, get_cached_gene_suggestions,
+    get_cached_combined_panels, clear_panel_cache, get_cache_stats
+)
 from werkzeug.utils import secure_filename
 import pandas as pd
 
@@ -33,8 +37,8 @@ def api_panels():
     logger.info("api_panels")
     api_source = request.args.get('source', 'uk')
     
-    # (re)fetch or cache your master list here
-    all_panels_raw = get_all_panels_from_api(api_source)
+    # Use cached function for better performance
+    all_panels_raw = get_cached_all_panels(api_source)
 
     # inject a display_name for the client
     processed = []
@@ -92,8 +96,8 @@ def api_gene_suggestions():
         return jsonify([])
     
     try:
-        from .utils import get_gene_suggestions
-        suggestions = get_gene_suggestions(query, api_source, limit)
+        # Use cached function for better performance
+        suggestions = get_cached_gene_suggestions(query, api_source, limit)
         return jsonify(suggestions)
         
     except Exception as e:
@@ -121,22 +125,22 @@ def api_panel_details():
                 
             panel_id, api_source = panel_id_str.strip().split('-', 1)
             
-            # Get basic panel info
-            all_panels = get_all_panels_from_api(api_source)
+            # Get basic panel info - use cached version
+            all_panels = get_cached_all_panels(api_source)
             panel_info = next((p for p in all_panels if str(p['id']) == panel_id), None)
             
             if not panel_info:
                 continue
                 
-            # Get gene data for this panel
+            # Get gene data for this panel - use cached version
             try:
-                panel_genes_data = get_panel_genes_data_from_api(int(panel_id), api_source)
+                panel_genes_data = get_cached_panel_genes(int(panel_id), api_source)
                 gene_count = len(panel_genes_data) if panel_genes_data else 0
                 
                 # Get all gene names (not just a sample)
                 gene_names = []
                 if panel_genes_data:
-                    gene_names = [gene.get('gene_data', {}).get('gene_symbol', 'Unknown') 
+                    gene_names = [gene.get('gene_symbol', 'Unknown') 
                                 for gene in panel_genes_data]
                     # Remove any 'Unknown' entries and sort
                     gene_names = sorted([name for name in gene_names if name != 'Unknown'])
@@ -232,13 +236,15 @@ def generate():
     # session.modified = True
 
     for idx, config in enumerate(selected_panel_configs_for_generation, 1):
-        raw_genes_for_panel = get_panel_genes_data_from_api(config["id"], config["api_source"])
+        # Use cached version for better performance
+        raw_genes_for_panel = get_cached_panel_genes(config["id"], config["api_source"])
         panel_full_gene_data.append(raw_genes_for_panel)
         # Add GB or AUS before the panel name
         panel_prefix = "GB" if config["api_source"] == "uk" else "AUS"
         panel_name = f"{panel_prefix} Panel {idx}"
         try:
-            all_panels = get_all_panels_from_api(config["api_source"])
+            # Use cached version for better performance
+            all_panels = get_cached_all_panels(config["api_source"])
             match = next((p for p in all_panels if p["id"] == config["id"]), None)
             if match:
                 panel_name = f"{panel_prefix} {match['name']}"
@@ -370,3 +376,31 @@ def remove_user_panel():
     session['uploaded_panels'] = new_panels
     session.modified = True
     return jsonify({'success': True, 'removed': sheet_name})
+
+
+@main_bp.route('/api/cache/stats')
+@limiter.limit("10 per minute")
+def api_cache_stats():
+    """
+    Get cache statistics (for debugging/monitoring)
+    """
+    try:
+        stats = get_cache_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {e}")
+        return jsonify({"error": "Failed to get cache stats"}), 500
+
+
+@main_bp.route('/api/cache/clear')
+@limiter.limit("5 per minute")
+def api_cache_clear():
+    """
+    Clear panel cache (for admin use or debugging)
+    """
+    try:
+        clear_panel_cache()
+        return jsonify({"success": True, "message": "Panel cache cleared"})
+    except Exception as e:
+        logger.error(f"Error clearing cache: {e}")
+        return jsonify({"error": "Failed to clear cache"}), 500

@@ -1,6 +1,6 @@
 from flask import Flask, render_template # Added render_template for error handlers
 from .config_settings import DevelopmentConfig, ProductionConfig, TestingConfig # Your config classes
-from .extensions import login_manager, limiter # Your uninitialized extensions
+from .extensions import login_manager, limiter, cache # Your uninitialized extensions
 import os
 from flask import redirect, url_for, flash
 from .models import db_init, db
@@ -83,6 +83,7 @@ def create_app(config_name=None):
     login_manager.init_app(app)
     #mail.init_app(app) # Initialize other extensions
     limiter.init_app(app)
+    cache.init_app(app)  # Initialize Redis cache
     
     # Define user_loader callback for Flask-Login here, after login_manager is initialized
     # This avoids circular import issues if the User model is in a separate models.py

@@ -21,6 +21,13 @@ class Config:
     DB_HOST = os.getenv("DB_HOST")
     CLOUD_SQL_CONNECTION_NAME = os.getenv("CLOUD_SQL_CONNECTION_NAME")
     INSTANCE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'instance')
+    
+    # Redis Cache Configuration
+    CACHE_TYPE = 'RedisCache'
+    CACHE_REDIS_URL = os.getenv('REDIS_URL')
+    CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 3600))
+    CACHE_PANEL_TIMEOUT = int(os.getenv('CACHE_PANEL_TIMEOUT', 1800))
+    CACHE_GENE_TIMEOUT = int(os.getenv('CACHE_GENE_TIMEOUT', 86400))
 
 # Add other application-wide configurations here
 class DevelopmentConfig(Config):
@@ -39,6 +46,9 @@ class TestingConfig(Config):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:' # Use an in-memory SQLite database for tests
     WTF_CSRF_ENABLED = False # Often useful to disable CSRF for simpler form testing
     SECRET_KEY = 'test_secret_key' # Consistent key for testing
+    # Use simple cache for testing
+    CACHE_TYPE = 'SimpleCache'
+    CACHE_DEFAULT_TIMEOUT = 300
 
 class ProductionConfig(Config):
     DEBUG = False

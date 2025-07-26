@@ -1,5 +1,5 @@
 {
-  "name": "PanelMerge",
+  "name": "panel-merge",
   "version": "1.3",
   "description": "A Flask-based application for filtering gene panels using Tailwind CSS.",
   "main": "index.js",
@@ -10,10 +10,11 @@
     "watch:css": "npx tailwindcss -i ./app/src/styles.css -o ./app/static/css/styles.css --watch"
   },
   "dependencies": {
-    "tailwindcss": "^3.4.1",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
-    "postcss-cli": "^11.0.0"
+    "postcss-cli": "^11.0.0",
+    "redis-cli": "^2.1.2",
+    "tailwindcss": "^3.4.1"
   },
   "repository": {
     "type": "git",
