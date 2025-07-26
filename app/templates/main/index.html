@@ -7,7 +7,7 @@
     const maxPanels = {{ max_panels }};
     const listTypeOptions = {{ list_type_options | safe }};
   </script>
-  <script src="{{ url_for('static', filename='js/panels.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 {% endblock %}
 
 {% block content %}

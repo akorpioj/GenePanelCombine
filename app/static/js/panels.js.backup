@@ -1,39 +1,16 @@
+/**
+ * PanelMerge - Panel Management and Comparison System
+ * Main JavaScript file for handling panel selection, search, upload, and comparison
+ */
+
+// =============================================================================
+// GLOBAL STATE AND CONFIGURATION
+// =============================================================================
+
 let allPanels = { uk: [], aus: [] };
 let currentAPI = 'uk';
 
-function fetchPanels(apiSource) {
-    const url = `/api/panels?source=${apiSource}`;
-    fetch(url)
-        .then(r => r.json())
-        .then(data => {
-            allPanels[apiSource] = data;
-            if (apiSource === currentAPI) {
-                populateAll().catch(console.error);
-            }
-        });
-}
-
-function switchAPI(apiSource) {
-    currentAPI = apiSource;
-    // Update tab styling
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.getElementById(`${apiSource}-tab`).classList.add('active');
-    // Show/hide upload form
-    document.getElementById('upload-panel-form').style.display = (apiSource === 'upload') ? '' : 'none';
-    // Show/hide panelapp-section
-    var panelAppSection = document.getElementById('panelapp-section');
-    if (panelAppSection) {
-        panelAppSection.style.display = (apiSource === 'upload') ? 'none' : '';
-    }
-    // Update panel lists
-    if (apiSource !== 'upload') {
-        populateAll().catch(console.error);
-    }
-}
-
-// list all the string fields you want to search
+// Search configuration
 const fieldsToSearch = [
     'display_name',
     'description',
@@ -41,6 +18,30 @@ const fieldsToSearch = [
     'disease_sub_group',
 ];
 
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * Debounce function to limit API calls
+ * @param {Function} fn - Function to debounce
+ * @param {number} delay - Delay in milliseconds
+ * @returns {Function} Debounced function
+ */
+function debounce(fn, delay) {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), delay);
+    };
+}
+
+/**
+ * Check if a panel matches the search term
+ * @param {Object} panel - Panel object to search
+ * @param {string} term - Search term
+ * @returns {boolean} True if panel matches the search term
+ */
 function matches(panel, term) {
     const txt = term.toLowerCase();
     return fieldsToSearch.some(key => {
@@ -55,6 +56,57 @@ function matches(panel, term) {
     });
 }
 
+// =============================================================================
+// API AND DATA MANAGEMENT
+// =============================================================================
+
+/**
+ * Fetch panels from the specified API source
+ * @param {string} apiSource - API source ('uk' or 'aus')
+ */
+function fetchPanels(apiSource) {
+    const url = `/api/panels?source=${apiSource}`;
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            allPanels[apiSource] = data;
+            if (apiSource === currentAPI) {
+                populateAll().catch(console.error);
+            }
+        });
+}
+
+/**
+ * Switch between different API sources
+ * @param {string} apiSource - API source to switch to
+ */
+function switchAPI(apiSource) {
+    currentAPI = apiSource;
+    
+    // Update tab styling
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById(`${apiSource}-tab`).classList.add('active');
+    
+    // Show/hide upload form
+    document.getElementById('upload-panel-form').style.display = (apiSource === 'upload') ? '' : 'none';
+    
+    // Show/hide panelapp-section
+    var panelAppSection = document.getElementById('panelapp-section');
+    if (panelAppSection) {
+        panelAppSection.style.display = (apiSource === 'upload') ? 'none' : '';
+    }
+    
+    // Update panel lists
+    if (apiSource !== 'upload') {
+        populateAll().catch(console.error);
+    }
+}
+
+/**
+ * Populate all panel select dropdowns with filtered results
+ */
 async function populateAll() {
     const term = document.getElementById("search_term_input")
         .value.trim().toLowerCase();
@@ -98,6 +150,13 @@ async function populateAll() {
     }
 }
 
+/**
+ * Update select element options with filtered panel list
+ * @param {HTMLSelectElement} select - Select element to update
+ * @param {Array} list - Filtered panel list
+ * @param {string} current - Currently selected value
+ * @param {Object} currentPanel - Currently selected panel object
+ */
 function updateSelectOptions(select, list, current, currentPanel) {
     // start with a "None" option
     const options = [{ id: "None", display_name: "None" }];
@@ -149,6 +208,14 @@ function updateSelectOptions(select, list, current, currentPanel) {
     });
 }
 
+// =============================================================================
+// PANEL MANAGEMENT FUNCTIONS
+// =============================================================================
+
+/**
+ * Clear a specific panel selection
+ * @param {number} i - Panel index to clear
+ */
 function clearPanel(i) {
     const sel = document.getElementById(`panel_id_${i}`);
     const sel2 = document.getElementById(`list_type_${i}`);
@@ -157,6 +224,9 @@ function clearPanel(i) {
     sel.classList.remove('panel-source-uk', 'panel-source-aus');
 }
 
+/**
+ * Clear all panel selections and search term
+ */
 function clearAll() {
     // Clear search input
     document.getElementById('search_term_input').value = '';
@@ -170,297 +240,249 @@ function clearAll() {
     populateAll().catch(console.error);
 }
 
-function debounce(fn, delay) {
-    let t;
-    return (...args) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn(...args), delay);
-    };
-}
+// =============================================================================
+// AUTOCOMPLETE FUNCTIONALITY
+// =============================================================================
 
-// Fetch UK and AUS panels immediately on script load
-fetchPanels('uk');
-fetchPanels('aus');
-
-// All DOM-related code must be inside DOMContentLoaded
-
-document.addEventListener("DOMContentLoaded", () => {
-    // Logging for debug
-    console.log("Event: DOMContentLoaded");
-    
-    // Search input event with autocomplete
+/**
+ * Initialize autocomplete functionality for gene search
+ */
+function initializeAutocomplete() {
     const searchInput = document.getElementById("search_term_input");
-    if (searchInput) {
-        // Create autocomplete dropdown
-        const autocompleteDiv = document.createElement('div');
-        autocompleteDiv.id = 'autocomplete-suggestions';
-        autocompleteDiv.className = 'absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto hidden';
-        searchInput.parentNode.style.position = 'relative';
-        searchInput.parentNode.appendChild(autocompleteDiv);
-        
-        let suggestionTimeout;
-        let currentSuggestions = [];
-        let selectedIndex = -1;
-        
-        // Function to show gene suggestions
-        async function showGeneSuggestions(query) {
-            if (query.length < 2 || query.includes(' ')) {
-                hideAutocomplete();
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/gene-suggestions?q=${encodeURIComponent(query)}&source=${currentAPI}&limit=8`);
-                if (response.ok) {
-                    const suggestions = await response.json();
-                    displaySuggestions(suggestions, query);
-                } else {
-                    hideAutocomplete();
-                }
-            } catch (error) {
-                console.error('Error fetching gene suggestions:', error);
-                hideAutocomplete();
-            }
+    if (!searchInput) return;
+
+    // Create autocomplete dropdown
+    const autocompleteDiv = document.createElement('div');
+    autocompleteDiv.id = 'autocomplete-suggestions';
+    autocompleteDiv.className = 'absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto hidden';
+    searchInput.parentNode.style.position = 'relative';
+    searchInput.parentNode.appendChild(autocompleteDiv);
+    
+    let suggestionTimeout;
+    let currentSuggestions = [];
+    let selectedIndex = -1;
+    
+    // Function to show gene suggestions
+    async function showGeneSuggestions(query) {
+        if (query.length < 2 || query.includes(' ')) {
+            hideAutocomplete();
+            return;
         }
         
-        // Function to display suggestions
-        function displaySuggestions(suggestions, query) {
-            currentSuggestions = suggestions;
-            selectedIndex = -1;
-            
-            if (suggestions.length === 0) {
-                hideAutocomplete();
-                return;
-            }
-            
-            autocompleteDiv.innerHTML = '';
-            suggestions.forEach((suggestion, index) => {
-                const item = document.createElement('div');
-                item.className = 'px-3 py-2 cursor-pointer hover:bg-sky-100 text-sm';
-                
-                // Highlight matching part
-                const regex = new RegExp(`(${query})`, 'gi');
-                const highlightedText = suggestion.replace(regex, '<strong>$1</strong>');
-                item.innerHTML = `${highlightedText} <span class="text-xs text-gray-500">gene</span>`;
-                
-                item.addEventListener('click', () => {
-                    searchInput.value = suggestion;
-                    hideAutocomplete();
-                    populateAll().catch(console.error);
-                });
-                
-                autocompleteDiv.appendChild(item);
-            });
-            
-            autocompleteDiv.classList.remove('hidden');
-        }
-        
-        // Function to hide autocomplete
-        function hideAutocomplete() {
-            autocompleteDiv.classList.add('hidden');
-            currentSuggestions = [];
-            selectedIndex = -1;
-        }
-        
-        // Search input event handler
-        searchInput.addEventListener("input", debounce(async (e) => {
-            const query = e.target.value.trim();
-            
-            // Show gene suggestions if it looks like a gene name
-            if (query.length >= 2 && !query.includes(' ')) {
-                clearTimeout(suggestionTimeout);
-                suggestionTimeout = setTimeout(() => {
-                    showGeneSuggestions(query);
-                }, 150);
+        try {
+            const response = await fetch(`/api/gene-suggestions?q=${encodeURIComponent(query)}&source=${currentAPI}&limit=8`);
+            if (response.ok) {
+                const suggestions = await response.json();
+                displaySuggestions(suggestions, query);
             } else {
                 hideAutocomplete();
             }
-            
-            // Always perform the main search
-            await populateAll();
-        }, 300));
+        } catch (error) {
+            console.error('Error fetching gene suggestions:', error);
+            hideAutocomplete();
+        }
+    }
+    
+    // Function to display suggestions
+    function displaySuggestions(suggestions, query) {
+        currentSuggestions = suggestions;
+        selectedIndex = -1;
         
-        // Keyboard navigation for autocomplete
-        searchInput.addEventListener('keydown', (e) => {
-            if (autocompleteDiv.classList.contains('hidden')) return;
-            
-            switch (e.key) {
-                case 'ArrowDown':
-                    e.preventDefault();
-                    selectedIndex = Math.min(selectedIndex + 1, currentSuggestions.length - 1);
-                    updateSelection();
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    selectedIndex = Math.max(selectedIndex - 1, -1);
-                    updateSelection();
-                    break;
-                case 'Enter':
-                    e.preventDefault();
-                    if (selectedIndex >= 0 && selectedIndex < currentSuggestions.length) {
-                        searchInput.value = currentSuggestions[selectedIndex];
-                        hideAutocomplete();
-                        populateAll().catch(console.error);
-                    }
-                    break;
-                case 'Escape':
-                    hideAutocomplete();
-                    break;
-            }
-        });
-        
-        // Update visual selection
-        function updateSelection() {
-            const items = autocompleteDiv.querySelectorAll('div');
-            items.forEach((item, index) => {
-                if (index === selectedIndex) {
-                    item.classList.add('bg-sky-100');
-                } else {
-                    item.classList.remove('bg-sky-100');
-                }
-            });
+        if (suggestions.length === 0) {
+            hideAutocomplete();
+            return;
         }
         
-        // Hide autocomplete when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !autocompleteDiv.contains(e.target)) {
+        autocompleteDiv.innerHTML = '';
+        suggestions.forEach((suggestion, index) => {
+            const item = document.createElement('div');
+            item.className = 'px-3 py-2 cursor-pointer hover:bg-sky-100 text-sm';
+            
+            // Highlight matching part
+            const regex = new RegExp(`(${query})`, 'gi');
+            const highlightedText = suggestion.replace(regex, '<strong>$1</strong>');
+            item.innerHTML = `${highlightedText} <span class="text-xs text-gray-500">gene</span>`;
+            
+            item.addEventListener('click', () => {
+                searchInput.value = suggestion;
                 hideAutocomplete();
+                populateAll().catch(console.error);
+            });
+            
+            autocompleteDiv.appendChild(item);
+        });
+        
+        autocompleteDiv.classList.remove('hidden');
+    }
+    
+    // Function to hide autocomplete
+    function hideAutocomplete() {
+        autocompleteDiv.classList.add('hidden');
+        currentSuggestions = [];
+        selectedIndex = -1;
+    }
+    
+    // Update visual selection
+    function updateSelection() {
+        const items = autocompleteDiv.querySelectorAll('div');
+        items.forEach((item, index) => {
+            if (index === selectedIndex) {
+                item.classList.add('bg-sky-100');
+            } else {
+                item.classList.remove('bg-sky-100');
             }
         });
     }
-    // Drag-and-drop support for user panel upload
+
+    // Search input event handler
+    searchInput.addEventListener("input", debounce(async (e) => {
+        const query = e.target.value.trim();
+        
+        // Show gene suggestions if it looks like a gene name
+        if (query.length >= 2 && !query.includes(' ')) {
+            clearTimeout(suggestionTimeout);
+            suggestionTimeout = setTimeout(() => {
+                showGeneSuggestions(query);
+            }, 150);
+        } else {
+            hideAutocomplete();
+        }
+        
+        // Always perform the main search
+        await populateAll();
+    }, 300));
+    
+    // Keyboard navigation for autocomplete
+    searchInput.addEventListener('keydown', (e) => {
+        if (autocompleteDiv.classList.contains('hidden')) return;
+        
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, currentSuggestions.length - 1);
+                updateSelection();
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection();
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (selectedIndex >= 0 && selectedIndex < currentSuggestions.length) {
+                    searchInput.value = currentSuggestions[selectedIndex];
+                    hideAutocomplete();
+                    populateAll().catch(console.error);
+                }
+                break;
+            case 'Escape':
+                hideAutocomplete();
+                break;
+        }
+    });
+    
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !autocompleteDiv.contains(e.target)) {
+            hideAutocomplete();
+        }
+    });
+}
+// =============================================================================
+// FILE UPLOAD FUNCTIONALITY
+// =============================================================================
+
+/**
+ * Initialize drag-and-drop file upload functionality
+ */
+function initializeDragAndDrop() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('user_panel_file');
     const dropZoneText = document.getElementById('drop-zone-text');
-    if (dropZone && fileInput) {
-        dropZone.style.position = 'relative';
-        dropZone.style.cursor = 'pointer';
-        if (dropZoneText) dropZoneText.style.pointerEvents = 'none';
-        fileInput.style.opacity = 0;
-        fileInput.style.width = '100%';
-        fileInput.style.height = '100%';
-        fileInput.style.position = 'absolute';
-        fileInput.style.left = 0;
-        fileInput.style.top = 0;
-        fileInput.style.zIndex = 2;
-        fileInput.style.display = 'block';
-        dropZone.appendChild(fileInput);
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                dropZone.classList.add('bg-sky-100', 'border-sky-600');
-            });
-        });
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                dropZone.classList.remove('bg-sky-100', 'border-sky-600');
-            });
-        });
-        dropZone.addEventListener('drop', (e) => {
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                fileInput.files = e.dataTransfer.files;
-                if (dropZoneText) dropZoneText.textContent = fileInput.files[0].name;
-                fileInput.dispatchEvent(new Event('change'));
-            }
-        });
-        dropZone.addEventListener('click', () => {
-            e.stopPropagation(); // Prevents the event from reaching uploadArea
-            fileInput.click()
-        });
-    }
-    // User panel upload form submit
-    const userPanelForm = document.getElementById('userPanelForm');
-    // --- User Panel Upload: Track and manage uploaded files ---
-    if (userPanelForm) {
-        userPanelForm.addEventListener('submit', function(e) {
+    
+    if (!dropZone || !fileInput) return;
+
+    // Setup drop zone styling and positioning
+    dropZone.style.position = 'relative';
+    dropZone.style.cursor = 'pointer';
+    if (dropZoneText) dropZoneText.style.pointerEvents = 'none';
+    
+    // Position file input over drop zone
+    fileInput.style.opacity = 0;
+    fileInput.style.width = '100%';
+    fileInput.style.height = '100%';
+    fileInput.style.position = 'absolute';
+    fileInput.style.left = 0;
+    fileInput.style.top = 0;
+    fileInput.style.zIndex = 2;
+    fileInput.style.display = 'block';
+    dropZone.appendChild(fileInput);
+    
+    // Drag enter/over events
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
             e.preventDefault();
-            if (uploadedFiles.length === 0) {
-                uploadStatusDiv.textContent = 'No file selected.';
-                uploadStatusDiv.style.color = 'red';
-                switchAPI('upload');
-                return;
-            }
-            // Optional: preview logic for CSV/TSV (show for first file only)
-            const file = uploadedFiles[0];
-            const ext = file.name.split('.').pop().toLowerCase();
-            if (ext === 'csv' || ext === 'tsv') {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    let genes = [];
-                    let delimiter = (ext === 'tsv') ? '\t' : ',';
-                    let lines = evt.target.result.split(/\r?\n/);
-                    let header = lines[0].split(delimiter);
-                    let geneIdx = header.findIndex(h => {
-                        const colName = h.trim().toLowerCase();
-                        return ['gene', 'genes', 'entity_name', 'genesymbol'].includes(colName);
-                    });
-                    if (geneIdx !== -1) {
-                        for (let i = 1; i < lines.length; i++) {
-                            let row = lines[i].split(delimiter);
-                            if (row[geneIdx]) genes.push(row[geneIdx].trim());
-                        }
-                        if (genes.length > 0) {
-                            uploadStatusDiv.textContent = `Loaded ${genes.length} genes from first file. Uploading...`;
-                            uploadStatusDiv.style.color = 'green';
-                        } else {
-                            uploadStatusDiv.textContent = 'No genes found in first file. Uploading anyway...';
-                            uploadStatusDiv.style.color = 'orange';
-                        }
-                    } else {
-                        uploadStatusDiv.textContent = 'No gene column found in first file. Looking for: gene, genes, entity_name, or genesymbol. Uploading anyway...';
-                        uploadStatusDiv.style.color = 'orange';
-                    }
-                };
-                reader.readAsText(file);
-            }
-            // Actual upload to /upload_user_panel
-            const formData = new FormData();
-            uploadedFiles.forEach(f => formData.append('user_panel_file', f));
-            fetch('/upload_user_panel', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.ok) {
-                    uploadStatusDiv.textContent = 'Upload successful!';
-                    uploadStatusDiv.style.color = 'green';
-                    uploadedFiles = [];
-                    renderUploadedFiles();
-                    showBackendUploadedFiles();
-                } else {
-                    uploadStatusDiv.textContent = 'Upload failed.';
-                    uploadStatusDiv.style.color = 'red';
-                }
-            })
-            .catch(() => {
-                uploadStatusDiv.textContent = 'Upload failed.';
-                uploadStatusDiv.style.color = 'red';
-            });
+            e.stopPropagation();
+            dropZone.classList.add('bg-sky-100', 'border-sky-600');
         });
-    }
+    });
+    
+    // Drag leave/drop events
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('bg-sky-100', 'border-sky-600');
+        });
+    });
+    
+    // Handle file drop
+    dropZone.addEventListener('drop', (e) => {
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            if (dropZoneText) dropZoneText.textContent = fileInput.files[0].name;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+    
+    // Handle click to select files
+    dropZone.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.click();
+    });
+}
+
+/**
+ * Initialize file upload form and tracking
+ */
+function initializeFileUpload() {
     let uploadedFiles = [];
     const uploadStatusDiv = document.getElementById('upload-panel-status');
     const uploadedListDiv = document.createElement('div');
     uploadedListDiv.id = 'uploaded-files-list';
     uploadStatusDiv.parentNode.insertBefore(uploadedListDiv, uploadStatusDiv.nextSibling);
 
+    const userPanelForm = document.getElementById('userPanelForm');
+    const fileInput = document.getElementById('user_panel_file');
+    const dropZoneText = document.getElementById('drop-zone-text');
+
+    /**
+     * Render the list of uploaded files
+     */
     function renderUploadedFiles() {
         uploadedListDiv.innerHTML = '';
         if (uploadedFiles.length === 0) {
-            // Also clear the drop zone text if no files are selected
             if (dropZoneText) dropZoneText.textContent = 'Drag & drop your file here, or click to select';
-            /*fileInput.value = '';*/
             return;
         }
+        
         const ul = document.createElement('ul');
         ul.className = 'mt-2 mb-2';
         uploadedFiles.forEach((file, idx) => {
             const li = document.createElement('li');
             li.className = 'flex items-center justify-between bg-sky-50 border border-sky-200 rounded px-2 py-1 mb-1';
             li.textContent = file.name;
+            
             const removeBtn = document.createElement('button');
             removeBtn.textContent = 'Remove';
             removeBtn.className = 'ml-2 text-xs text-red-600 hover:underline';
@@ -468,42 +490,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 uploadedFiles.splice(idx, 1);
                 renderUploadedFiles();
             };
+            
             li.appendChild(removeBtn);
             ul.appendChild(li);
         });
         uploadedListDiv.appendChild(ul);
     }
 
-    // Intercept file input changes to prevent duplicate names and update list
-    fileInput.addEventListener('change', () => {
-
-        const newFiles = Array.from(fileInput.files);
-        let added = false, duplicate = false;
-        newFiles.forEach(f => {
-            if (uploadedFiles.some(u => u.name === f.name)) {
-                duplicate = true;
-            } else {
-                uploadedFiles.push(f);
-                added = true;
-            }
-        });
-        if (duplicate) {
-            uploadStatusDiv.textContent = 'Duplicate file name(s) not allowed.';
-            uploadStatusDiv.style.color = 'red';
-        } else if (added) {
-            uploadStatusDiv.textContent = '';
-        }
-        renderUploadedFiles();
-        // Clear file input so same file can be reselected if removed
-        if (fileInput.files.length > 0) {
-            if (dropZoneText) dropZoneText.textContent = fileInput.files[0].name;
-        } else {
-            if (dropZoneText) dropZoneText.textContent = 'Drag & drop your file here, or click to select';
-            /*fileInput.value = '';*/
-        }
-    });
-
-    // --- Fetch and display already uploaded files from backend on tab switch ---
+    /**
+     * Fetch already uploaded files from backend
+     */
     async function fetchUploadedFilesFromBackend() {
         try {
             const resp = await fetch('/uploaded_user_panels');
@@ -515,22 +511,29 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    /**
+     * Show backend uploaded files
+     */
     async function showBackendUploadedFiles() {
         const backendFiles = await fetchUploadedFilesFromBackend();
         let backendListDiv = document.getElementById('backend-uploaded-files-list');
+        
         if (!backendListDiv) {
             backendListDiv = document.createElement('div');
             backendListDiv.id = 'backend-uploaded-files-list';
             uploadedListDiv.parentNode.insertBefore(backendListDiv, uploadedListDiv);
         }
+        
         backendListDiv.innerHTML = '';
         if (backendFiles.length === 0) return;
+        
         const ul = document.createElement('ul');
         ul.className = 'mb-2';
         backendFiles.forEach(name => {
             const li = document.createElement('li');
             li.className = 'flex items-center bg-green-50 border border-green-200 rounded px-2 py-1 mb-1 text-green-800';
             li.textContent = name + ' (already uploaded)';
+            
             const removeBtn = document.createElement('button');
             removeBtn.textContent = 'Remove';
             removeBtn.className = 'ml-2 text-xs text-red-600 hover:underline';
@@ -555,13 +558,133 @@ document.addEventListener("DOMContentLoaded", () => {
         backendListDiv.appendChild(ul);
     }
 
-    // Show backend files when switching to upload tab
-    document.getElementById('upload-tab').addEventListener('click', showBackendUploadedFiles);
-    // Also show on page load if upload tab is default
-    if (currentAPI === 'upload') showBackendUploadedFiles();
-});
+    // Handle file input changes
+    if (fileInput) {
+        fileInput.addEventListener('change', () => {
+            const newFiles = Array.from(fileInput.files);
+            let added = false, duplicate = false;
+            
+            newFiles.forEach(f => {
+                if (uploadedFiles.some(u => u.name === f.name)) {
+                    duplicate = true;
+                } else {
+                    uploadedFiles.push(f);
+                    added = true;
+                }
+            });
+            
+            if (duplicate) {
+                uploadStatusDiv.textContent = 'Duplicate file name(s) not allowed.';
+                uploadStatusDiv.style.color = 'red';
+            } else if (added) {
+                uploadStatusDiv.textContent = '';
+            }
+            
+            renderUploadedFiles();
+            
+            // Update drop zone text
+            if (fileInput.files.length > 0) {
+                if (dropZoneText) dropZoneText.textContent = fileInput.files[0].name;
+            } else {
+                if (dropZoneText) dropZoneText.textContent = 'Drag & drop your file here, or click to select';
+            }
+        });
+    }
 
-// Panel Comparison functionality
+    // Handle form submission
+    if (userPanelForm) {
+        userPanelForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (uploadedFiles.length === 0) {
+                uploadStatusDiv.textContent = 'No file selected.';
+                uploadStatusDiv.style.color = 'red';
+                switchAPI('upload');
+                return;
+            }
+            
+            // Preview logic for CSV/TSV files
+            const file = uploadedFiles[0];
+            const ext = file.name.split('.').pop().toLowerCase();
+            
+            if (ext === 'csv' || ext === 'tsv') {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    let genes = [];
+                    let delimiter = (ext === 'tsv') ? '\t' : ',';
+                    let lines = evt.target.result.split(/\r?\n/);
+                    let header = lines[0].split(delimiter);
+                    
+                    let geneIdx = header.findIndex(h => {
+                        const colName = h.trim().toLowerCase();
+                        return ['gene', 'genes', 'entity_name', 'genesymbol'].includes(colName);
+                    });
+                    
+                    if (geneIdx !== -1) {
+                        for (let i = 1; i < lines.length; i++) {
+                            let row = lines[i].split(delimiter);
+                            if (row[geneIdx]) genes.push(row[geneIdx].trim());
+                        }
+                        
+                        if (genes.length > 0) {
+                            uploadStatusDiv.textContent = `Loaded ${genes.length} genes from first file. Uploading...`;
+                            uploadStatusDiv.style.color = 'green';
+                        } else {
+                            uploadStatusDiv.textContent = 'No genes found in first file. Uploading anyway...';
+                            uploadStatusDiv.style.color = 'orange';
+                        }
+                    } else {
+                        uploadStatusDiv.textContent = 'No gene column found in first file. Looking for: gene, genes, entity_name, or genesymbol. Uploading anyway...';
+                        uploadStatusDiv.style.color = 'orange';
+                    }
+                };
+                reader.readAsText(file);
+            }
+            
+            // Upload files to server
+            const formData = new FormData();
+            uploadedFiles.forEach(f => formData.append('user_panel_file', f));
+            
+            fetch('/upload_user_panel', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    uploadStatusDiv.textContent = 'Upload successful!';
+                    uploadStatusDiv.style.color = 'green';
+                    uploadedFiles = [];
+                    renderUploadedFiles();
+                    showBackendUploadedFiles();
+                } else {
+                    uploadStatusDiv.textContent = 'Upload failed.';
+                    uploadStatusDiv.style.color = 'red';
+                }
+            })
+            .catch(() => {
+                uploadStatusDiv.textContent = 'Upload failed.';
+                uploadStatusDiv.style.color = 'red';
+            });
+        });
+    }
+
+    // Show backend files when switching to upload tab
+    const uploadTab = document.getElementById('upload-tab');
+    if (uploadTab) {
+        uploadTab.addEventListener('click', showBackendUploadedFiles);
+        // Also show on page load if upload tab is default
+        if (currentAPI === 'upload') showBackendUploadedFiles();
+    }
+}
+
+// =============================================================================
+// PANEL COMPARISON FUNCTIONALITY
+// =============================================================================
+
+/**
+ * Get currently selected panels for comparison
+ * @returns {Array} Array of selected panel objects
+ */
 function getSelectedPanels() {
     const selectedPanels = [];
     for (let i = 1; i <= maxPanels; i++) {
@@ -577,6 +700,9 @@ function getSelectedPanels() {
     return selectedPanels;
 }
 
+/**
+ * Open panel comparison modal
+ */
 function openPanelComparison() {
     const selectedPanels = getSelectedPanels();
     
@@ -590,10 +716,13 @@ function openPanelComparison() {
         return;
     }
     
-    // Create comparison modal
     createComparisonModal(selectedPanels);
 }
 
+/**
+ * Create and display comparison modal
+ * @param {Array} selectedPanels - Array of selected panels
+ */
 function createComparisonModal(selectedPanels) {
     // Remove existing modal if present
     const existingModal = document.getElementById('comparison-modal');
@@ -625,7 +754,7 @@ function createComparisonModal(selectedPanels) {
         </button>
     `;
     
-    // Modal body
+    // Modal body with loading state
     const modalBody = document.createElement('div');
     modalBody.className = 'p-6';
     modalBody.innerHTML = `
@@ -640,10 +769,15 @@ function createComparisonModal(selectedPanels) {
     modalOverlay.appendChild(modalContent);
     document.body.appendChild(modalOverlay);
     
-    // Fetch panel details
+    // Fetch and display panel details
     fetchPanelDetails(selectedPanels, modalBody);
 }
 
+/**
+ * Fetch detailed panel information for comparison
+ * @param {Array} selectedPanels - Selected panels
+ * @param {HTMLElement} modalBody - Modal body element to update
+ */
 async function fetchPanelDetails(selectedPanels, modalBody) {
     try {
         const panelIds = selectedPanels.map(p => p.id).join(',');
@@ -673,6 +807,11 @@ async function fetchPanelDetails(selectedPanels, modalBody) {
     }
 }
 
+/**
+ * Display panel comparison in modal
+ * @param {Array} panelDetails - Panel details from API
+ * @param {HTMLElement} modalBody - Modal body element
+ */
 function displayPanelComparison(panelDetails, modalBody) {
     if (!panelDetails || panelDetails.length === 0) {
         modalBody.innerHTML = `
@@ -686,7 +825,7 @@ function displayPanelComparison(panelDetails, modalBody) {
         return;
     }
     
-    // Create comparison grid
+    // Create responsive comparison grid
     const gridCols = panelDetails.length === 2 ? 'grid-cols-2' : 
                      panelDetails.length === 3 ? 'grid-cols-3' : 'grid-cols-4';
     
@@ -711,8 +850,12 @@ function displayPanelComparison(panelDetails, modalBody) {
     `;
 }
 
+/**
+ * Create individual panel card for comparison
+ * @param {Object} panel - Panel data object
+ * @returns {string} HTML string for panel card
+ */
 function createPanelCard(panel) {
-    // Create a comprehensive gene list display
     const geneDisplay = panel.all_genes && panel.all_genes.length > 0 ? 
         createGeneDisplay(panel.all_genes) : 
         '<p class="text-gray-500 text-xs">No genes available</p>';
@@ -767,12 +910,16 @@ function createPanelCard(panel) {
     `;
 }
 
+/**
+ * Create gene display with scrollable container
+ * @param {Array} genes - Array of gene names
+ * @returns {string} HTML string for gene display
+ */
 function createGeneDisplay(genes) {
     if (!genes || genes.length === 0) {
         return '<p class="text-gray-500 text-xs">No genes available</p>';
     }
     
-    // Create a scrollable container with all genes
     const geneChips = genes.map(gene => 
         `<span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1 mb-1">${gene}</span>`
     ).join('');
@@ -789,6 +936,11 @@ function createGeneDisplay(genes) {
     `;
 }
 
+/**
+ * Create comparison summary with statistics
+ * @param {Array} panelDetails - Array of panel detail objects
+ * @returns {string} HTML string for comparison summary
+ */
 function createComparisonSummary(panelDetails) {
     // Calculate unique genes across all panels
     const allGenes = new Set();
@@ -832,6 +984,9 @@ function createComparisonSummary(panelDetails) {
     `;
 }
 
+/**
+ * Close panel comparison modal
+ */
 function closePanelComparison() {
     const modal = document.getElementById('comparison-modal');
     if (modal) {
@@ -839,9 +994,35 @@ function closePanelComparison() {
     }
 }
 
+/**
+ * Proceed with current panel selection after comparison
+ */
 function proceedWithSelection() {
-    // Close the modal and proceed with the current selection
     closePanelComparison();
-    // You could add additional logic here, like highlighting the form or showing a message
     document.getElementById('generate-btn-container').scrollIntoView({ behavior: 'smooth' });
 }
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+
+/**
+ * Initialize all functionality when DOM is loaded
+ */
+function initializeApp() {
+    console.log("PanelMerge: Initializing application");
+    
+    // Initialize all components
+    initializeAutocomplete();
+    initializeDragAndDrop();
+    initializeFileUpload();
+    
+    console.log("PanelMerge: Application initialized successfully");
+}
+
+// Initialize panels data immediately
+fetchPanels('uk');
+fetchPanels('aus');
+
+// Initialize app when DOM is ready
+document.addEventListener("DOMContentLoaded", initializeApp);
