@@ -185,10 +185,17 @@ def filter_genes_from_panel_data(panel_genes_data, list_type_selection):
     if not panel_genes_data: return filtered_gene_symbols
 
     for gene_info in panel_genes_data:
-        gene_symbol = gene_info.get("entity_name")
-        confidence = int(gene_info.get("confidence_level"))
-
+        # Try both field names for compatibility
+        gene_symbol = gene_info.get("gene_symbol") or gene_info.get("entity_name")
+        confidence = gene_info.get("confidence_level")
+        
         if not gene_symbol: continue
+        
+        # Handle confidence level conversion
+        try:
+            confidence = int(confidence) if confidence else 0
+        except (ValueError, TypeError):
+            confidence = 0
 
         if confidence in GENE_FILTER[list_type_selection]:
             filtered_gene_symbols.append(gene_symbol)

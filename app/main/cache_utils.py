@@ -22,7 +22,7 @@ API_CONFIGS = {
     },
     'aus': {
         'name': 'PanelApp Australia',
-        'url': 'https://panelapp.agha.umccr.org',
+        'url': 'https://panelapp-aus.org',
         'panels_endpoint': '/api/v1/panels/',
         'genes_endpoint': '/api/v1/panels/{panel_id}/'
     }
@@ -112,13 +112,23 @@ def get_cached_panel_genes(panel_id, api_source='uk'):
         
         genes = []
         for gene in panel_data.get("genes", []):
+            gene_data = gene.get("gene_data", {})
+            gene_symbol = gene_data.get("gene_symbol", "")
+            
+            # Extract all the fields we need for Excel export
             genes.append({
-                "gene_symbol": gene.get("gene_data", {}).get("gene_symbol", ""),
-                "gene_name": gene.get("gene_data", {}).get("gene_name", ""),
+                "entity_type": gene_data.get("entity_type", "gene"),  # Usually "gene"
+                "entity_name": gene_symbol,  # Gene symbol
+                "gene_symbol": gene_symbol,  # For backwards compatibility
+                "gene_name": gene_data.get("gene_name", ""),
                 "confidence_level": gene.get("confidence_level", ""),
+                "publications": gene.get("publications", []),  # List of publications
+                "evidence": gene.get("evidence", []),  # List of evidence
+                "phenotypes": gene.get("phenotypes", []),  # List of phenotypes  
+                "mode_of_inheritance": gene.get("mode_of_inheritance", ""),
                 "penetrance": gene.get("penetrance", ""),
                 "mode_of_pathogenicity": gene.get("mode_of_pathogenicity", ""),
-                "mode_of_inheritance": gene.get("mode_of_inheritance", ""),
+                "phenotype": gene.get("phenotype", ""),  # Single phenotype field
                 "panel_id": panel_id,
                 "api_source": api_source
             })

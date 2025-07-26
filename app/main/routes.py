@@ -191,13 +191,19 @@ def generate():
         panel_id = None
         api_source = None
         panel_id_str = request.form.get(f'panel_id_{i}')
-        logger.info(f"generate: {panel_id_str}")
-        if panel_id_str != "None":
-            panel_id, api_source = panel_id_str.split('-', 1)
         list_type = request.form.get(f'list_type_{i}')
-
-        logger.info(f"generate: {list_type} {api_source}")
-        if panel_id_str and panel_id_str != "None" and list_type: # "None" is value for empty selection
+        logger.info(f"generate: slot {i}: panel_id_str={panel_id_str}, list_type={list_type}")
+        
+        # Only split if we have a valid panel_id_str that's not "None"
+        if panel_id_str and panel_id_str != "None" and '-' in panel_id_str:
+            try:
+                panel_id, api_source = panel_id_str.split('-', 1)
+                logger.info(f"generate: slot {i}: parsed panel_id={panel_id}, api_source={api_source}")
+            except ValueError:
+                logger.error(f"Invalid panel_id_str format: {panel_id_str}")
+                continue
+        
+        if panel_id_str and panel_id_str != "None" and list_type and panel_id and api_source: # "None" is value for empty selection
             try: 
                 selected_panel_configs_for_generation.append({
                     "id": int(panel_id),
@@ -238,6 +244,7 @@ def generate():
     for idx, config in enumerate(selected_panel_configs_for_generation, 1):
         # Use cached version for better performance
         raw_genes_for_panel = get_cached_panel_genes(config["id"], config["api_source"])
+        logger.info(f"Panel {config['id']}: got {len(raw_genes_for_panel) if raw_genes_for_panel else 0} raw genes")
         panel_full_gene_data.append(raw_genes_for_panel)
         # Add GB or AUS before the panel name
         panel_prefix = "GB" if config["api_source"] == "uk" else "AUS"
@@ -254,9 +261,12 @@ def generate():
         # Filtered genes for combined list
         if raw_genes_for_panel:
             filtered_genes = filter_genes_from_panel_data(raw_genes_for_panel, config["list_type"])
+            logger.info(f"Panel {config['id']}: filtered to {len(filtered_genes)} genes with list_type={config['list_type']}")
             for gene_symbol in filtered_genes:
                 final_unique_gene_set.add(gene_symbol)
-            logger.info(f"Panel ID {config['id']}: Added {len(filtered_genes)} genes.")
+            logger.info(f"Panel ID {config['id']}: Added {len(filtered_genes)} genes. Total unique genes so far: {len(final_unique_gene_set)}")
+        else:
+            logger.warning(f"Panel {config['id']}: No raw genes data found")
 
     # Add genes from all uploaded panels (including session panels) to the combined list
     for sheet_name, genes in uploaded_panels:
@@ -404,3 +414,83 @@ def api_cache_clear():
     except Exception as e:
         logger.error(f"Error clearing cache: {e}")
         return jsonify({"error": "Failed to clear cache"}), 500
+
+
+@main_bp.route('/api/panel-preview/<int:panel_id>')
+@limiter.limit("30 per minute")
+def api_panel_preview(panel_id):
+    """
+    Get quick panel preview with gene count and summary information
+    without full gene data loading - optimized for fast response
+    """
+    api_source = request.args.get('source', 'uk')
+    
+    try:
+        # First, get basic panel info from cached panels list
+        all_panels = get_cached_all_panels(api_source)
+        panel_info = next((p for p in all_panels if p['id'] == panel_id), None)
+        
+        if not panel_info:
+            return jsonify({"error": "Panel not found"}), 404
+        
+        # Get cached gene data for count and basic stats
+        genes_data = get_cached_panel_genes(panel_id, api_source)
+        
+        # Calculate summary statistics
+        gene_count = len(genes_data) if genes_data else 0
+        
+        # Analyze gene confidence levels if data is available
+        confidence_stats = {}
+        all_genes = []
+        
+        if genes_data:
+            # Count confidence levels
+            confidence_levels = [gene.get('confidence_level', 'Unknown') for gene in genes_data]
+            confidence_stats = {
+                'green': confidence_levels.count('3'),
+                'amber': confidence_levels.count('2'), 
+                'red': confidence_levels.count('1'),
+                'unknown': confidence_levels.count('Unknown') + confidence_levels.count('')
+            }
+            
+            # Get all genes with their details
+            all_genes = [
+                {
+                    'symbol': gene.get('gene_symbol', 'Unknown'),
+                    'confidence': gene.get('confidence_level', 'Unknown'),
+                    'moi': gene.get('mode_of_inheritance', 'N/A'),
+                    'phenotype': gene.get('phenotype', 'N/A')[:100] + ('...' if len(gene.get('phenotype', '')) > 100 else '')
+                }
+                for gene in genes_data
+                if gene.get('gene_symbol') and gene.get('gene_symbol') != 'Unknown'
+            ]
+            
+            # Sort genes by confidence level (3=green, 2=amber, 1=red) then alphabetically
+            confidence_order = {'3': 0, '2': 1, '1': 2, 'Unknown': 3, '': 3}
+            all_genes.sort(key=lambda x: (confidence_order.get(x['confidence'], 3), x['symbol'].upper()))
+        
+        # Format source display
+        source_emoji = "🇬🇧" if api_source == 'uk' else "🇦🇺"
+        source_name = "PanelApp UK" if api_source == 'uk' else "PanelApp Australia"
+        
+        preview_data = {
+            'id': panel_info['id'],
+            'api_source': api_source,
+            'name': panel_info['name'],
+            'display_name': f"{source_emoji} {panel_info['name']}",
+            'version': panel_info.get('version', 'N/A'),
+            'description': panel_info.get('description', 'No description available')[:200] + ('...' if len(panel_info.get('description', '')) > 200 else ''),
+            'disease_group': panel_info.get('disease_group', 'N/A'),
+            'disease_sub_group': panel_info.get('disease_sub_group', 'N/A'),
+            'source_name': source_name,
+            'gene_count': gene_count,
+            'confidence_stats': confidence_stats,
+            'all_genes': all_genes,
+            'has_detailed_data': gene_count > 0
+        }
+        
+        return jsonify(preview_data)
+        
+    except Exception as e:
+        logger.error(f"Error getting panel preview for {panel_id}: {e}")
+        return jsonify({"error": "Failed to get panel preview"}), 500

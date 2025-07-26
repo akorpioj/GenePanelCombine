@@ -11,9 +11,17 @@ import { allPanels, currentAPI, setCurrentAPI, updatePanels } from './state.js';
  */
 export function fetchPanels(apiSource) {
     const url = `/api/panels?source=${apiSource}`;
+    console.log(`Fetching panels from: ${url}`);
+    
     fetch(url)
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) {
+                throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            }
+            return r.json();
+        })
         .then(data => {
+            console.log(`Received ${data.length} panels for ${apiSource} source`);
             updatePanels(apiSource, data);
             if (apiSource === currentAPI) {
                 // Use dynamic import to avoid circular dependency
@@ -21,6 +29,11 @@ export function fetchPanels(apiSource) {
                     module.populateAll().catch(console.error);
                 });
             }
+        })
+        .catch(error => {
+            console.error(`Failed to fetch panels for ${apiSource}:`, error);
+            // Set empty array so we don't keep trying
+            updatePanels(apiSource, []);
         });
 }
 

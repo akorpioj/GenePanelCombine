@@ -11,7 +11,62 @@ def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_genera
     excel_output = io.BytesIO()
     try:
         with pd.ExcelWriter(excel_output, engine='openpyxl') as writer:
-            # Write each panel's full gene list to its own sheet
+            # FIRST: Create the combined filtered gene list as the first sheet
+            # Build a mapping from gene symbol to (panel name, list type)
+            gene_to_panels = {}
+            for config, panel_name, panel_genes in zip(selected_panel_configs_for_generation, panel_names, panel_full_gene_data):
+                filtered_genes = filter_genes_from_panel_data(panel_genes, config["list_type"])
+                for gene_symbol in filtered_genes:
+                    if gene_symbol not in gene_to_panels:
+                        gene_to_panels[gene_symbol] = []
+                    gene_to_panels[gene_symbol].append((panel_name, config["list_type"]))
+            
+            # Add user panel file names to gene_to_panels
+            if uploaded_panels:
+                for sheet_name, gene_list in uploaded_panels:
+                    for gene_symbol in gene_list:
+                        if gene_symbol not in gene_to_panels:
+                            gene_to_panels[gene_symbol] = []
+                        # Use the user panel file name as the panel name, and 'User upload' as the list type
+                        gene_to_panels[gene_symbol].append((sheet_name, 'User upload'))
+            
+            combined_rows = []
+            for gene_symbol in sorted(list(final_unique_gene_set)):
+                # Join all panel names and list types for this gene
+                panels = gene_to_panels.get(gene_symbol, [])
+                panel_names_str = ", ".join([p[0] for p in panels])
+                list_types_str = ", ".join([p[1] for p in panels])
+                combined_rows.append({
+                    'GeneSymbol': gene_symbol,
+                    'Panel(s)': panel_names_str,
+                    'List type(s)': list_types_str
+                })
+            
+            df_combined = pd.DataFrame(combined_rows, columns=['GeneSymbol', 'Panel(s)', 'List type(s)'])
+            df_combined.to_excel(writer, index=False, sheet_name='Combined list')
+            ws_combined = writer.sheets['Combined list']
+            
+            # Fancy formatting for combined sheet
+            from openpyxl.styles import Font, PatternFill, Border, Side
+            header_fill = PatternFill(start_color="FFDEEAF6", end_color="FFDEEAF6", fill_type="solid")
+            border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+            for col_idx, col in enumerate(df_combined.columns, 1):
+                cell = ws_combined.cell(row=1, column=col_idx)
+                cell.font = Font(bold=True)
+                cell.fill = header_fill
+                value = str(df_combined.columns[col_idx-1])
+                if not df_combined.empty:
+                    first_row_val = str(df_combined.iloc[0, col_idx-1])
+                    width = max(len(value), len(first_row_val)) + 2
+                else:
+                    width = len(value) + 2
+                ws_combined.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
+            for row in ws_combined.iter_rows(min_row=1, max_row=ws_combined.max_row, min_col=1, max_col=ws_combined.max_column):
+                for cell in row:
+                    cell.border = border
+            ws_combined.auto_filter.ref = ws_combined.dimensions
+
+            # SECOND: Write each panel's full gene list to its own sheet
             for idx, (panel_genes, panel_name) in enumerate(zip(panel_full_gene_data, panel_names), 1):
                 if panel_genes:
                     # Only keep specified fields
@@ -91,56 +146,7 @@ def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_genera
                         for cell in row:
                             cell.border = border
                     ws.auto_filter.ref = ws.dimensions
-            # Write the combined filtered gene list with panel names and list types
-            # Build a mapping from gene symbol to (panel name, list type)
-            gene_to_panels = {}
-            for config, panel_name, panel_genes in zip(selected_panel_configs_for_generation, panel_names, panel_full_gene_data):
-                filtered_genes = filter_genes_from_panel_data(panel_genes, config["list_type"])
-                for gene_symbol in filtered_genes:
-                    if gene_symbol not in gene_to_panels:
-                        gene_to_panels[gene_symbol] = []
-                    gene_to_panels[gene_symbol].append((panel_name, config["list_type"]))
-            # Add user panel file names to gene_to_panels
-            if uploaded_panels:
-                for sheet_name, gene_list in uploaded_panels:
-                    for gene_symbol in gene_list:
-                        if gene_symbol not in gene_to_panels:
-                            gene_to_panels[gene_symbol] = []
-                        # Use the user panel file name as the panel name, and 'User upload' as the list type
-                        gene_to_panels[gene_symbol].append((sheet_name, 'User upload'))
-            combined_rows = []
-            for gene_symbol in sorted(list(final_unique_gene_set)):
-                # Join all panel names and list types for this gene
-                panels = gene_to_panels.get(gene_symbol, [])
-                panel_names_str = ", ".join([p[0] for p in panels])
-                list_types_str = ", ".join([p[1] for p in panels])
-                combined_rows.append({
-                    'GeneSymbol': gene_symbol,
-                    'Panel(s)': panel_names_str,
-                    'List type(s)': list_types_str
-                })
-            df_combined = pd.DataFrame(combined_rows, columns=['GeneSymbol', 'Panel(s)', 'List type(s)'])
-            df_combined.to_excel(writer, index=False, sheet_name='Combined list')
-            ws_combined = writer.sheets['Combined list']
-            # Fancy formatting for combined sheet
-            from openpyxl.styles import Font, PatternFill, Border, Side
-            header_fill = PatternFill(start_color="FFDEEAF6", end_color="FFDEEAF6", fill_type="solid")
-            border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-            for col_idx, col in enumerate(df_combined.columns, 1):
-                cell = ws_combined.cell(row=1, column=col_idx)
-                cell.font = Font(bold=True)
-                cell.fill = header_fill
-                value = str(df_combined.columns[col_idx-1])
-                if not df_combined.empty:
-                    first_row_val = str(df_combined.iloc[0, col_idx-1])
-                    width = max(len(value), len(first_row_val)) + 2
-                else:
-                    width = len(value) + 2
-                ws_combined.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
-            for row in ws_combined.iter_rows(min_row=1, max_row=ws_combined.max_row, min_col=1, max_col=ws_combined.max_column):
-                for cell in row:
-                    cell.border = border
-            ws_combined.auto_filter.ref = ws_combined.dimensions
+        
         excel_output.seek(0) # Reset stream position
     except Exception as e:
         logger.error(f"Error generating Excel: {e}")

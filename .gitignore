@@ -10,7 +10,7 @@ instance
 Dockerfile
 *.exe
 .vscode
-docs
+*.bak
 *.log
 *.db
 .pytest_cache/

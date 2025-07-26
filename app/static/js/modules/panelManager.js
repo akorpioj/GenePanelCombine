@@ -37,8 +37,8 @@ export async function populateAll() {
         return;
     }
 
-    const term = document.getElementById("search_term_input")
-        .value.trim().toLowerCase();
+    const searchInput = document.getElementById("search_term_input");
+    const term = searchInput ? searchInput.value.trim().toLowerCase() : "";
 
     // Start with text-based filtering
     let filtered = allPanels[currentAPI].filter(p => matches(p, term));
@@ -65,6 +65,10 @@ export async function populateAll() {
 
     for (let i = 1; i <= maxPanels; i++) {
         const select = document.getElementById(`panel_id_${i}`);
+        if (!select) {
+            continue; // Skip if element doesn't exist
+        }
+        
         const current = select.value || "None";
         
         // Keep current selection if it's from any source
@@ -131,6 +135,9 @@ export function updateSelectOptions(select, list, current, currentPanel) {
         }
         select.append(o);
     });
+    
+    // Dispatch custom event to notify that panels have been updated
+    select.dispatchEvent(new CustomEvent('panelsUpdated', { bubbles: true }));
 }
 
 /**
@@ -140,9 +147,21 @@ export function updateSelectOptions(select, list, current, currentPanel) {
 export function clearPanel(i) {
     const sel = document.getElementById(`panel_id_${i}`);
     const sel2 = document.getElementById(`list_type_${i}`);
-    sel.value = "None";
-    sel2.value = listTypeOptions[0];
-    sel.classList.remove('panel-source-uk', 'panel-source-aus');
+    
+    if (sel) {
+        sel.value = "None";
+        sel.classList.remove('panel-source-uk', 'panel-source-aus');
+        
+        // Remove preview button if it exists
+        const previewBtn = sel.nextElementSibling;
+        if (previewBtn && previewBtn.innerHTML && previewBtn.innerHTML.includes('Preview')) {
+            previewBtn.remove();
+        }
+    }
+    
+    if (sel2) {
+        sel2.value = "Whole gene panel";
+    }
 }
 
 /**
@@ -150,7 +169,10 @@ export function clearPanel(i) {
  */
 export function clearAll() {
     // Clear search input
-    document.getElementById('search_term_input').value = '';
+    const searchInput = document.getElementById('search_term_input');
+    if (searchInput) {
+        searchInput.value = '';
+    }
     
     // Clear all panel selections
     for (let i = 1; i <= maxPanels; i++) {
