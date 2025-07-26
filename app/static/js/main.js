@@ -10,6 +10,7 @@ import { initializeAutocomplete } from './modules/autocomplete.js';
 import { initializeDragAndDrop, initializeFileUpload } from './modules/fileUpload.js';
 import { openPanelComparison } from './modules/panelComparison.js';
 import { initializePanelPreview } from './modules/panelPreview.js';
+import { initializeEnhancedDownload } from './modules/downloadManager.js';
 
 /**
  * Initialize all functionality when DOM is loaded
@@ -25,6 +26,7 @@ function initializeApp() {
     initializeDragAndDrop();
     initializeFileUpload();
     initializePanelPreview();
+    initializeEnhancedDownload();
     
     console.log("PanelMerge: Application initialized successfully");
 }

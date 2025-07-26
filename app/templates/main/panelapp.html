@@ -1,35 +1,50 @@
 <!-- PanelApp search and generate form section -->
     <div id="panelapp-section">
         <h2 class="text-xl font-semibold text-sky-600 mb-3">Filter Panel List</h2>
-        <div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
-            <div class="flex-grow">
-                <p class="text-sm text-gray-500 mb-1">
-                  Search for specific panels by name, disease group/sub-group, description, or gene name.
-                  Gene names show autocomplete suggestions as you type (try "BRCA" or "TP5").
-                  Start typing in the search field and the drop-down lists of the panels are updated.
-                  Selections that you've already made are not removed from the list.
-                  If you want to see all available panels, just clear the search term.
-                  You can also clear all selections and the search term using the button below.
+            <div class="flex-grow mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p class="text-xs text-sky-700 mb-2">
+                    💡 Search for specific panels by panel name, disease group/sub-group, description, 
+                    or gene name. Gene names show autocomplete suggestions as you type (try "BRCA" or "TP5").</p>
+                <p class="text-xs text-sky-700 mb-2">
+                    💡 Start typing in the search field and the drop-down lists of the panels are updated.
+                    Selections that you've already made are not removed from the list.</p>
+                <p class="text-xs text-sky-700 mb-2">
+                    💡 If you want to see all available panels, just clear the search term.
+                    You can also clear all selections and the search term using the button on the right.
                 </p>
                 <p class="text-xs text-gray-400 mb-2">
-                  <strong>Examples:</strong> 
-                  • Gene names with autocomplete: "BRCA1", "TP53", "CFTR" 
-                  • Panel names: "cardiac", "malformation", "neuro" 
-                  • Multi-word searches: "heart disease", "intellectual disability"
+                  <strong>Examples:</strong>
                 </p>
-                <label for="panelSearch" class="block text-sm font-medium text-gray-700 mb-1">
-                    Search term:
-                </label>
-                <input type="text" name="panelSearch" id="search_term_input" value="{{ search_term | default('') }}"
-                       placeholder="Start typing gene name (e.g., BRCA1) or panel keywords..."
-                       class="form-input-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm">
+                <ul class="text-xs text-gray-400 list-disc list-inside ml-4 space-y-1">
+                    <li>Gene names with autocomplete: "BRCA1", "TP53", "CFTR"</li>
+                    <li>Panel names: "cardiac", "malformation", "neuro"</li> 
+                    <li>Multi-word searches: "heart disease", "intellectual disability"</li>
+                </ul>
             </div>
-            <div>
-                <button type="button" onclick="clearAll();" class="btn-clear-all">
-                    Clear All 🗑️
-                </button>
+            <div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
+                <div class="flex-grow mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <label for="panelSearch" class="block text-sm font-medium text-gray-700 mb-1">
+                        Search term:
+                    </label>
+                    <div class="relative">
+                        <input type="text" name="panelSearch" id="search_term_input" value="{{ search_term | default('') }}"
+                                placeholder="Start typing gene name (e.g., BRCA1) or panel keywords..."
+                                class="form-input-custom mt-1 block w-full py-2 px-3 pr-10 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm">
+                        <button type="button" id="clear-search-btn" 
+                                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 hidden"
+                                title="Clear search">
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <button type="button" onclick="clearAll();" class="btn-clear-all">
+                        Clear All 🗑️
+                    </button>
+                </div>
             </div>
-        </div>
         <form id="generateForm" method="POST" action="{{ url_for('main.generate') }}" class="space-y-8">
             <!-- Hidden input for keeping track of API sources -->
             <div id="panel-sources"></div>
@@ -77,15 +92,20 @@
                         🚀 Generate Gene List
                     </button>
                 </div>
-                <p class="text-sm text-gray-500 mt-2">
-                    Compare panels side-by-side before generating your gene list
-                </p>
+                <div class="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p class="text-xs text-sky-700">
+                        💡 Compare panels side-by-side before generating your gene list
+                    </p>
+                </div>
+                <div class="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p class="text-xs text-sky-700">
+                        💡 <strong>Enhanced Download:</strong> You'll be able to rename your file and choose where to save it!
+                        <br>Modern browsers support folder selection, others will use your default Downloads folder.
+                    </p>
+                </div>
             </div>
         </form>
-        <form method="POST" action="{{ url_for('main.clear_cache') }}" class="mb-4 text-right">
-            <button type="submit" class="btn-clear-all">Clear Cache 🧹</button>
-        </form>
-        <div class="mb-6 p-4 border border-sky-200 rounded-lg bg-sky-50 text-sm text-sky-700">
+        <div class="mt-3 mb-6 p-4 border border-sky-200 rounded-lg bg-sky-50 text-sm text-sky-700">
             <h3 class="font-semibold mb-1">Note on Gene Ratings:</h3>
             <ul class="list-disc list-inside ml-2">
                 <li><strong>Green (Confidence 3):</strong> High confidence.</li>
@@ -93,4 +113,7 @@
                 <li><strong>Red (Confidence 1):</strong> Low confidence / evidence against.</li>
             </ul>
         </div>
+        <form method="POST" action="{{ url_for('main.clear_cache') }}" class="mb-4 text-right">
+            <button type="submit" class="btn-clear-cache">Clear Cache 🧹</button>
+        </form>
     </div>

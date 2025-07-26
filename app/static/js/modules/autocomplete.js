@@ -15,6 +15,9 @@ export function initializeAutocomplete() {
     const searchInput = document.getElementById("search_term_input");
     if (!searchInput) return;
 
+    // Initialize clear button functionality
+    initializeClearButton(searchInput);
+
     // Create autocomplete dropdown
     const autocompleteDiv = document.createElement('div');
     autocompleteDiv.id = 'autocomplete-suggestions';
@@ -146,4 +149,48 @@ export function initializeAutocomplete() {
             hideAutocomplete();
         }
     });
+}
+
+/**
+ * Initialize clear button functionality for search input
+ * @param {HTMLInputElement} searchInput - The search input element
+ */
+function initializeClearButton(searchInput) {
+    const clearBtn = document.getElementById('clear-search-btn');
+    if (!clearBtn) return;
+
+    // Function to toggle clear button visibility
+    function toggleClearButton() {
+        if (searchInput.value.trim()) {
+            clearBtn.classList.remove('hidden');
+        } else {
+            clearBtn.classList.add('hidden');
+        }
+    }
+
+    // Function to clear the search
+    function clearSearch() {
+        searchInput.value = '';
+        clearBtn.classList.add('hidden');
+        searchInput.focus();
+        
+        // Trigger search update
+        populateAll().catch(console.error);
+        
+        // Hide autocomplete if visible
+        const autocompleteDiv = document.getElementById('autocomplete-suggestions');
+        if (autocompleteDiv) {
+            autocompleteDiv.classList.add('hidden');
+        }
+    }
+
+    // Show/hide clear button based on input content
+    searchInput.addEventListener('input', toggleClearButton);
+    searchInput.addEventListener('keyup', toggleClearButton);
+    
+    // Handle clear button click
+    clearBtn.addEventListener('click', clearSearch);
+    
+    // Initial state
+    toggleClearButton();
 }
