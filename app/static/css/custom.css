@@ -72,3 +72,76 @@ body { font-family: 'Inter', sans-serif; }
     color: #0369a1;
     font-weight: 600;
 }
+
+/* Panel Comparison Modal Styles */
+#comparison-modal {
+    backdrop-filter: blur(4px);
+}
+
+#comparison-modal .modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Custom scrollbar for modal */
+#comparison-modal ::-webkit-scrollbar {
+    width: 8px;
+}
+
+#comparison-modal ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+#comparison-modal ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+#comparison-modal ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Responsive grid adjustments for comparison */
+@media (max-width: 768px) {
+    #comparison-modal .grid-cols-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    
+    #comparison-modal .grid-cols-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Gene display styles in comparison modal */
+.gene-display-container {
+    max-height: 8rem;
+    overflow-y: auto;
+}
+
+.gene-display-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.gene-display-container::-webkit-scrollbar-track {
+    background: #f8fafc;
+}
+
+.gene-display-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+.gene-display-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}

@@ -66,10 +66,19 @@
             {% endfor %}
 
             <div class="mt-8 pt-6 border-t border-gray-200 text-center" id="generate-btn-container">
-                <button type="submit"
-                        class="btn btn-primary">
-                    🚀 Generate Gene List
-                </button>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                    <button type="button" onclick="openPanelComparison()" 
+                            class="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors">
+                        🔍 Compare Selected Panels
+                    </button>
+                    <button type="submit"
+                            class="btn btn-primary">
+                        🚀 Generate Gene List
+                    </button>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">
+                    Compare panels side-by-side before generating your gene list
+                </p>
             </div>
         </form>
         <form method="POST" action="{{ url_for('main.clear_cache') }}" class="mb-4 text-right">

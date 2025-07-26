@@ -100,6 +100,76 @@ def api_gene_suggestions():
         logger.error(f"Error getting gene suggestions for {query}: {e}")
         return jsonify([])
 
+@main_bp.route("/api/panel-details")
+@limiter.limit("20 per minute")
+def api_panel_details():
+    """
+    API endpoint to get detailed information about multiple panels for comparison.
+    Expects panel_ids as comma-separated list like "123-uk,456-aus"
+    """
+    panel_ids_param = request.args.get('panel_ids', '')
+    if not panel_ids_param:
+        return jsonify({"error": "No panel IDs provided"}), 400
+    
+    try:
+        panel_details = []
+        panel_ids = panel_ids_param.split(',')
+        
+        for panel_id_str in panel_ids:
+            if '-' not in panel_id_str:
+                continue
+                
+            panel_id, api_source = panel_id_str.strip().split('-', 1)
+            
+            # Get basic panel info
+            all_panels = get_all_panels_from_api(api_source)
+            panel_info = next((p for p in all_panels if str(p['id']) == panel_id), None)
+            
+            if not panel_info:
+                continue
+                
+            # Get gene data for this panel
+            try:
+                panel_genes_data = get_panel_genes_data_from_api(int(panel_id), api_source)
+                gene_count = len(panel_genes_data) if panel_genes_data else 0
+                
+                # Get all gene names (not just a sample)
+                gene_names = []
+                if panel_genes_data:
+                    gene_names = [gene.get('gene_data', {}).get('gene_symbol', 'Unknown') 
+                                for gene in panel_genes_data]
+                    # Remove any 'Unknown' entries and sort
+                    gene_names = sorted([name for name in gene_names if name != 'Unknown'])
+                    
+            except Exception as e:
+                logger.error(f"Error getting genes for panel {panel_id}: {e}")
+                gene_count = 0
+                gene_names = []
+            
+            # Compile panel details
+            source_emoji = "🇬🇧" if api_source == 'uk' else "🇦🇺"
+            panel_detail = {
+                'id': panel_info['id'],
+                'api_source': api_source,
+                'name': panel_info['name'],
+                'display_name': f"{source_emoji} {panel_info['name']}",
+                'version': panel_info.get('version', 'N/A'),
+                'description': panel_info.get('description', 'No description available'),
+                'disease_group': panel_info.get('disease_group', 'N/A'),
+                'disease_sub_group': panel_info.get('disease_sub_group', 'N/A'),
+                'gene_count': gene_count,
+                'all_genes': gene_names,  # Changed from sample_genes to all_genes
+                'created': panel_info.get('created', 'N/A'),
+                'status': panel_info.get('status', 'N/A')
+            }
+            panel_details.append(panel_detail)
+            
+        return jsonify(panel_details)
+        
+    except Exception as e:
+        logger.error(f"Error getting panel details: {e}")
+        return jsonify({"error": "Failed to get panel details"}), 500
+
 @main_bp.route('/generate', methods=['POST'])
 @limiter.limit("30 per hour")  # More strict limit for resource-intensive operation
 def generate():
