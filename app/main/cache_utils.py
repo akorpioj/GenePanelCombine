@@ -169,18 +169,20 @@ def get_cached_gene_suggestions(query, api_source='uk', limit=10):
         data = response.json()
         
         suggestions = []
-        for gene in data.get("results", []):
-            gene_symbol = gene.get("gene_symbol", "")
-            gene_name = gene.get("gene_name", "")
-            if gene_symbol:
-                suggestions.append({
-                    "symbol": gene_symbol,
-                    "name": gene_name,
-                    "label": f"{gene_symbol} - {gene_name}" if gene_name else gene_symbol
-                })
+        for gene_entry in data.get("results", []):
+            # Gene data is nested under 'gene_data'
+            gene_data = gene_entry.get("gene_data", {})
+            gene_symbol = gene_data.get("gene_symbol", "")
+            # Check if the gene symbol contains the query (case insensitive)
+            # This allows for genes like BRCA1, BRCA2 when searching for "BRCA"
+            if gene_symbol and query.upper() in gene_symbol.upper():
+                suggestions.append(gene_symbol)
         
-        logger.info(f"Found {len(suggestions)} gene suggestions for '{query}'")
-        return suggestions[:limit]
+        # Remove duplicates and sort
+        unique_suggestions = sorted(list(set(suggestions)))
+        
+        logger.info(f"Found {len(unique_suggestions)} gene suggestions for '{query}'")
+        return unique_suggestions[:limit]
         
     except requests.exceptions.RequestException as e:
         logger.warning(f"Gene search API error: {e}")
