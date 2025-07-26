@@ -7,7 +7,12 @@
                 <span id="drop-zone-text">Drag & drop your file here, or click to select</span>
                 <input type="file" id="user_panel_file" name="user_panel_file" accept=".csv,.tsv,.xls,.xlsx" class="hidden" required multiple>
             </div>
-            <button type="submit" class="btn btn-primary">Upload</button>
+            <div class="flex gap-2 mb-2">
+                <button type="button" id="validate-files-btn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium" style="display: none;">
+                    🔍 Validate Files
+                </button>
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </div>
             <div id="upload-panel-status" class="mt-2 text-sm"></div>
         </form>
     </div>

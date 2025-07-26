@@ -156,3 +156,44 @@ body { font-family: 'Inter', sans-serif; }
 .gene-display-container::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* File Validation Preview Styles */
+#file-validation-preview {
+    border: 2px dashed #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+#file-validation-preview:hover {
+    border-color: #d1d5db;
+}
+
+.validation-results table {
+    font-size: 0.75rem;
+}
+
+.validation-results table th {
+    background-color: #f9fafb;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.validation-results table td {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.validation-results details[open] summary {
+    margin-bottom: 0.5rem;
+}
+
+.validation-results .animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
