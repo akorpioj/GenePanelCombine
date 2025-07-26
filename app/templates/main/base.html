@@ -11,6 +11,18 @@
 </head>
 <body class="bg-red-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">
 
+  <header class="w-full max-w-6xl mb-6">
+    <nav class="flex justify-between items-center">
+      <div class="text-lg font-semibold text-sky-700">
+        PanelMerge
+      </div>
+      <div class="flex space-x-4 text-sm">
+        <a href="{{ url_for('main.index') }}" class="text-sky-600 hover:text-sky-800 transition">Home</a>
+        <a href="{{ url_for('main.version_history') }}" class="text-sky-600 hover:text-sky-800 transition">Version History</a>
+      </div>
+    </nav>
+  </header>
+
   {% block content %}{% endblock %}
 
   <footer class="mt-12 text-center text-sm text-gray-500">

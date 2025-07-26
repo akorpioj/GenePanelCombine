@@ -21,6 +21,12 @@ def index():
                            max_panels=MAX_PANELS,
                            list_type_options=list_type_options)
 
+@main_bp.route('/version-history')
+@limiter.limit("30 per minute")
+def version_history():
+    """Display the version history page."""
+    return render_template('version_history.html')
+
 @main_bp.route("/api/panels")
 @limiter.limit("10 per minute")
 def api_panels():
@@ -39,6 +45,37 @@ def api_panels():
         processed.append(p2)
     processed.sort(key=lambda x: x["display_name"])
     return jsonify(processed)
+
+@main_bp.route("/api/genes/<entity_name>")
+@limiter.limit("10 per minute")
+def api_genes(entity_name):
+    """
+    Search for panels containing a specific gene by entity name.
+    Returns a list of panels similar to /api/panels but filtered by gene.
+    """
+    logger.info(f"api_genes: {entity_name}")
+    api_source = request.args.get('source', 'uk')
+    
+    try:
+        # Get gene data from PanelApp API which includes associated panels
+        from .utils import get_gene_panels_from_api
+        gene_panels = get_gene_panels_from_api(entity_name, api_source)
+        
+        # Process panels similar to api_panels route
+        processed = []
+        for p in gene_panels:
+            p2 = p.copy()
+            source_emoji = "🇬🇧" if p.get('api_source') == 'uk' else "🇦🇺"
+            p2["display_name"] = f"{source_emoji} {p['name']} (v{p['version']}, ID: {p['id']})"
+            processed.append(p2)
+        processed.sort(key=lambda x: x["display_name"])
+        
+        logger.info(f"Found {len(processed)} panels containing gene {entity_name}")
+        return jsonify(processed)
+        
+    except Exception as e:
+        logger.error(f"Error searching for gene {entity_name}: {e}")
+        return jsonify({'error': f'Failed to search for gene {entity_name}'}), 500
 
 @main_bp.route('/generate', methods=['POST'])
 @limiter.limit("30 per hour")  # More strict limit for resource-intensive operation

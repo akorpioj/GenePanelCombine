@@ -4,17 +4,23 @@
         <div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
             <div class="flex-grow">
                 <p class="text-sm text-gray-500 mb-1">
-                  Search for specific panels by name, disease group/sub-group, or description.
+                  Search for specific panels by name, disease group/sub-group, description, or gene name.
                   Start typing in the search field and the drop-down lists of the panels are updated.
                   Selections that you've already made are not removed from the list.
                   If you want to see all available panels, just clear the search term.
                   You can also clear all selections and the search term using the button below.
                 </p>
+                <p class="text-xs text-gray-400 mb-2">
+                  <strong>Examples:</strong> 
+                  • Panel names: "cardiac", "malformation", "neuro" 
+                  • Gene names: "BRCA1", "TP53", "CFTR" 
+                  • Multi-word searches: "heart disease", "intellectual disability"
+                </p>
                 <label for="panelSearch" class="block text-sm font-medium text-gray-700 mb-1">
                     Search term:
                 </label>
                 <input type="text" name="panelSearch" id="search_term_input" value="{{ search_term | default('') }}"
-                       placeholder="e.g., malformation, cardiac, neuro"
+                       placeholder="e.g., BRCA1, cardiac, heart disease"
                        class="form-input-custom mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm sm:text-sm">
             </div>
             <div>

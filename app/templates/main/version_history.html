@@ -1,0 +1,97 @@
+{% extends "main/base.html" %}
+
+{% block title %}Version History - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">
+    <header class="mb-6 sm:mb-8 text-center">
+        <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">📋 Version History</h1>
+        <p class="text-gray-600 mt-2">
+            Track the evolution of PanelMerge features and improvements.
+        </p>
+        <div class="mt-4">
+            <a href="{{ url_for('main.index') }}" class="inline-flex items-center px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition">
+                ← Back to Main Page
+            </a>
+        </div>
+    </header>
+
+    <div class="space-y-6">
+        <!-- Version 1.3 -->
+        <div class="border-l-4 border-sky-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-sky-700">Version 1.3</h2>
+                <span class="text-sm text-gray-500">July 2025</span>
+            </div>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>• <strong>Enhanced Gene Search:</strong> Search by gene name (e.g., "BRCA1") to find panels containing that gene</li>
+                <li>• <strong>Flexible Upload Columns:</strong> Support for gene, genes, entity_name, genesymbol column names (case-insensitive)</li>
+                <li>• <strong>Version History Page:</strong> Added comprehensive changelog and navigation</li>
+                <li>• <strong>Header Navigation:</strong> Easy access to main features and version history</li>
+                <li>• <strong>Improved Search UI:</strong> Updated instructions with clear examples and better placeholder text</li>
+                <li>• <strong>New API Endpoint:</strong> /api/genes/{entity_name} for gene-based panel discovery</li>
+                <li>• <strong>Database Flexibility:</strong> Optional database mode with WITHOUT_DB configuration</li>
+                <li>• <strong>App Rebranding:</strong> Renamed from "Gene Panel Combine" to "PanelMerge"</li>
+            </ul>
+        </div>
+
+        <!-- Version 1.2 -->
+        <div class="border-l-4 border-green-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-green-700">Version 1.2</h2>
+                <span class="text-sm text-gray-500">July 2025</span>
+            </div>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>• Added comprehensive user panel upload functionality (Excel, CSV, TSV)</li>
+                <li>• Implemented drag-and-drop file upload interface</li>
+                <li>• Multiple file upload support with duplicate prevention</li>
+                <li>• User panels appear as separate sheets in Excel output</li>
+                <li>• Combined list now shows source panel names including user uploads</li>
+                <li>• Session-based panel management with add/remove capabilities</li>
+            </ul>
+        </div>
+
+        <!-- Version 1.1 -->
+        <div class="border-l-4 border-yellow-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-yellow-700">Version 1.1</h2>
+                <span class="text-sm text-gray-500">June 2025</span>
+            </div>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>• Added Australian PanelApp integration</li>
+                <li>• Implemented tabbed interface for UK/Australia panel selection</li>
+                <li>• Enhanced Excel output with source indicators (GB/AUS prefixes)</li>
+                <li>• Improved caching with separate cache for each API source</li>
+                <li>• Added visual indicators for panel source in dropdowns</li>
+            </ul>
+        </div>
+
+        <!-- Version 1.0 -->
+        <div class="border-l-4 border-blue-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-blue-700">Version 1.0</h2>
+                <span class="text-sm text-gray-500">May 2025</span>
+            </div>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>• Initial release with UK PanelApp integration</li>
+                <li>• Panel search and filtering by name, disease group, description</li>
+                <li>• Gene confidence level filtering (Green, Amber, Red)</li>
+                <li>• Excel file generation with combined gene lists</li>
+                <li>• Admin dashboard with user management and download tracking</li>
+                <li>• Responsive design with Tailwind CSS</li>
+                <li>• Rate limiting and caching for optimal performance</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="mt-8 p-4 bg-gray-50 rounded-lg">
+        <h3 class="text-lg font-semibold text-gray-700 mb-2">Technical Stack</h3>
+        <div class="text-sm text-gray-600 space-y-1">
+            <p><strong>Backend:</strong> Python, Flask, SQLAlchemy, Pandas</p>
+            <p><strong>Frontend:</strong> JavaScript, Tailwind CSS, Bootstrap (admin)</p>
+            <p><strong>APIs:</strong> Genomics England PanelApp, PanelApp Australia</p>
+            <p><strong>Deployment:</strong> SQLite (local), Google Cloud SQL (production)</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

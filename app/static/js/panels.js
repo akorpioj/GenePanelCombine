@@ -8,7 +8,7 @@ function fetchPanels(apiSource) {
         .then(data => {
             allPanels[apiSource] = data;
             if (apiSource === currentAPI) {
-                populateAll();
+                populateAll().catch(console.error);
             }
         });
 }
@@ -28,7 +28,9 @@ function switchAPI(apiSource) {
         panelAppSection.style.display = (apiSource === 'upload') ? 'none' : '';
     }
     // Update panel lists
-    if (apiSource !== 'upload') populateAll();
+    if (apiSource !== 'upload') {
+        populateAll().catch(console.error);
+    }
 }
 
 // list all the string fields you want to search
@@ -53,11 +55,36 @@ function matches(panel, term) {
     });
 }
 
-function populateAll() {
+async function populateAll() {
     const term = document.getElementById("search_term_input")
         .value.trim().toLowerCase();
 
-    const filtered = allPanels[currentAPI].filter(p => matches(p, term));
+    // Start with text-based filtering
+    let filtered = allPanels[currentAPI].filter(p => matches(p, term));
+
+    // If the search term is a single word, also try fetching panels by gene name
+    if (term && !term.includes(' ') && term.length > 1) {
+        try {
+            const geneUrl = `/api/genes/${encodeURIComponent(term)}?source=${currentAPI}`;
+            const response = await fetch(geneUrl);
+            if (response.ok) {
+                const genePanels = await response.json();
+                if (genePanels && Array.isArray(genePanels)) {
+                    // Merge gene panels with text-filtered results, removing duplicates
+                    const existingIds = new Set(filtered.map(p => `${p.id}-${p.api_source}`));
+                    genePanels.forEach(genePanel => {
+                        const panelKey = `${genePanel.id}-${genePanel.api_source}`;
+                        if (!existingIds.has(panelKey)) {
+                            filtered.push(genePanel);
+                            existingIds.add(panelKey);
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.log('Gene search failed, continuing with text search only:', error);
+        }
+    }
 
     for (let i = 1; i <= maxPanels; i++) {
         const select = document.getElementById(`panel_id_${i}`);
@@ -140,7 +167,7 @@ function clearAll() {
     }
     
     // Refresh the panel list without any filters
-    populateAll();
+    populateAll().catch(console.error);
 }
 
 function debounce(fn, delay) {
@@ -163,7 +190,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Search input event
     const searchInput = document.getElementById("search_term_input");
     if (searchInput) {
-        searchInput.addEventListener("input", debounce(populateAll, 300));
+        searchInput.addEventListener("input", debounce(async () => {
+            await populateAll();
+        }, 300));
     }
     // Drag-and-drop support for user panel upload
     const dropZone = document.getElementById('drop-zone');

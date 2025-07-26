@@ -216,3 +216,73 @@ def clear_cache():
         flash("Panel cache cleared!", "success")
     return redirect(url_for('main.index'))
 
+def get_gene_panels_from_api(entity_name, api_source='uk'):
+    """
+    Get panels containing a specific gene from PanelApp API.
+    Uses the /genes/{entity_name}/ endpoint to find associated panels.
+    
+    Args:
+        entity_name (str): The gene symbol/entity name to search for
+        api_source (str): 'uk' or 'aus' to specify which API to use
+    
+    Returns:
+        list: List of panel dictionaries containing the gene
+    """
+    if api_source not in API_CONFIGS:
+        logger.error(f"Invalid API source: {api_source}")
+        return []
+    
+    config = API_CONFIGS[api_source]
+    base_url = config['url']
+    
+    # Use the /genes/{entity_name}/ endpoint
+    url = f"{base_url}genes/{entity_name}/"
+    panels = []
+    
+    try:
+        logger.info(f"Fetching gene data for {entity_name} from {config['name']}")
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Extract panels from the gene data response
+        # The API returns gene data with associated panel information
+        results = data.get("results", [])
+        
+        for gene_entry in results:
+            panel_data = gene_entry.get("panel")
+            if panel_data:
+                panels.append({
+                    "id": panel_data.get("id"),
+                    "name": panel_data.get("name", "N/A"),
+                    "version": panel_data.get("version", "N/A"),
+                    "disease_group": panel_data.get("disease_group", ""),
+                    "disease_sub_group": panel_data.get("disease_sub_group", ""),
+                    "description": "",  # Gene endpoint doesn't provide panel description
+                    "api_source": api_source,
+                    "confidence_level": gene_entry.get("confidence_level", ""),
+                    "entity_name": gene_entry.get("entity_name", entity_name)
+                })
+        
+        # Remove duplicates (same panel might appear multiple times)
+        seen_panels = set()
+        unique_panels = []
+        for panel in panels:
+            panel_key = (panel["id"], panel["api_source"])
+            if panel_key not in seen_panels:
+                seen_panels.add(panel_key)
+                unique_panels.append(panel)
+        
+        logger.info(f"Found {len(unique_panels)} unique panels containing gene {entity_name}")
+        return unique_panels
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API Error (get_gene_panels): {e}")
+        return []
+    except ValueError as e:
+        logger.error(f"API Error (get_gene_panels - JSON parsing): {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error in get_gene_panels: {e}")
+        return []
+
