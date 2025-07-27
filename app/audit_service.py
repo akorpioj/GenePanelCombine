@@ -271,6 +271,106 @@ class AuditService:
         )
     
     @staticmethod
+    def log_panel_delete(panel_id: str, panel_name: str = None):
+        """Log a panel deletion"""
+        description = f"Deleted panel '{panel_name}'" if panel_name else f"Deleted panel ID: {panel_id}"
+        return AuditService.log_action(
+            action_type=AuditActionType.PANEL_DELETE,
+            action_description=description,
+            resource_type="panel",
+            resource_id=panel_id,
+            details={"panel_id": panel_id, "panel_name": panel_name}
+        )
+    
+    @staticmethod
+    def log_view(resource_type: str, resource_id: str, description: str, details: Optional[Dict[str, Any]] = None):
+        """Log a view action"""
+        return AuditService.log_action(
+            action_type=AuditActionType.VIEW,
+            action_description=description,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            details=details
+        )
+    
+    @staticmethod
+    def log_user_create(username: str, email: str, role: str, created_by_admin: bool = False):
+        """Log user creation by admin"""
+        action_type = AuditActionType.USER_CREATE if created_by_admin else AuditActionType.REGISTER
+        return AuditService.log_action(
+            action_type=action_type,
+            action_description=f"Created new user: '{username}' ({email}) with role {role}",
+            resource_type="user",
+            resource_id=username,
+            new_values={"username": username, "email": email, "role": role}
+        )
+    
+    @staticmethod
+    def log_user_update(user_id: int, username: str, changes: Dict[str, Any], old_values: Dict[str, Any] = None):
+        """Log user updates by admin"""
+        return AuditService.log_action(
+            action_type=AuditActionType.USER_UPDATE,
+            action_description=f"Updated user '{username}': {', '.join(changes.keys())}",
+            resource_type="user",
+            resource_id=str(user_id),
+            old_values=old_values,
+            new_values=changes
+        )
+    
+    @staticmethod
+    def log_user_delete(user_id: int, username: str):
+        """Log user deletion by admin"""
+        return AuditService.log_action(
+            action_type=AuditActionType.USER_DELETE,
+            action_description=f"Deleted user '{username}'",
+            resource_type="user",
+            resource_id=str(user_id),
+            details={"deleted_username": username}
+        )
+    
+    @staticmethod
+    def log_role_change(user_id: int, username: str, old_role: str, new_role: str):
+        """Log role changes"""
+        return AuditService.log_action(
+            action_type=AuditActionType.ROLE_CHANGE,
+            action_description=f"Changed role for user '{username}' from {old_role} to {new_role}",
+            resource_type="user",
+            resource_id=str(user_id),
+            old_values={"role": old_role},
+            new_values={"role": new_role}
+        )
+    
+    @staticmethod
+    def log_data_export(export_type: str, record_count: int, file_name: str = None):
+        """Log data export operations"""
+        details = {
+            "export_type": export_type,
+            "record_count": record_count
+        }
+        if file_name:
+            details["file_name"] = file_name
+            
+        return AuditService.log_action(
+            action_type=AuditActionType.DATA_EXPORT,
+            action_description=f"Exported {record_count} {export_type} records",
+            resource_type="export",
+            resource_id=export_type,
+            details=details
+        )
+    
+    @staticmethod
+    def log_config_change(config_key: str, old_value: Any, new_value: Any):
+        """Log configuration changes"""
+        return AuditService.log_action(
+            action_type=AuditActionType.CONFIG_CHANGE,
+            action_description=f"Changed configuration '{config_key}'",
+            resource_type="config",
+            resource_id=config_key,
+            old_values={config_key: old_value},
+            new_values={config_key: new_value}
+        )
+    
+    @staticmethod
     def _get_client_ip() -> str:
         """Get the client's IP address from the request"""
         if not request:

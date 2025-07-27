@@ -207,6 +207,13 @@ def edit_profile():
         last_name = request.form.get('last_name', '').strip()
         organization = request.form.get('organization', '').strip()
         
+        # Store old values for audit
+        old_data = {
+            'first_name': current_user.first_name,
+            'last_name': current_user.last_name,
+            'organization': current_user.organization
+        }
+        
         # Update user
         current_user.first_name = first_name
         current_user.last_name = last_name
@@ -214,6 +221,15 @@ def edit_profile():
         
         try:
             db.session.commit()
+            
+            # Log profile update
+            new_data = {
+                'first_name': first_name,
+                'last_name': last_name,
+                'organization': organization
+            }
+            AuditService.log_profile_update(current_user.id, current_user.username, old_data, new_data)
+            
             flash('Profile updated successfully!', 'success')
             return redirect(url_for('auth.profile'))
         except Exception as e:
@@ -251,11 +267,19 @@ def change_password():
         try:
             current_user.set_password(new_password)
             db.session.commit()
+            
+            # Log password change
+            AuditService.log_password_change(current_user.username, success=True)
+            
             flash('Password changed successfully!', 'success')
             return redirect(url_for('auth.profile'))
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Password change error: {e}")
+            
+            # Log failed password change
+            AuditService.log_password_change(current_user.username, success=False)
+            
             flash('Failed to change password. Please try again.', 'error')
     
     return render_template('auth/change_password.html')
@@ -301,6 +325,18 @@ def admin_toggle_user_active(user_id):
     try:
         db.session.commit()
         status = 'activated' if user.is_active else 'deactivated'
+        
+        # Log user status change
+        AuditService.log_admin_action(
+            action_description=f"User '{user.username}' {status}",
+            target_user_id=user.id,
+            details={
+                "action": "toggle_active_status",
+                "new_status": user.is_active,
+                "target_username": user.username
+            }
+        )
+        
         return jsonify({
             'success': True, 
             'message': f'User {user.username} has been {status}',
@@ -338,17 +374,50 @@ def api_user_details(user_id):
     elif request.method == 'PUT':
         data = request.get_json()
         
+        # Store old values for audit
+        old_data = {
+            'role': user.role.value,
+            'is_active': user.is_active
+        }
+        
+        changes_made = []
+        
         if 'role' in data:
             try:
-                user.role = UserRole(data['role'])
+                new_role = UserRole(data['role'])
+                if user.role != new_role:
+                    user.role = new_role
+                    changes_made.append(f"role changed to {new_role.value}")
             except ValueError:
                 return jsonify({'error': 'Invalid role'}), 400
         
         if 'is_active' in data:
-            user.is_active = data['is_active']
+            if user.is_active != data['is_active']:
+                user.is_active = data['is_active']
+                status = 'activated' if data['is_active'] else 'deactivated'
+                changes_made.append(f"account {status}")
         
         try:
             db.session.commit()
+            
+            # Log user update if changes were made
+            if changes_made:
+                new_data = {
+                    'role': user.role.value,
+                    'is_active': user.is_active
+                }
+                AuditService.log_admin_action(
+                    action_description=f"Updated user '{user.username}': {', '.join(changes_made)}",
+                    target_user_id=user.id,
+                    details={
+                        "action": "user_update",
+                        "changes": changes_made,
+                        "target_username": user.username,
+                        "old_values": old_data,
+                        "new_values": new_data
+                    }
+                )
+            
             return jsonify({'success': True, 'message': 'User updated successfully'})
         except Exception as e:
             db.session.rollback()
@@ -579,12 +648,10 @@ def export_audit_logs():
     response.headers['Content-Disposition'] = f'attachment; filename=audit_logs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
     
     # Log export action
-    AuditService.log_admin_action(
-        action_description=f"Exported {len(audit_logs)} audit log entries",
-        details={
-            "export_count": len(audit_logs),
-            "filters_applied": bool(action_type or username or date_from or date_to or success_filter)
-        }
+    AuditService.log_data_export(
+        export_type="audit_logs",
+        record_count=len(audit_logs),
+        file_name=f"audit_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     )
     
     return response

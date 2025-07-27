@@ -180,9 +180,22 @@ def api_panel_details():
                 'status': panel_info.get('status', 'N/A')
             }
             panel_details.append(panel_detail)
-            
-        return jsonify(panel_details)
         
+        # Log panel view action
+        if panel_details:
+            panel_names = [p['name'] for p in panel_details]
+            AuditService.log_view(
+                resource_type="panel",
+                resource_id=panel_ids_param,
+                description=f"Viewed details for {len(panel_details)} panels: {', '.join(panel_names[:3])}{'...' if len(panel_names) > 3 else ''}",
+                details={
+                    "panel_count": len(panel_details),
+                    "panel_ids": panel_ids_param,
+                    "panel_names": panel_names
+                }
+            )
+
+        return jsonify(panel_details)    
     except Exception as e:
         logger.error(f"Error getting panel details: {e}")
         return jsonify({"error": "Failed to get panel details"}), 500
@@ -381,12 +394,23 @@ def upload_user_panel():
             if sheetname not in user_panels:
                 user_panels.append({'sheet_name': sheetname, 'genes': genes})
                 results.append({'filename': filename, 'success': True, 'gene_count': len(genes), 'sheet_name': filename.rsplit('.', 1)[0][:31]})
+                
+                # Log successful panel upload
+                AuditService.log_panel_upload(filename, len(genes), success=True)
+                
             else:
                 logger.error(f"Duplicate panel name '{sheetname}' found in uploaded files.")
                 results.append({'filename': filename, 'success': False, 'error': f'Duplicate panel name: {sheetname}'})
+                
+                # Log failed panel upload
+                AuditService.log_panel_upload(filename, 0, success=False, error_message=f'Duplicate panel name: {sheetname}')
+                
         except Exception as e:
             logger.error(f"Failed to parse uploaded panel {filename}: {e}")
             results.append({'filename': filename, 'success': False, 'error': f'Failed to parse file: {e}'})
+            
+            # Log failed panel upload
+            AuditService.log_panel_upload(filename, 0, success=False, error_message=str(e))
     session['uploaded_panels'] = user_panels
     session.modified = True
     if any(r['success'] for r in results):
@@ -406,9 +430,22 @@ def remove_user_panel():
     from flask import session, request
     sheet_name = request.json.get('sheet_name')
     user_panels = session.get('uploaded_panels', [])
+    
+    # Find the panel being removed for audit logging
+    removed_panel = next((p for p in user_panels if p.get('sheet_name') == sheet_name), None)
+    
     new_panels = [p for p in user_panels if p.get('sheet_name') != sheet_name]
     session['uploaded_panels'] = new_panels
     session.modified = True
+    
+    # Log panel deletion
+    if removed_panel:
+        gene_count = len(removed_panel.get('genes', []))
+        AuditService.log_panel_delete(
+            panel_id=sheet_name, 
+            panel_name=sheet_name
+        )
+    
     return jsonify({'success': True, 'removed': sheet_name})
 
 
@@ -434,6 +471,10 @@ def api_cache_clear():
     """
     try:
         clear_panel_cache()
+        
+        # Log cache clear action
+        AuditService.log_cache_clear("panel_cache")
+        
         return jsonify({"success": True, "message": "Panel cache cleared"})
     except Exception as e:
         logger.error(f"Error clearing cache: {e}")
