@@ -84,6 +84,13 @@ def create_app(config_name=None):
     limiter.init_app(app)
     cache.init_app(app)  # Initialize Redis cache
     
+    # Initialize security and encryption services
+    from .encryption_service import init_encryption
+    from .security_service import init_security
+    
+    init_encryption(app)  # Initialize encryption service
+    init_security(app)    # Initialize security service with HTTPS enforcement and headers
+    
     # Define user_loader callback for Flask-Login here, after login_manager is initialized
     # This avoids circular import issues if the User model is in a separate models.py
     from .models import User # Import User model here

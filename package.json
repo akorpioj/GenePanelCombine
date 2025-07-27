@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "autoprefixer": "^10.4.17",
+    "openssl": "^2.0.0",
     "postcss": "^8.4.35",
     "postcss-cli": "^11.0.0",
     "redis-cli": "^2.1.2",

@@ -14,6 +14,16 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY') or 'a_very_complex_and_unguessable_default_secret_key'
     SQLALCHEMY_DATABASE_URI = None
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Security Configuration
+    REQUIRE_HTTPS = os.getenv('REQUIRE_HTTPS', 'False').lower() == 'true'
+    HSTS_MAX_AGE = int(os.getenv('HSTS_MAX_AGE', '31536000'))  # 1 year
+    SESSION_TIMEOUT = int(os.getenv('SESSION_TIMEOUT', '3600'))  # 1 hour
+    
+    # Encryption Configuration
+    ENCRYPTION_MASTER_KEY = os.getenv('ENCRYPTION_MASTER_KEY')
+    ENCRYPT_SENSITIVE_FIELDS = os.getenv('ENCRYPT_SENSITIVE_FIELDS', 'True').lower() == 'true'
+    
     # Cloud SQL Configuration
     DB_USER = os.getenv("DB_USER")
     DB_PASS = os.getenv("DB_PASS")
@@ -40,6 +50,10 @@ class DevelopmentConfig(Config):
     # Original PostgreSQL config commented out for reference
     #DB_PORT = 5433  # Match the port in start_cloud_sql_proxy.ps1
     #SQLALCHEMY_DATABASE_URI = f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:{DB_PORT}/{Config.DB_NAME}'
+    
+    # Disable HTTPS enforcement in development
+    REQUIRE_HTTPS = False
+    HSTS_MAX_AGE = 0  # Disable HSTS in development
 
 # Add any development-specific settings, e.g., MAIL_SUPPRESS_SEND = True
 class TestingConfig(Config):
@@ -58,3 +72,9 @@ class ProductionConfig(Config):
     # using the Cloud SQL Python Connector, so we can leave it as None here.
     SQLALCHEMY_DATABASE_URI = None # Set in models.py
     CLOUD_SQL_CONNECTION_NAME = os.getenv("CLOUD_SQL_CONNECTION_NAME", "gene-panel-combine:europe-north1:gene-panel-user-db") # e.g. 'project:region:instance'
+    
+    # Production Security Settings
+    REQUIRE_HTTPS = True
+    HSTS_MAX_AGE = 31536000  # 1 year
+    SESSION_TIMEOUT = 1800   # 30 minutes for production
+    ENCRYPT_SENSITIVE_FIELDS = True

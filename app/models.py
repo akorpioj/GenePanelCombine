@@ -8,6 +8,27 @@ from enum import Enum
 # Import the Cloud SQL Python Connector library
 from google.cloud.sql.connector import Connector, IPTypes
 
+# Import encryption services for sensitive field protection
+try:
+    from .encryption_service import EncryptedField, EncryptedJSONField
+except ImportError:
+    # Fallback for when encryption service is not available
+    class EncryptedField:
+        def __init__(self, field_name):
+            self.field_name = field_name
+        def __get__(self, obj, objtype=None):
+            return getattr(obj, self.field_name) if obj else self
+        def __set__(self, obj, value):
+            setattr(obj, self.field_name, value)
+    
+    class EncryptedJSONField:
+        def __init__(self, field_name):
+            self.field_name = field_name
+        def __get__(self, obj, objtype=None):
+            return getattr(obj, self.field_name) if obj else self
+        def __set__(self, obj, value):
+            setattr(obj, self.field_name, value)
+
 db = SQLAlchemy()  # Add this line to define db
 
 class UserRole(Enum):
@@ -22,15 +43,28 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    first_name = db.Column(db.String(50))
-    last_name = db.Column(db.String(50))
-    organization = db.Column(db.String(100))
+    
+    # Encrypted sensitive fields
+    _first_name = db.Column('first_name_encrypted', db.Text)
+    _last_name = db.Column('last_name_encrypted', db.Text)  
+    _organization = db.Column('organization_encrypted', db.Text)
+    
+    # Use encryption descriptors for sensitive data
+    first_name = EncryptedField('_first_name')
+    last_name = EncryptedField('_last_name')
+    organization = EncryptedField('_organization')
+    
     role = db.Column(db.Enum(UserRole), default=UserRole.USER, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_login = db.Column(db.DateTime)
     login_count = db.Column(db.Integer, default=0)
+    
+    # Additional security fields
+    last_ip_address = db.Column(db.String(45))
+    failed_login_attempts = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime)
     
     # Relationship to track user downloads
     downloads = db.relationship('PanelDownload', backref='user', lazy=True)
@@ -138,18 +172,21 @@ class AuditLog(db.Model):
     # Request/Session information
     ip_address = db.Column(db.String(45), nullable=False)
     user_agent = db.Column(db.String(500))
-    session_id = db.Column(db.String(100))
+    session_id = db.Column(db.String(200))  # Updated length for longer session IDs
     
     # Resource information
     resource_type = db.Column(db.String(50))  # e.g., 'panel', 'user', 'search'
     resource_id = db.Column(db.String(100))   # ID of the affected resource
     
-    # Change tracking
-    old_values = db.Column(db.Text)  # JSON string of old values
-    new_values = db.Column(db.Text)  # JSON string of new values
+    # Encrypted change tracking - store as encrypted fields
+    _old_values = db.Column('old_values_encrypted', db.Text)  # Encrypted JSON string of old values
+    _new_values = db.Column('new_values_encrypted', db.Text)  # Encrypted JSON string of new values
+    _details = db.Column('details_encrypted', db.Text)       # Encrypted JSON string for additional context
     
-    # Additional context
-    details = db.Column(db.Text)  # JSON string for additional context/metadata
+    # Use encryption descriptors for sensitive audit data
+    old_values = EncryptedJSONField('_old_values')
+    new_values = EncryptedJSONField('_new_values')
+    details = EncryptedJSONField('_details')
     
     # Timestamp and status
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

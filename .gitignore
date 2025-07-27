@@ -13,4 +13,6 @@ Dockerfile
 *.bak
 *.log
 *.db
+*.pem
+*.key
 .pytest_cache/
