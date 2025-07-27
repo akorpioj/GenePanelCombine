@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}PanelApp Gene Filter - Flask{% endblock %}</title>
+  <title>{% block title %}PanelMerge v1.4 - Secure Gene Panel Management{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,7 +18,8 @@
       </div>
       <div class="flex items-center space-x-4 text-sm">
         <a href="{{ url_for('main.index') }}" class="text-sky-600 hover:text-sky-800 transition">Home</a>
-        <a href="{{ url_for('main.version_history') }}" class="text-sky-600 hover:text-sky-800 transition">Version History</a>
+        <a href="{{ url_for('main.version') }}" class="text-sky-600 hover:text-sky-800 transition">Version</a>
+        <a href="{{ url_for('main.version_history') }}" class="text-sky-600 hover:text-sky-800 transition">History</a>
         
         {% if current_user.is_authenticated %}
           <div class="flex items-center space-x-4 ml-6 pl-6 border-l border-gray-300">
@@ -64,6 +65,7 @@
   {% block content %}{% endblock %}
 
   <footer class="mt-12 text-center text-sm text-gray-500">
+    <p>PanelMerge v1.4 - Security Enhanced Edition</p>
     <p>Built with Flask & Genomics England + Australia PanelApp APIs.</p>
     <p class="mt-1">Remember to verify results against official sources.</p>
   </footer>

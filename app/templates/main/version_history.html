@@ -5,7 +5,7 @@
 {% block content %}
 <div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">
     <header class="mb-6 sm:mb-8 text-center">
-        <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">📋 Version History</h1>
+        <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">Version History</h1>
         <p class="text-gray-600 mt-2">
             Track the evolution of PanelMerge features and improvements.
         </p>
@@ -17,6 +17,37 @@
     </header>
 
     <div class="space-y-6">
+        <!-- Version 1.4 -->
+        <div class="border-l-4 border-red-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-red-700">Version 1.4</h2>
+                <span class="text-sm text-gray-500">July 2025</span>
+            </div>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>• <strong>Admin Messages:</strong> Admin users can create messages that are shown on main page</li>
+                <li>• <strong>Comprehensive Security Audit Logging:</strong> Enterprise-grade security monitoring with 33 audit action types</li>
+                <li>• <strong>Automated Threat Detection:</strong> Real-time monitoring for SQL injection, path traversal, and brute force attacks</li>
+                <li>• <strong>Security Violation Tracking:</strong> Detailed logging of security policy violations with severity levels</li>
+                <li>• <strong>Enhanced Session Management:</strong> Individual session revocation and comprehensive session security with Redis storage</li>
+                <li>• <strong>Data Encryption:</strong> Complete data encryption at rest and in transit with advanced encryption service</li>
+                <li>• <strong>User Authentication System:</strong> Full user registration and authentication with role-based access control</li>
+                <li>• <strong>Role-Based Access Control:</strong> Different permission levels (viewer, editor, admin) with privilege management</li>
+                <li>• <strong>Panel Comparison Tool:</strong> Side-by-side comparison of multiple panels before selection</li>
+                <li>• <strong>Panel Preview Feature:</strong> Quick gene count and summary without full selection</li>
+                <li>• <strong>File Validation Preview:</strong> Show detailed validation results before upload with error reporting</li>
+                <li>• <strong>Redis Caching System:</strong> Redis Cloud integration for better caching and session management</li>
+                <li>• <strong>Gene Autocomplete Search:</strong> Intelligent autocomplete suggestions for gene names as user types</li>
+                <li>• <strong>Complete Audit Trail:</strong> Comprehensive logging of user actions and data changes</li>
+                <li>• <strong>Compliance Logging:</strong> GDPR and regulatory compliance event tracking</li>
+                <li>• <strong>Risk Assessment System:</strong> Automated risk scoring for security events (0-100 scale)</li>
+                <li>• <strong>Security Monitoring Dashboard:</strong> Real-time security monitoring with automated response</li>
+                <li>• <strong>Behavioral Analysis:</strong> Anomaly detection for suspicious user behavior patterns</li>
+                <li>• <strong>File Upload Security:</strong> Malicious content detection and file type validation</li>
+                <li>• <strong>IP Blocking System:</strong> Automatic blocking of suspicious IP addresses with rate limiting</li>
+                <li>• <strong>Security Event Management:</strong> Comprehensive security event tracking and alerting system</li>
+            </ul>
+        </div>
+
         <!-- Version 1.3 -->
         <div class="border-l-4 border-sky-500 pl-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
@@ -87,10 +118,12 @@
     <div class="mt-8 p-4 bg-gray-50 rounded-lg">
         <h3 class="text-lg font-semibold text-gray-700 mb-2">Technical Stack</h3>
         <div class="text-sm text-gray-600 space-y-1">
-            <p><strong>Backend:</strong> Python, Flask, SQLAlchemy, Pandas</p>
+            <p><strong>Backend:</strong> Python, Flask, SQLAlchemy, Pandas, Redis</p>
             <p><strong>Frontend:</strong> JavaScript, Tailwind CSS, Bootstrap (admin)</p>
+            <p><strong>Security:</strong> Enterprise encryption, audit logging, threat detection, session management</p>
             <p><strong>APIs:</strong> Genomics England PanelApp, PanelApp Australia</p>
-            <p><strong>Deployment:</strong> SQLite (local), Google Cloud SQL (production)</p>
+            <p><strong>Database:</strong> PostgreSQL (production), SQLite (local), Redis (caching/sessions)</p>
+            <p><strong>Deployment:</strong> Google Cloud Platform with Cloud SQL</p>
         </div>
     </div>
 </div>

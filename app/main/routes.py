@@ -22,10 +22,16 @@ import pandas as pd
 @limiter.limit("30 per minute")
 def index():
     logger.info("index")
+    
+    # Get active admin messages
+    from ..models import AdminMessage
+    admin_messages = AdminMessage.get_active_messages()
+    
     # No more server-side filtering
     return render_template('index.html', 
                            max_panels=MAX_PANELS,
-                           list_type_options=list_type_options)
+                           list_type_options=list_type_options,
+                           admin_messages=admin_messages)
 
 @main_bp.route('/version-history')
 @limiter.limit("30 per minute")
@@ -559,3 +565,19 @@ def api_panel_preview(panel_id):
     except Exception as e:
         logger.error(f"Error getting panel preview for {panel_id}: {e}")
         return jsonify({"error": "Failed to get panel preview"}), 500
+
+
+@main_bp.route('/api/version')
+@limiter.limit("10 per minute")
+def api_version():
+    """API endpoint to get application version information"""
+    from app.version import get_version_info
+    return jsonify(get_version_info())
+
+
+@main_bp.route('/version')
+def version():
+    """Simple version display page"""
+    from app.version import get_version_info
+    version_info = get_version_info()
+    return render_template('main/version.html', version_info=version_info)

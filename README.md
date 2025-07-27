@@ -1,6 +1,29 @@
-# PanelMerge
+# PanelMerge v1.4
 
-PanelMerge is a web application for researchers and clinicians to easily combine, filter, and download gene lists from multiple sources, including Genomics England PanelApp, PanelApp Australia, and user-uploaded custom gene panels.
+PanelMerge is a secure, enterprise-grade web application for researchers and clinicians to easily combine, filter, and download gene lists from multiple sources, including Genomics England PanelApp, PanelApp Australia, and user-uploaded custom gene panels.
+
+## 🔒 Security Features (v1.4)
+
+- **Comprehensive Security Audit Logging:**
+  - 33 audit action types including security violations, access denied events, and compliance logging
+  - Real-time threat detection with automated response capabilities
+  - Risk assessment scoring (0-100) for security events
+
+- **Enterprise-Grade Security Monitoring:**
+  - Automated detection of SQL injection, path traversal, and brute force attacks
+  - Suspicious user agent detection and IP blocking
+  - File upload security validation with malicious content detection
+  - Rate limiting and behavioral anomaly detection
+
+- **Advanced Session Management:**
+  - Enhanced session security with individual session revocation
+  - Redis-based session storage with secure token rotation
+  - Session hijacking protection and privilege escalation monitoring
+
+- **Data Encryption & Compliance:**
+  - Complete data encryption at rest and in transit
+  - GDPR compliance logging and regulatory event tracking
+  - Comprehensive audit trail for forensic analysis
 
 ## Features
 
@@ -36,6 +59,12 @@ PanelMerge is a web application for researchers and clinicians to easily combine
 
 - **Admin Dashboard:**
   - Login-protected admin area for managing users and viewing download logs.
+  - **Site Messages System**: Create and manage announcements displayed on the main page
+    - Support for Info, Success, Warning, and Error message types with color coding
+    - Optional expiration dates for automatic message removal
+    - Live preview when creating messages
+    - Toggle active/inactive status for immediate control
+    - Full audit logging for all administrative actions
 
 - **Flexible Database Support:**
   - Can run with or without database (set WITHOUT_DB=True in .env).
@@ -63,11 +92,13 @@ PanelMerge is a web application for researchers and clinicians to easily combine
 - **Multiple files**: Upload multiple panels at once with duplicate prevention.
 
 ## Technologies Used
-- **Backend**: Python, Flask, SQLAlchemy, Pandas, openpyxl
+- **Backend**: Python, Flask, SQLAlchemy, Pandas, openpyxl, Redis
 - **Frontend**: JavaScript, Tailwind CSS, Bootstrap (admin UI)
+- **Security**: Enterprise encryption service, comprehensive audit logging, threat detection
 - **APIs**: Genomics England PanelApp, PanelApp Australia
-- **Database**: SQLite (local), Google Cloud SQL (production)
+- **Database**: PostgreSQL (production), SQLite (local), Redis (caching/sessions)
 - **Build Tools**: npm, Tailwind CSS compiler
+- **Deployment**: Google Cloud Platform with Cloud SQL
 
 ## API Endpoints
 - `/api/panels?source={uk|aus}` - Get all panels from specified source
@@ -75,6 +106,9 @@ PanelMerge is a web application for researchers and clinicians to easily combine
 - `/upload_user_panel` - Upload custom gene panels
 - `/uploaded_user_panels` - List uploaded panels in session
 - `/remove_user_panel` - Remove uploaded panel from session
+- `/api/version` - Application version information
+- `/admin/messages` - Admin message management (admin only)
+- `/admin/messages/create` - Create new site messages (admin only)
 
 ## Development
 ```bash

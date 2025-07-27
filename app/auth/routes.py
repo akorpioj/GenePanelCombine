@@ -809,3 +809,155 @@ def export_audit_logs():
     )
     
     return response
+
+
+# Admin Message Management Routes
+@auth_bp.route('/admin/messages')
+@login_required
+def admin_messages():
+    """Admin view for managing site messages"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+    
+    from ..models import AdminMessage
+    messages = AdminMessage.query.order_by(AdminMessage.created_at.desc()).all()
+    return render_template('auth/admin_messages.html', messages=messages)
+
+
+@auth_bp.route('/admin/messages/create', methods=['GET', 'POST'])
+@login_required
+def admin_create_message():
+    """Create a new admin message"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+    
+    if request.method == 'POST':
+        from ..models import AdminMessage
+        from datetime import datetime
+        
+        title = request.form.get('title', '').strip()
+        message = request.form.get('message', '').strip()
+        message_type = request.form.get('message_type', 'info')
+        expires_at_str = request.form.get('expires_at', '').strip()
+        
+        # Validation
+        if not title or not message:
+            flash('Title and message are required.', 'error')
+            return render_template('auth/admin_create_message.html')
+        
+        # Parse expiration date if provided
+        expires_at = None
+        if expires_at_str:
+            try:
+                expires_at = datetime.strptime(expires_at_str, '%Y-%m-%dT%H:%M')
+                if expires_at <= datetime.utcnow():
+                    flash('Expiration date must be in the future.', 'error')
+                    return render_template('auth/admin_create_message.html')
+            except ValueError:
+                flash('Invalid expiration date format.', 'error')
+                return render_template('auth/admin_create_message.html')
+        
+        # Create message
+        admin_message = AdminMessage(
+            title=title,
+            message=message,
+            message_type=message_type,
+            created_by_id=current_user.id,
+            expires_at=expires_at
+        )
+        
+        try:
+            db.session.add(admin_message)
+            db.session.commit()
+            
+            # Log the action
+            AuditService.log_admin_action(
+                action_description=f"Created admin message: {title}",
+                details={
+                    "message_id": admin_message.id,
+                    "message_type": message_type,
+                    "expires_at": expires_at.isoformat() if expires_at else None
+                }
+            )
+            
+            flash('Message created successfully!', 'success')
+            return redirect(url_for('auth.admin_messages'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating admin message: {e}")
+            flash('Failed to create message. Please try again.', 'error')
+    
+    return render_template('auth/admin_create_message.html')
+
+
+@auth_bp.route('/admin/messages/<int:message_id>/toggle', methods=['POST'])
+@login_required
+def admin_toggle_message(message_id):
+    """Toggle message active status"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    from ..models import AdminMessage
+    message = AdminMessage.query.get_or_404(message_id)
+    
+    message.is_active = not message.is_active
+    
+    try:
+        db.session.commit()
+        
+        # Log the action
+        action = "activated" if message.is_active else "deactivated"
+        AuditService.log_admin_action(
+            action_description=f"Admin message {action}: {message.title}",
+            details={
+                "message_id": message.id,
+                "action": action,
+                "new_status": message.is_active
+            }
+        )
+        
+        return jsonify({
+            'success': True,
+            'is_active': message.is_active,
+            'status': 'Active' if message.is_active else 'Inactive'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error toggling message status: {e}")
+        return jsonify({'error': 'Failed to update message'}), 500
+
+
+@auth_bp.route('/admin/messages/<int:message_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_message(message_id):
+    """Delete an admin message"""
+    if not current_user.is_admin():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    from ..models import AdminMessage
+    message = AdminMessage.query.get_or_404(message_id)
+    message_title = message.title
+    
+    try:
+        db.session.delete(message)
+        db.session.commit()
+        
+        # Log the action
+        AuditService.log_admin_action(
+            action_description=f"Deleted admin message: {message_title}",
+            details={
+                "message_id": message_id,
+                "message_title": message_title
+            }
+        )
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting message: {e}")
+        return jsonify({'error': 'Failed to delete message'}), 500

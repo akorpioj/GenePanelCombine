@@ -246,6 +246,50 @@ class PanelDownload(db.Model):
     list_types = db.Column(db.String(255), nullable=False)  # Comma-separated list of list types
     gene_count = db.Column(db.Integer)  # Number of genes in the downloaded list
 
+
+class AdminMessage(db.Model):
+    """Admin messages displayed on the main page"""
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Message content
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    message_type = db.Column(db.String(20), default='info', nullable=False)  # info, warning, success, error
+    
+    # Admin who created the message
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_by = db.relationship('User', backref='admin_messages')
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=True)  # Optional expiration date
+    
+    # Status
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    def __repr__(self):
+        return f'<AdminMessage {self.id}: {self.title}>'
+    
+    def is_expired(self):
+        """Check if the message has expired"""
+        if self.expires_at is None:
+            return False
+        return datetime.utcnow() > self.expires_at
+    
+    def is_visible(self):
+        """Check if the message should be displayed"""
+        return self.is_active and not self.is_expired()
+    
+    @classmethod
+    def get_active_messages(cls):
+        """Get all active, non-expired messages"""
+        current_time = datetime.utcnow()
+        return cls.query.filter(
+            cls.is_active == True,
+            db.or_(cls.expires_at == None, cls.expires_at > current_time)
+        ).order_by(cls.created_at.desc()).all()
+
+
 def db_init(app):
     """
     Initializes a connection pool for a Cloud SQL instance of Postgres

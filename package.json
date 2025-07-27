@@ -1,7 +1,7 @@
 {
   "name": "panel-merge",
-  "version": "1.3",
-  "description": "A Flask-based application for filtering gene panels using Tailwind CSS.",
+  "version": "1.4",
+  "description": "A secure, enterprise-grade Flask application for filtering gene panels with comprehensive security monitoring.",
   "main": "index.js",
   "scripts": {
     "start": "python run.py",
