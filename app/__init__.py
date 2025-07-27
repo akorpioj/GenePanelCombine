@@ -93,6 +93,15 @@ def create_app(config_name=None):
     init_security(app)        # Initialize security service with HTTPS enforcement and headers
     init_session_service(app) # Initialize enhanced session management
     
+    # Initialize comprehensive security monitoring
+    try:
+        from .security_monitor import init_security_monitoring
+        security_monitor = init_security_monitoring(app)
+        app.logger.info("Security monitoring initialized successfully")
+    except Exception as e:
+        app.logger.error(f"Failed to initialize security monitoring: {e}")
+        # Don't fail app startup due to monitoring issues
+    
     # Define user_loader callback for Flask-Login here, after login_manager is initialized
     # This avoids circular import issues if the User model is in a separate models.py
     from .models import User # Import User model here

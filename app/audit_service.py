@@ -369,6 +369,224 @@ class AuditService:
             old_values={config_key: old_value},
             new_values={config_key: new_value}
         )
+
+    # Enhanced Security Audit Methods
+    
+    @staticmethod
+    def log_security_violation(violation_type: str, description: str, severity: str = "HIGH", details: Optional[Dict[str, Any]] = None):
+        """Log security violations and potential threats"""
+        return AuditService.log_action(
+            action_type=AuditActionType.SECURITY_VIOLATION,
+            action_description=f"Security violation: {description}",
+            success=False,
+            details={
+                "violation_type": violation_type,
+                "severity": severity,
+                "timestamp": datetime.utcnow().isoformat(),
+                **(details or {})
+            }
+        )
+
+    @staticmethod
+    def log_access_denied(resource_type: str, resource_id: str, reason: str, requested_action: str = None):
+        """Log access denied events"""
+        return AuditService.log_action(
+            action_type=AuditActionType.ACCESS_DENIED,
+            action_description=f"Access denied to {resource_type} {resource_id}: {reason}",
+            resource_type=resource_type,
+            resource_id=resource_id,
+            success=False,
+            details={
+                "reason": reason,
+                "requested_action": requested_action,
+                "user_agent": request.headers.get('User-Agent') if request else None
+            }
+        )
+
+    @staticmethod
+    def log_privilege_escalation(target_privilege: str, source_privilege: str = None, success: bool = True):
+        """Log privilege escalation attempts"""
+        return AuditService.log_action(
+            action_type=AuditActionType.PRIVILEGE_ESCALATION,
+            action_description=f"Privilege escalation from {source_privilege or 'unknown'} to {target_privilege}",
+            success=success,
+            details={
+                "source_privilege": source_privilege,
+                "target_privilege": target_privilege,
+                "escalation_method": "session_service",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
+    @staticmethod
+    def log_suspicious_activity(activity_type: str, description: str, risk_score: int = 50, details: Optional[Dict[str, Any]] = None):
+        """Log suspicious user activity that may indicate security threats"""
+        return AuditService.log_action(
+            action_type=AuditActionType.SUSPICIOUS_ACTIVITY,
+            action_description=f"Suspicious activity detected: {description}",
+            details={
+                "activity_type": activity_type,
+                "risk_score": risk_score,
+                "detection_method": "automated",
+                "requires_review": risk_score >= 70,
+                **(details or {})
+            }
+        )
+
+    @staticmethod
+    def log_brute_force_attempt(target_username: str, attempt_count: int, time_window: str, source_ip: str = None):
+        """Log brute force attack attempts"""
+        return AuditService.log_action(
+            action_type=AuditActionType.BRUTE_FORCE_ATTEMPT,
+            action_description=f"Brute force attempt against user '{target_username}': {attempt_count} attempts in {time_window}",
+            success=False,
+            details={
+                "target_username": target_username,
+                "attempt_count": attempt_count,
+                "time_window": time_window,
+                "source_ip": source_ip or AuditService._get_client_ip(),
+                "detection_time": datetime.utcnow().isoformat(),
+                "threat_level": "HIGH" if attempt_count >= 10 else "MEDIUM"
+            }
+        )
+
+    @staticmethod
+    def log_account_lockout(username: str, reason: str, lockout_duration: str = None, automatic: bool = True):
+        """Log account lockout events"""
+        return AuditService.log_action(
+            action_type=AuditActionType.ACCOUNT_LOCKOUT,
+            action_description=f"Account locked: {username} - {reason}",
+            details={
+                "username": username,
+                "reason": reason,
+                "lockout_duration": lockout_duration,
+                "automatic": automatic,
+                "lockout_time": datetime.utcnow().isoformat(),
+                "admin_action_required": not automatic
+            }
+        )
+
+    @staticmethod
+    def log_password_reset(username: str, method: str, success: bool = True, initiated_by: str = "user"):
+        """Log password reset events"""
+        return AuditService.log_action(
+            action_type=AuditActionType.PASSWORD_RESET,
+            action_description=f"Password reset for {username} via {method}",
+            success=success,
+            details={
+                "username": username,
+                "reset_method": method,  # email, admin, security_questions, etc.
+                "initiated_by": initiated_by,
+                "reset_time": datetime.utcnow().isoformat(),
+                "verification_required": method == "email"
+            }
+        )
+
+    @staticmethod
+    def log_api_access(endpoint: str, method: str, status_code: int, response_time_ms: int = None, api_key_used: bool = False):
+        """Log API access for security monitoring"""
+        return AuditService.log_action(
+            action_type=AuditActionType.API_ACCESS,
+            action_description=f"API access: {method} {endpoint} -> {status_code}",
+            success=200 <= status_code < 400,
+            details={
+                "endpoint": endpoint,
+                "http_method": method,
+                "status_code": status_code,
+                "response_time_ms": response_time_ms,
+                "api_key_used": api_key_used,
+                "user_agent": request.headers.get('User-Agent') if request else None,
+                "content_length": request.content_length if request else None
+            }
+        )
+
+    @staticmethod
+    def log_file_access(file_path: str, access_type: str, success: bool = True, file_size: int = None):
+        """Log file access for security monitoring"""
+        return AuditService.log_action(
+            action_type=AuditActionType.FILE_ACCESS,
+            action_description=f"File {access_type}: {file_path}",
+            resource_type="file",
+            resource_id=file_path,
+            success=success,
+            details={
+                "file_path": file_path,
+                "access_type": access_type,  # read, write, delete, download, upload
+                "file_size": file_size,
+                "access_time": datetime.utcnow().isoformat()
+            }
+        )
+
+    @staticmethod
+    def log_data_breach_attempt(breach_type: str, target_data: str, blocked: bool = True, details: Optional[Dict[str, Any]] = None):
+        """Log potential data breach attempts"""
+        return AuditService.log_action(
+            action_type=AuditActionType.DATA_BREACH_ATTEMPT,
+            action_description=f"Data breach attempt: {breach_type} targeting {target_data}",
+            success=False,
+            details={
+                "breach_type": breach_type,
+                "target_data": target_data,
+                "blocked": blocked,
+                "severity": "CRITICAL",
+                "requires_investigation": True,
+                "alert_sent": True,
+                **(details or {})
+            }
+        )
+
+    @staticmethod
+    def log_compliance_event(compliance_type: str, event_description: str, compliant: bool = True, regulation: str = None):
+        """Log compliance-related events (GDPR, HIPAA, etc.)"""
+        return AuditService.log_action(
+            action_type=AuditActionType.COMPLIANCE_EVENT,
+            action_description=f"Compliance event ({compliance_type}): {event_description}",
+            success=compliant,
+            details={
+                "compliance_type": compliance_type,
+                "regulation": regulation,
+                "compliant": compliant,
+                "event_time": datetime.utcnow().isoformat(),
+                "requires_review": not compliant
+            }
+        )
+
+    @staticmethod
+    def log_system_security(event_type: str, description: str, severity: str = "INFO", 
+                           system_component: str = None, details: Optional[Dict[str, Any]] = None):
+        """Log system-level security events"""
+        audit_details = {
+            "event_type": event_type,
+            "severity": severity,
+            "system_component": system_component,
+            "event_time": datetime.utcnow().isoformat(),
+            "auto_generated": True
+        }
+        
+        # Merge additional details if provided
+        if details:
+            audit_details.update(details)
+        
+        return AuditService.log_action(
+            action_type=AuditActionType.SYSTEM_SECURITY,
+            action_description=f"System security event: {description}",
+            details=audit_details
+        )
+
+    @staticmethod
+    def log_mfa_event(event_type: str, success: bool, method: str = None, details: Optional[Dict[str, Any]] = None):
+        """Log multi-factor authentication events"""
+        return AuditService.log_action(
+            action_type=AuditActionType.MFA_EVENT,
+            action_description=f"MFA {event_type}: {'Success' if success else 'Failed'}",
+            success=success,
+            details={
+                "event_type": event_type,  # setup, verification, bypass, disable
+                "method": method,  # sms, email, app, hardware_token
+                "mfa_time": datetime.utcnow().isoformat(),
+                **(details or {})
+            }
+        )
     
     @staticmethod
     def _get_client_ip() -> str:
