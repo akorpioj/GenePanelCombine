@@ -11,6 +11,7 @@ import re
 from . import auth_bp
 from ..models import db, User, UserRole
 from ..extensions import limiter
+from ..audit_service import AuditService
 
 def validate_email(email):
     """Validate email format"""
@@ -92,11 +93,16 @@ def register():
             db.session.add(user)
             db.session.commit()
             
+            # Log successful registration
+            AuditService.log_registration(username, email, success=True)
+            
             flash('Registration successful! You can now log in.', 'success')
             return redirect(url_for('auth.login'))
             
         except Exception as e:
             db.session.rollback()
+            # Log failed registration
+            AuditService.log_registration(username, email, success=False, error_message=str(e))
             current_app.logger.error(f"Registration error: {e}")
             flash('Registration failed. Please try again.', 'error')
     
@@ -126,6 +132,8 @@ def login():
         
         if user and user.check_password(password):
             if not user.is_active:
+                # Log failed login due to inactive account
+                AuditService.log_login(username_or_email, success=False, error_message="Account deactivated")
                 flash('Your account has been deactivated. Please contact an administrator.', 'error')
                 return render_template('auth/login.html')
             
@@ -135,6 +143,10 @@ def login():
             db.session.commit()
             
             login_user(user, remember=remember_me)
+            
+            # Log successful login
+            AuditService.log_login(user.username, success=True)
+            
             flash(f'Welcome back, {user.get_full_name()}!', 'success')
             
             # Redirect to next page or home
@@ -143,6 +155,8 @@ def login():
                 next_page = url_for('main.index')
             return redirect(next_page)
         else:
+            # Log failed login
+            AuditService.log_login(username_or_email, success=False, error_message="Invalid credentials")
             flash('Invalid username/email or password', 'error')
     
     return render_template('auth/login.html')
@@ -151,8 +165,30 @@ def login():
 @login_required
 def logout():
     """User logout"""
+    current_app.logger.info("🚪 LOGOUT ROUTE: Starting logout function")
+    
+    # Capture username before logout_user() is called
+    username = current_user.username if current_user.is_authenticated else "Unknown"
+    user_id = current_user.id if current_user.is_authenticated else None
+    
+    current_app.logger.info(f"🚪 LOGOUT ROUTE: User details - username: {username}, user_id: {user_id}, authenticated: {current_user.is_authenticated}")
+    
+    # Log logout action BEFORE calling logout_user()
+    try:
+        current_app.logger.info(f"🚪 LOGOUT ROUTE: Attempting to log logout for user: {username}")
+        audit_result = AuditService.log_logout(username)
+        current_app.logger.info(f"🚪 LOGOUT ROUTE: Logout audit result: {audit_result}")
+    except Exception as e:
+        current_app.logger.error(f"🚪 LOGOUT ROUTE: Failed to log logout audit: {e}")
+        import traceback
+        current_app.logger.error(f"🚪 LOGOUT ROUTE: Traceback: {traceback.format_exc()}")
+    
+    current_app.logger.info("🚪 LOGOUT ROUTE: Calling logout_user()")
     logout_user()
+    current_app.logger.info("🚪 LOGOUT ROUTE: logout_user() completed")
+    
     flash('You have been logged out successfully.', 'info')
+    current_app.logger.info("🚪 LOGOUT ROUTE: Returning redirect")
     return redirect(url_for('main.index'))
 
 @auth_bp.route('/profile')
@@ -354,3 +390,201 @@ def api_check_email():
         'available': not exists,
         'message': 'Email is available' if not exists else 'Email already registered'
     })
+
+@auth_bp.route('/admin/audit-logs')
+@login_required
+def audit_logs():
+    """Admin page to view audit logs"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+    
+    # Get pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 100)  # Max 100 per page
+    
+    # Get filter parameters
+    action_type = request.args.get('action_type', '')
+    username = request.args.get('username', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    success_filter = request.args.get('success', '')
+    
+    # Build query
+    from ..models import AuditLog, AuditActionType
+    query = AuditLog.query
+    
+    # Apply filters
+    if action_type:
+        try:
+            action_enum = AuditActionType(action_type)
+            query = query.filter(AuditLog.action_type == action_enum)
+        except ValueError:
+            pass  # Invalid action type, ignore filter
+    
+    if username:
+        query = query.filter(AuditLog.username.ilike(f'%{username}%'))
+    
+    if date_from:
+        try:
+            from_date = datetime.strptime(date_from, '%Y-%m-%d')
+            query = query.filter(AuditLog.timestamp >= from_date)
+        except ValueError:
+            pass  # Invalid date format, ignore filter
+    
+    if date_to:
+        try:
+            to_date = datetime.strptime(date_to, '%Y-%m-%d')
+            # Add one day to include the entire day
+            to_date = to_date.replace(hour=23, minute=59, second=59)
+            query = query.filter(AuditLog.timestamp <= to_date)
+        except ValueError:
+            pass  # Invalid date format, ignore filter
+    
+    if success_filter:
+        if success_filter.lower() == 'true':
+            query = query.filter(AuditLog.success == True)
+        elif success_filter.lower() == 'false':
+            query = query.filter(AuditLog.success == False)
+    
+    # Order by timestamp (newest first)
+    query = query.order_by(AuditLog.timestamp.desc())
+    
+    # Paginate
+    audit_logs_paginated = query.paginate(
+        page=page, 
+        per_page=per_page, 
+        error_out=False
+    )
+    
+    # Log admin action
+    AuditService.log_admin_action(
+        action_description="Viewed audit logs",
+        details={
+            "filters": {
+                "action_type": action_type,
+                "username": username,
+                "date_from": date_from,
+                "date_to": date_to,
+                "success": success_filter
+            },
+            "page": page,
+            "per_page": per_page
+        }
+    )
+    
+    return render_template('auth/audit_logs.html', 
+                         audit_logs=audit_logs_paginated,
+                         action_types=[action.value for action in AuditActionType],
+                         filters={
+                             'action_type': action_type,
+                             'username': username,
+                             'date_from': date_from,
+                             'date_to': date_to,
+                             'success': success_filter
+                         })
+
+@auth_bp.route('/admin/audit-logs/export')
+@login_required
+def export_audit_logs():
+    """Export audit logs as CSV"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+    
+    import csv
+    import io
+    from flask import make_response
+    from ..models import AuditLog
+    
+    # Get filter parameters (same as audit_logs route)
+    action_type = request.args.get('action_type', '')
+    username = request.args.get('username', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    success_filter = request.args.get('success', '')
+    
+    # Build query (same logic as audit_logs route)
+    query = AuditLog.query
+    
+    # Apply same filters as the view
+    if action_type:
+        try:
+            from ..models import AuditActionType
+            action_enum = AuditActionType(action_type)
+            query = query.filter(AuditLog.action_type == action_enum)
+        except ValueError:
+            pass
+    
+    if username:
+        query = query.filter(AuditLog.username.ilike(f'%{username}%'))
+    
+    if date_from:
+        try:
+            from_date = datetime.strptime(date_from, '%Y-%m-%d')
+            query = query.filter(AuditLog.timestamp >= from_date)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            to_date = datetime.strptime(date_to, '%Y-%m-%d')
+            to_date = to_date.replace(hour=23, minute=59, second=59)
+            query = query.filter(AuditLog.timestamp <= to_date)
+        except ValueError:
+            pass
+    
+    if success_filter:
+        if success_filter.lower() == 'true':
+            query = query.filter(AuditLog.success == True)
+        elif success_filter.lower() == 'false':
+            query = query.filter(AuditLog.success == False)
+    
+    # Order by timestamp
+    query = query.order_by(AuditLog.timestamp.desc())
+    
+    # Limit to prevent memory issues
+    audit_logs = query.limit(10000).all()
+    
+    # Create CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'ID', 'Timestamp', 'Username', 'Action Type', 'Description', 
+        'IP Address', 'Resource Type', 'Resource ID', 'Success', 
+        'Error Message', 'Duration (ms)'
+    ])
+    
+    # Write data
+    for log in audit_logs:
+        writer.writerow([
+            log.id,
+            log.timestamp.isoformat() if log.timestamp else '',
+            log.username or '',
+            log.action_type.value if log.action_type else '',
+            log.action_description or '',
+            log.ip_address or '',
+            log.resource_type or '',
+            log.resource_id or '',
+            'Yes' if log.success else 'No',
+            log.error_message or '',
+            log.duration_ms or ''
+        ])
+    
+    # Create response
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=audit_logs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    
+    # Log export action
+    AuditService.log_admin_action(
+        action_description=f"Exported {len(audit_logs)} audit log entries",
+        details={
+            "export_count": len(audit_logs),
+            "filters_applied": bool(action_type or username or date_from or date_to or success_filter)
+        }
+    )
+    
+    return response

@@ -12,6 +12,7 @@ from .cache_utils import (
     get_cached_all_panels, get_cached_panel_genes, get_cached_gene_suggestions,
     get_cached_combined_panels, clear_panel_cache, get_cache_stats
 )
+from ..audit_service import AuditService
 from werkzeug.utils import secure_filename
 import pandas as pd
 
@@ -99,10 +100,21 @@ def api_gene_suggestions():
     try:
         # Use cached function for better performance
         suggestions = get_cached_gene_suggestions(query, api_source, limit)
+        
+        # Log search action (only for non-trivial searches to avoid spam)
+        if len(query) >= 3:
+            AuditService.log_search(query, len(suggestions))
+        
         return jsonify(suggestions)
         
     except Exception as e:
         logger.error(f"Error getting gene suggestions for {query}: {e}")
+        AuditService.log_error(
+            error_description=f"Gene suggestions API error for query: {query}",
+            error_message=str(e),
+            resource_type="search",
+            resource_id=query
+        )
         return jsonify([])
 
 @main_bp.route("/api/panel-details")
@@ -302,6 +314,16 @@ def generate():
     try:
         db.session.add(download)
         db.session.commit()
+        
+        # Log panel download in audit trail
+        panel_ids_str = ','.join(str(config['id']) for config in selected_panel_configs_for_generation)
+        list_types_str = ','.join(config['list_type'] for config in selected_panel_configs_for_generation)
+        AuditService.log_panel_download(
+            panel_ids=panel_ids_str,
+            list_types=list_types_str,
+            gene_count=len(final_unique_gene_set)
+        )
+        
     except:
         db.session.rollback()
         logger.error("Failed to log panel download")

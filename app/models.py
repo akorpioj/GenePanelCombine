@@ -101,6 +101,89 @@ class Visit(db.Model):
     path = db.Column(db.String(255), nullable=False)
     user_agent = db.Column(db.String(255))
 
+class AuditActionType(Enum):
+    """Types of actions that can be audited"""
+    LOGIN = "LOGIN"
+    LOGOUT = "LOGOUT"
+    REGISTER = "REGISTER"
+    PASSWORD_CHANGE = "PASSWORD_CHANGE"
+    PROFILE_UPDATE = "PROFILE_UPDATE"
+    PANEL_DOWNLOAD = "PANEL_DOWNLOAD"
+    PANEL_UPLOAD = "PANEL_UPLOAD"
+    PANEL_DELETE = "PANEL_DELETE"
+    SEARCH = "SEARCH"
+    VIEW = "VIEW"
+    CACHE_CLEAR = "CACHE_CLEAR"
+    ADMIN_ACTION = "ADMIN_ACTION"
+    USER_CREATE = "USER_CREATE"
+    USER_UPDATE = "USER_UPDATE"
+    USER_DELETE = "USER_DELETE"
+    ROLE_CHANGE = "ROLE_CHANGE"
+    DATA_EXPORT = "DATA_EXPORT"
+    CONFIG_CHANGE = "CONFIG_CHANGE"
+    ERROR = "ERROR"
+
+class AuditLog(db.Model):
+    """Comprehensive audit trail for user actions and system changes"""
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # User information
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Nullable for anonymous actions
+    username = db.Column(db.String(80), nullable=True)  # Store username for reference even if user is deleted
+    
+    # Action details
+    action_type = db.Column(db.Enum(AuditActionType), nullable=False)
+    action_description = db.Column(db.String(500), nullable=False)
+    
+    # Request/Session information
+    ip_address = db.Column(db.String(45), nullable=False)
+    user_agent = db.Column(db.String(500))
+    session_id = db.Column(db.String(100))
+    
+    # Resource information
+    resource_type = db.Column(db.String(50))  # e.g., 'panel', 'user', 'search'
+    resource_id = db.Column(db.String(100))   # ID of the affected resource
+    
+    # Change tracking
+    old_values = db.Column(db.Text)  # JSON string of old values
+    new_values = db.Column(db.Text)  # JSON string of new values
+    
+    # Additional context
+    details = db.Column(db.Text)  # JSON string for additional context/metadata
+    
+    # Timestamp and status
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    success = db.Column(db.Boolean, default=True, nullable=False)
+    error_message = db.Column(db.String(1000))
+    
+    # Performance metrics
+    duration_ms = db.Column(db.Integer)  # Action duration in milliseconds
+    
+    def __repr__(self):
+        return f'<AuditLog {self.id}: {self.action_type.value} by {self.username or "Anonymous"} at {self.timestamp}>'
+    
+    def to_dict(self):
+        """Convert audit log to dictionary for JSON serialization"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.username,
+            'action_type': self.action_type.value if self.action_type else None,
+            'action_description': self.action_description,
+            'ip_address': self.ip_address,
+            'user_agent': self.user_agent,
+            'session_id': self.session_id,
+            'resource_type': self.resource_type,
+            'resource_id': self.resource_id,
+            'old_values': self.old_values,
+            'new_values': self.new_values,
+            'details': self.details,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'success': self.success,
+            'error_message': self.error_message,
+            'duration_ms': self.duration_ms
+        }
+
 class PanelDownload(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Optional for anonymous users

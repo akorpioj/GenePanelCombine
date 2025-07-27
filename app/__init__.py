@@ -32,7 +32,6 @@ def create_app(config_name=None):
         # Skip static files and some endpoints
         if request.endpoint and (
             'static' in request.endpoint or 
-            request.endpoint == 'admin.dashboard' or  # Skip admin dashboard
             request.endpoint == 'main.api_panels'  # Skip API endpoints
         ):
             return
@@ -97,9 +96,6 @@ def create_app(config_name=None):
     from .main import main_bp
     app.register_blueprint(main_bp)
 
-    from .admin import admin_bp
-    app.register_blueprint(admin_bp)
-
     from .auth import auth_bp  # Register the new auth blueprint
     app.register_blueprint(auth_bp)
 
@@ -129,8 +125,18 @@ def create_app(config_name=None):
     @app.shell_context_processor
     def make_shell_context():
         """Makes variables automatically available in the 'flask shell'."""
-        from .models import User, UserRole, Visit, PanelDownload
-        return {'db': db, 'User': User, 'UserRole': UserRole, 'Visit': Visit, 'PanelDownload': PanelDownload}
+        from .models import User, UserRole, Visit, PanelDownload, AuditLog, AuditActionType
+        from .audit_service import AuditService
+        return {
+            'db': db, 
+            'User': User, 
+            'UserRole': UserRole, 
+            'Visit': Visit, 
+            'PanelDownload': PanelDownload,
+            'AuditLog': AuditLog,
+            'AuditActionType': AuditActionType,
+            'AuditService': AuditService
+        }
 
     app.logger.info(f"Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
     app.logger.info(f"Configuration loaded: {config_name}")
