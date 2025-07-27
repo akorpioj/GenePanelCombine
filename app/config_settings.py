@@ -20,6 +20,11 @@ class Config:
     HSTS_MAX_AGE = int(os.getenv('HSTS_MAX_AGE', '31536000'))  # 1 year
     SESSION_TIMEOUT = int(os.getenv('SESSION_TIMEOUT', '3600'))  # 1 hour
     
+    # Enhanced Session Configuration
+    MAX_CONCURRENT_SESSIONS = int(os.getenv('MAX_CONCURRENT_SESSIONS', '5'))
+    SESSION_ROTATION_INTERVAL = int(os.getenv('SESSION_ROTATION_INTERVAL', '1800'))  # 30 minutes
+    ENABLE_SESSION_ANALYTICS = os.getenv('ENABLE_SESSION_ANALYTICS', 'True').lower() == 'true'
+    
     # Encryption Configuration
     ENCRYPTION_MASTER_KEY = os.getenv('ENCRYPTION_MASTER_KEY')
     ENCRYPT_SENSITIVE_FIELDS = os.getenv('ENCRYPT_SENSITIVE_FIELDS', 'True').lower() == 'true'
@@ -78,3 +83,8 @@ class ProductionConfig(Config):
     HSTS_MAX_AGE = 31536000  # 1 year
     SESSION_TIMEOUT = 1800   # 30 minutes for production
     ENCRYPT_SENSITIVE_FIELDS = True
+    
+    # Production Session Settings
+    MAX_CONCURRENT_SESSIONS = 3  # Stricter in production
+    SESSION_ROTATION_INTERVAL = 900  # 15 minutes in production
+    ENABLE_SESSION_ANALYTICS = True

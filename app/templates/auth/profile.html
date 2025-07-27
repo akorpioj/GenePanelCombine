@@ -160,6 +160,10 @@
                class="ml-3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                 Change Password
             </a>
+            <a href="{{ url_for('auth.view_sessions') }}" 
+               class="ml-3 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                Manage Sessions
+            </a>
         </div>
         
         {% if current_user.is_admin() %}

@@ -155,6 +155,7 @@ class AuditActionType(Enum):
     ROLE_CHANGE = "ROLE_CHANGE"
     DATA_EXPORT = "DATA_EXPORT"
     CONFIG_CHANGE = "CONFIG_CHANGE"
+    SESSION_MANAGEMENT = "SESSION_MANAGEMENT"
     ERROR = "ERROR"
 
 class AuditLog(db.Model):

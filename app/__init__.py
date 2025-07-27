@@ -87,9 +87,11 @@ def create_app(config_name=None):
     # Initialize security and encryption services
     from .encryption_service import init_encryption
     from .security_service import init_security
+    from .session_service import init_session_service
     
-    init_encryption(app)  # Initialize encryption service
-    init_security(app)    # Initialize security service with HTTPS enforcement and headers
+    init_encryption(app)      # Initialize encryption service
+    init_security(app)        # Initialize security service with HTTPS enforcement and headers
+    init_session_service(app) # Initialize enhanced session management
     
     # Define user_loader callback for Flask-Login here, after login_manager is initialized
     # This avoids circular import issues if the User model is in a separate models.py

@@ -9,9 +9,10 @@ from urllib.parse import urlparse
 from datetime import datetime
 import re
 from . import auth_bp
-from ..models import db, User, UserRole
+from ..models import db, User, UserRole, AuditActionType
 from ..extensions import limiter
 from ..audit_service import AuditService
+from ..session_service import session_service
 
 def validate_email(email):
     """Validate email format"""
@@ -144,6 +145,14 @@ def login():
             
             login_user(user, remember=remember_me)
             
+            # Create enhanced secure session
+            session_token = session_service.create_session(
+                user_id=user.id,
+                user_agent=request.headers.get('User-Agent'),
+                ip_address=request.remote_addr,
+                remember_me=remember_me
+            )
+            
             # Log successful login
             AuditService.log_login(user.username, success=True)
             
@@ -185,6 +194,10 @@ def logout():
     
     current_app.logger.info("🚪 LOGOUT ROUTE: Calling logout_user()")
     logout_user()
+    
+    # Destroy enhanced session
+    session_service.destroy_session()
+    
     current_app.logger.info("🚪 LOGOUT ROUTE: logout_user() completed")
     
     flash('You have been logged out successfully.', 'info')
@@ -207,31 +220,27 @@ def edit_profile():
         last_name = request.form.get('last_name', '').strip()
         organization = request.form.get('organization', '').strip()
         
-        # Store old values for audit
-        old_data = {
-            'first_name': current_user.first_name,
-            'last_name': current_user.last_name,
-            'organization': current_user.organization
-        }
-        
-        # Update user
-        current_user.first_name = first_name
-        current_user.last_name = last_name
-        current_user.organization = organization
-        
+        # Update user profile
         try:
+            current_user.first_name = first_name
+            current_user.last_name = last_name
+            current_user.organization = organization
+            
             db.session.commit()
             
             # Log profile update
-            new_data = {
-                'first_name': first_name,
-                'last_name': last_name,
-                'organization': organization
-            }
-            AuditService.log_profile_update(current_user.id, current_user.username, old_data, new_data)
+            AuditService.log_profile_update(
+                current_user.username,
+                changes={
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'organization': organization
+                }
+            )
             
             flash('Profile updated successfully!', 'success')
             return redirect(url_for('auth.profile'))
+            
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Profile update error: {e}")
@@ -239,74 +248,219 @@ def edit_profile():
     
     return render_template('auth/edit_profile.html', user=current_user)
 
-@auth_bp.route('/change-password', methods=['GET', 'POST'])
+@auth_bp.route('/profile/sessions')
 @login_required
-@limiter.limit("5 per hour")
+def view_sessions():
+    """View active sessions for current user"""
+    try:
+        current_app.logger.info(f"Retrieving sessions for user {current_user.id}")
+        sessions = session_service.get_user_sessions(current_user.id)
+        current_app.logger.info(f"Found {len(sessions)} sessions for user {current_user.id}")
+        
+        # Even if no sessions found, show the page (user might have sessions that aren't tracked)
+        return render_template('auth/sessions.html', 
+                             sessions=sessions, 
+                             session_timeout=session_service.session_timeout)
+    except Exception as e:
+        current_app.logger.error(f"Error retrieving sessions for user {current_user.id}: {e}")
+        import traceback
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+        flash('Unable to retrieve session information.', 'error')
+        return redirect(url_for('auth.profile'))
+
+@auth_bp.route('/profile/sessions/revoke', methods=['POST'])
+@login_required
+def revoke_sessions():
+    """Revoke all other sessions for current user"""
+    try:
+        revoked_count = session_service.revoke_user_sessions(
+            current_user.id, 
+            except_current=True
+        )
+        
+        flash(f'Successfully revoked {revoked_count} other sessions.', 'success')
+        
+        # Log session revocation
+        AuditService.log_action(
+            action_type=AuditActionType.SESSION_MANAGEMENT,
+            user_id=current_user.id,
+            action_description=f'User revoked {revoked_count} sessions',
+            details={'revoked_count': revoked_count}
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Error revoking sessions: {e}")
+        flash('Failed to revoke sessions. Please try again.', 'error')
+    
+    return redirect(url_for('auth.view_sessions'))
+
+
+
+@auth_bp.route('/profile/sessions/revoke/<session_id>', methods=['POST'])
+@login_required
+def revoke_individual_session(session_id):
+    """Revoke a specific session for current user"""
+    try:
+        current_app.logger.info(f"Attempting to revoke session {session_id} for user {current_user.id}")
+        
+        # Get user's current sessions to validate the session belongs to them
+        user_sessions = session_service.get_user_sessions(current_user.id)
+        session_to_revoke = None
+        
+        # Find the session by partial ID (since we only show first 8 chars + ...)
+        for sess in user_sessions:
+            if sess['session_id'].startswith(session_id.replace('...', '')):
+                session_to_revoke = sess
+                break
+        
+        if not session_to_revoke:
+            flash('Session not found or does not belong to you.', 'error')
+            return redirect(url_for('auth.view_sessions'))
+        
+        # Prevent user from revoking their current session
+        if session_to_revoke['is_current']:
+            flash('Cannot revoke your current session. Use logout instead.', 'error')
+            return redirect(url_for('auth.view_sessions'))
+        
+        # Get the full session token from Redis
+        user_sessions_key = f"user_sessions:{current_user.id}"
+        session_tokens = session_service.redis_client.smembers(user_sessions_key)
+        
+        full_token = None
+        for token in session_tokens:
+            if token.startswith(session_id.replace('...', '')):
+                full_token = token
+                break
+        
+        if not full_token:
+            flash('Session not found in storage.', 'error')
+            return redirect(url_for('auth.view_sessions'))
+        
+        # Revoke the specific session
+        session_service.redis_client.delete(f"session:{full_token}")
+        session_service.redis_client.srem(user_sessions_key, full_token)
+        
+        flash(f'Session {session_id} has been revoked successfully.', 'success')
+        
+        # Log session revocation
+        AuditService.log_action(
+            action_type=AuditActionType.SESSION_MANAGEMENT,
+            user_id=current_user.id,
+            action_description=f'User revoked individual session {session_id}',
+            details={
+                'revoked_session_id': session_id,
+                'session_token': full_token[:8] + '...'
+            }
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Error revoking individual session: {e}")
+        flash('Failed to revoke session. Please try again.', 'error')
+    
+    return redirect(url_for('auth.view_sessions'))
+
+@auth_bp.route('/profile/change-password', methods=['GET', 'POST'])
+@login_required
 def change_password():
-    """Change user password"""
+    """Change user password with enhanced security"""
     if request.method == 'POST':
         current_password = request.form.get('current_password', '')
         new_password = request.form.get('new_password', '')
         confirm_password = request.form.get('confirm_password', '')
         
         # Validation
-        if not current_user.check_password(current_password):
-            flash('Current password is incorrect', 'error')
-            return render_template('auth/change_password.html')
+        errors = []
         
-        valid, message = validate_password(new_password)
-        if not valid:
-            flash(message, 'error')
-            return render_template('auth/change_password.html')
+        if not current_password:
+            errors.append("Current password is required")
+        elif not current_user.check_password(current_password):
+            errors.append("Current password is incorrect")
+        
+        if not new_password:
+            errors.append("New password is required")
+        else:
+            valid, message = validate_password(new_password)
+            if not valid:
+                errors.append(message)
         
         if new_password != confirm_password:
-            flash('New passwords do not match', 'error')
+            errors.append("New passwords do not match")
+        
+        if errors:
+            for error in errors:
+                flash(error, 'error')
             return render_template('auth/change_password.html')
         
-        # Update password
         try:
+            # Update password
             current_user.set_password(new_password)
             db.session.commit()
             
-            # Log password change
-            AuditService.log_password_change(current_user.username, success=True)
+            # Revoke all other sessions for security
+            revoked_count = session_service.revoke_user_sessions(
+                current_user.id, 
+                except_current=True
+            )
             
-            flash('Password changed successfully!', 'success')
+            # Rotate current session
+            session_service._rotate_session_id()
+            
+            # Log password change
+            AuditService.log_action(
+                action_type=AuditActionType.PASSWORD_CHANGE,
+                user_id=current_user.id,
+                action_description='User changed password',
+                details={
+                    'sessions_revoked': revoked_count,
+                    'session_rotated': True
+                }
+            )
+            
+            flash('Password changed successfully! Other sessions have been logged out for security.', 'success')
             return redirect(url_for('auth.profile'))
+            
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Password change error: {e}")
-            
-            # Log failed password change
-            AuditService.log_password_change(current_user.username, success=False)
-            
             flash('Failed to change password. Please try again.', 'error')
     
     return render_template('auth/change_password.html')
 
-# Admin routes
 @auth_bp.route('/admin/users')
 @login_required
 def admin_users():
-    """Admin: List all users"""
-    if not current_user.is_admin():
+    """Admin view of users (requires admin role)"""
+    if current_user.role != UserRole.ADMIN:
         flash('Access denied. Admin privileges required.', 'error')
         return redirect(url_for('main.index'))
     
-    # Get user statistics
-    total_users = User.query.count()
-    active_users = User.query.filter_by(is_active=True).count()
-    admin_users = User.query.filter_by(role=UserRole.ADMIN).count()
-    recent_users = User.query.filter(User.created_at >= datetime.utcnow().replace(day=1)).count()
+    # Escalate privileges for this session
+    session_service.escalate_privileges('admin')
+    
+    users = User.query.all()
+    
+    # Calculate user statistics for the template
+    from datetime import datetime, timedelta
+    
+    # Total users
+    total_users = len(users)
+    
+    # Active users (is_active = True)
+    active_users = len([u for u in users if u.is_active])
+    
+    # Admin users
+    admin_users = len([u for u in users if u.role == UserRole.ADMIN])
+    
+    # Recent signups (users created in the last 30 days)
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    recent_signups = len([u for u in users if u.created_at >= thirty_days_ago])
     
     user_stats = {
         'total': total_users,
         'active': active_users,
         'admins': admin_users,
-        'recent': recent_users
+        'recent': recent_signups
     }
-    
-    users = User.query.order_by(User.created_at.desc()).all()
     
     return render_template('auth/admin_users.html', users=users, user_stats=user_stats)
 

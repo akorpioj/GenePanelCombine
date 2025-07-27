@@ -1,0 +1,110 @@
+{% extends "main/base.html" %}
+
+{% block title %}Active Sessions - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">Active Sessions</h1>
+                <a href="{{ url_for('auth.profile') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors">
+                    Back to Profile
+                </a>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-gray-600 mb-4">
+                    Manage your active sessions across different devices and browsers. 
+                    For security, we recommend revoking sessions on devices you no longer use.
+                </p>
+                
+                {% if sessions|length > 1 %}
+                <form method="POST" action="{{ url_for('auth.revoke_sessions') }}" class="inline-block">
+                    <button type="submit" 
+                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors"
+                            onclick="return confirm('Are you sure you want to revoke all other sessions? You will remain logged in on this device.')">
+                        Revoke All Other Sessions
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+            {% if sessions %}
+            <div class="space-y-4">
+                {% for session in sessions %}
+                <div class="border rounded-lg p-4 {% if session.is_current %}bg-green-50 border-green-200{% else %}bg-gray-50 border-gray-200{% endif %}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <h3 class="font-semibold text-gray-800">
+                                    {% if session.is_current %}
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium mr-2">
+                                        Current Session
+                                    </span>
+                                    {% endif %}
+                                    Session {{ session.session_id }}
+                                </h3>
+                                {% if session.remember_me %}
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                                    Remember Me
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                                <div>
+                                    <strong>IP Address:</strong> {{ session.ip_address }}
+                                </div>
+                                <div>
+                                    <strong>Created:</strong> {{ session.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                </div>
+                                <div>
+                                    <strong>Last Activity:</strong> {{ session.last_activity.strftime('%Y-%m-%d %H:%M:%S') }}
+                                </div>
+                                <div>
+                                    <strong>Browser:</strong> {{ session.user_agent }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if not session.is_current %}
+                        <div class="ml-4 flex-shrink-0">
+                            <form method="POST" action="{{ url_for('auth.revoke_individual_session', session_id=session.session_id.replace('...', '')) }}" class="inline-block">
+                                <button type="submit" 
+                                        class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                                        onclick="return confirm('Are you sure you want to revoke this session?')">
+                                    Revoke
+                                </button>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <div class="text-gray-500 mb-4">
+                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Sessions Found</h3>
+                <p class="text-gray-500">Unable to retrieve session information at this time.</p>
+            </div>
+            {% endif %}
+
+            <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+                <h4 class="font-semibold text-blue-800 mb-2">Security Tips</h4>
+                <ul class="text-sm text-blue-700 space-y-1">
+                    <li>• Sessions automatically expire after {{ session_timeout // 60 }} minutes of inactivity</li>
+                    <li>• Session IDs are rotated periodically for security</li>
+                    <li>• Always log out from shared or public computers</li>
+                    <li>• Review and revoke sessions from unrecognized devices</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
