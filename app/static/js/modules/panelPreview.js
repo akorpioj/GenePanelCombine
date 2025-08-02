@@ -112,33 +112,66 @@ function showPanelSelectionForPreview(selectElement, triggerElement) {
     // Create a simple dropdown modal to select which panel to preview
     const modalBackdrop = document.createElement('div');
     modalBackdrop.id = 'panel-selection-modal';
-    modalBackdrop.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modalBackdrop.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
     
     const modalContent = document.createElement('div');
-    modalContent.className = 'bg-white rounded-lg max-w-md w-full mx-4 p-6 max-h-[80vh] flex flex-col';
+    modalContent.className = 'bg-white rounded-lg w-full max-w-2xl h-full max-h-[85vh] overflow-hidden flex flex-col shadow-xl';
     
     modalContent.innerHTML = `
-        <div class="mb-4 flex-shrink-0">
-            <h3 class="text-lg font-semibold text-gray-900">Select Panel to Preview</h3>
-            <p class="text-sm text-gray-600 mt-1">Choose which panel you'd like to preview:</p>
-        </div>
-        
-        <div class="flex-1 overflow-y-auto min-h-0 mb-4" style="max-height: 300px;">
-            <div class="space-y-2">
-                ${options.map(option => `
-                    <button 
-                        class="w-full text-left p-3 rounded border hover:bg-blue-50 hover:border-blue-300 transition-colors block"
-                        data-panel-value="${option.value}"
-                    >
-                        <div class="font-medium text-gray-900">${option.textContent}</div>
-                        <div class="text-xs text-gray-500">${option.value}</div>
-                    </button>
-                `).join('')}
+        <div class="flex-shrink-0 p-4 border-b bg-white">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Select Panel to Preview</h3>
+                    <p class="text-sm text-gray-600 mt-1">Choose from ${options.length} available panels:</p>
+                </div>
+                <button id="cancel-selection-x" class="text-gray-400 hover:text-gray-600 text-xl ml-4">&times;</button>
             </div>
         </div>
         
-        <div class="flex justify-end flex-shrink-0">
-            <button id="cancel-selection" class="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50">
+        <div class="flex-1 overflow-y-auto min-h-0 p-4">
+            <div class="grid gap-2 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                ${options.map(option => {
+                    // Extract panel info from the option text and value
+                    const panelText = option.textContent.trim();
+                    const panelValue = option.value;
+                    const [panelId, apiSource] = panelValue.split('-');
+                    
+                    // Try to extract version and source info if available in the text
+                    const versionMatch = panelText.match(/v([\d.]+)/);
+                    const version = versionMatch ? versionMatch[1] : '';
+                    
+                    return `
+                        <button 
+                            class="text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 group"
+                            data-panel-value="${option.value}"
+                        >
+                            <div class="space-y-1">
+                                <div class="font-medium text-gray-900 text-sm leading-tight group-hover:text-blue-700 transition-colors">
+                                    ${panelText}
+                                </div>
+                                <div class="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded">
+                                    ${panelValue}
+                                </div>
+                                ${version ? `
+                                <div class="text-xs text-blue-600 font-medium">
+                                    v${version}
+                                </div>
+                                ` : ''}
+                                <div class="text-xs text-gray-400 uppercase tracking-wide">
+                                    ${apiSource === 'panelapp' ? 'PanelApp' : apiSource === 'genomics_england' ? 'Genomics England' : apiSource}
+                                </div>
+                            </div>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+        
+        <div class="flex justify-between items-center p-4 border-t bg-gray-50 flex-shrink-0">
+            <div class="text-sm text-gray-600">
+                Click any panel to view its details
+            </div>
+            <button id="cancel-selection" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-white transition-colors">
                 Cancel
             </button>
         </div>
@@ -162,6 +195,10 @@ function showPanelSelectionForPreview(selectElement, triggerElement) {
     // Close handlers
     const closeHandler = () => modalBackdrop.remove();
     modalContent.querySelector('#cancel-selection').addEventListener('click', closeHandler);
+    const closeXButton = modalContent.querySelector('#cancel-selection-x');
+    if (closeXButton) {
+        closeXButton.addEventListener('click', closeHandler);
+    }
     
     modalBackdrop.addEventListener('click', (e) => {
         if (e.target === modalBackdrop) {
@@ -234,115 +271,133 @@ function createPreviewModal(previewData, selectElement = null) {
     // Create modal backdrop
     const modalBackdrop = document.createElement('div');
     modalBackdrop.id = 'panel-preview-modal';
-    modalBackdrop.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modalBackdrop.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
     
     // Create modal content
     const modalContent = document.createElement('div');
-    modalContent.className = 'bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto';
+    modalContent.className = 'bg-white rounded-lg w-full max-w-4xl h-full max-h-[90vh] overflow-hidden flex flex-col shadow-xl';
     
-    // Modal HTML content
+    // Modal HTML content - restructured for better space usage
     modalContent.innerHTML = `
-        <div class="p-6">
-            <!-- Header -->
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-900">${previewData.display_name}</h2>
-                    <p class="text-sm text-gray-600">Version ${previewData.version} • ${previewData.source_name}</p>
-                    ${isCurrentlySelected ? '<p class="text-sm text-green-600 font-medium">✓ Currently selected</p>' : ''}
+        <div class="flex flex-col h-full">
+            <!-- Header - compact and fixed -->
+            <div class="flex justify-between items-start p-3 border-b flex-shrink-0 bg-white">
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-base font-bold text-gray-900 truncate">${previewData.display_name}</h2>
+                    <div class="flex items-center gap-3 text-xs text-gray-600 mt-1 flex-wrap">
+                        <span>v${previewData.version}</span>
+                        <span>•</span>
+                        <span>${previewData.source_name}</span>
+                        <span>•</span>
+                        <span class="font-medium text-blue-600">${previewData.gene_count} genes</span>
+                        ${isCurrentlySelected ? '<span class="text-green-600 font-medium">✓ Selected</span>' : ''}
+                    </div>
                 </div>
-                <button id="close-preview" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                <button id="close-preview" class="text-gray-400 hover:text-gray-600 text-xl ml-2 flex-shrink-0">&times;</button>
             </div>
             
-            <!-- Quick Stats -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="text-center p-3 bg-blue-50 rounded">
-                    <div class="text-2xl font-bold text-blue-600">${previewData.gene_count}</div>
-                    <div class="text-sm text-gray-600">Total Genes</div>
+            <!-- Compact Stats Bar - fixed -->
+            <div class="px-3 py-2 bg-gray-50 border-b flex-shrink-0">
+                <div class="flex items-center justify-center gap-4 text-xs flex-wrap">
+                    ${previewData.confidence_stats.green ? `
+                    <div class="flex items-center gap-1 bg-green-100 px-2 py-1 rounded">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="font-medium text-green-800">${previewData.confidence_stats.green}</span>
+                        <span class="text-green-700">High</span>
+                    </div>
+                    ` : ''}
+                    ${previewData.confidence_stats.amber ? `
+                    <div class="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded">
+                        <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <span class="font-medium text-yellow-800">${previewData.confidence_stats.amber}</span>
+                        <span class="text-yellow-700">Med</span>
+                    </div>
+                    ` : ''}
+                    ${previewData.confidence_stats.red ? `
+                    <div class="flex items-center gap-1 bg-red-100 px-2 py-1 rounded">
+                        <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span class="font-medium text-red-800">${previewData.confidence_stats.red}</span>
+                        <span class="text-red-700">Low</span>
+                    </div>
+                    ` : ''}
+                    ${previewData.disease_group && previewData.disease_group !== 'N/A' ? `
+                    <div class="text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        <span>Disease: </span><span class="font-medium">${previewData.disease_group}</span>
+                    </div>
+                    ` : ''}
                 </div>
-                ${previewData.confidence_stats.green ? `
-                <div class="text-center p-3 bg-green-50 rounded">
-                    <div class="text-2xl font-bold text-green-600">${previewData.confidence_stats.green}</div>
-                    <div class="text-sm text-gray-600">High Confidence</div>
-                </div>
-                ` : ''}
-                ${previewData.confidence_stats.amber ? `
-                <div class="text-center p-3 bg-yellow-50 rounded">
-                    <div class="text-2xl font-bold text-yellow-600">${previewData.confidence_stats.amber}</div>
-                    <div class="text-sm text-gray-600">Medium Confidence</div>
-                </div>
-                ` : ''}
-                ${previewData.confidence_stats.red ? `
-                <div class="text-center p-3 bg-red-50 rounded">
-                    <div class="text-2xl font-bold text-red-600">${previewData.confidence_stats.red}</div>
-                    <div class="text-sm text-gray-600">Low Confidence</div>
-                </div>
-                ` : ''}
             </div>
             
-            <!-- Panel Information -->
-            <div class="space-y-4 mb-6">
-                <div>
-                    <h3 class="font-semibold text-gray-900 mb-2">Description</h3>
-                    <p class="text-gray-700 text-sm">${previewData.description || 'No description available'}</p>
+            <!-- Scrollable Content Area -->
+            <div class="flex-1 overflow-y-auto min-h-0">
+                <!-- Description - collapsible if available -->
+                ${previewData.description && previewData.description !== 'No description available' ? `
+                <div class="px-3 py-2 border-b">
+                    <details class="text-xs">
+                        <summary class="cursor-pointer font-medium text-gray-700 hover:text-gray-900 py-1">
+                            Description
+                        </summary>
+                        <p class="mt-1 text-gray-600 text-xs leading-relaxed pl-2">${previewData.description}</p>
+                    </details>
                 </div>
+                ` : ''}
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <h4 class="font-medium text-gray-900 mb-1">Disease Group</h4>
-                        <p class="text-gray-600 text-sm">${previewData.disease_group || 'N/A'}</p>
-                    </div>
-                    <div>
-                        <h4 class="font-medium text-gray-900 mb-1">Disease Sub-group</h4>
-                        <p class="text-gray-600 text-sm">${previewData.disease_sub_group || 'N/A'}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Sample Genes -->
-            ${previewData.all_genes && previewData.all_genes.length > 0 ? `
-            <div class="mb-6">
-                <h3 class="font-semibold text-gray-900 mb-3">All Genes (${previewData.all_genes.length})</h3>
-                <div class="max-h-60 overflow-y-auto border rounded p-3">
-                    <div class="grid gap-2">
+                <!-- Gene List -->
+                ${previewData.all_genes && previewData.all_genes.length > 0 ? `
+                <div class="p-3">
+                    <h3 class="font-semibold text-gray-900 text-sm mb-2 sticky top-0 bg-white">All Genes (${previewData.all_genes.length})</h3>
+                    <div class="space-y-1">
                         ${previewData.all_genes.map(gene => {
                             const confidenceClass = 
-                                gene.confidence === '3' ? 'bg-green-100 text-green-800 border-green-200' :
-                                gene.confidence === '2' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                gene.confidence === '1' ? 'bg-red-100 text-red-800 border-red-200' :
-                                'bg-gray-100 text-gray-800 border-gray-200';
+                                gene.confidence === '3' ? 'bg-green-50 text-green-800 border-green-200' :
+                                gene.confidence === '2' ? 'bg-yellow-50 text-yellow-800 border-yellow-200' :
+                                gene.confidence === '1' ? 'bg-red-50 text-red-800 border-red-200' :
+                                'bg-gray-50 text-gray-800 border-gray-200';
                             
                             const confidenceLabel = 
-                                gene.confidence === '3' ? 'High' :
-                                gene.confidence === '2' ? 'Medium' :
-                                gene.confidence === '1' ? 'Low' :
-                                'Unknown';
+                                gene.confidence === '3' ? 'H' :
+                                gene.confidence === '2' ? 'M' :
+                                gene.confidence === '1' ? 'L' :
+                                '?';
                                 
                             return `
-                                <div class="flex items-center justify-between p-2 border rounded ${confidenceClass}">
-                                    <div class="flex-1">
-                                        <span class="font-medium">${gene.symbol}</span>
-                                        <span class="ml-2 text-xs px-2 py-1 rounded bg-white bg-opacity-50">${confidenceLabel}</span>
+                                <div class="flex items-center justify-between p-2 border rounded ${confidenceClass} hover:shadow-sm transition-shadow">
+                                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                                        <span class="font-mono font-bold text-sm">${gene.symbol}</span>
+                                        <span class="text-xs px-1 py-0.5 rounded bg-white bg-opacity-70 font-medium" title="${gene.confidence === '3' ? 'High Confidence' : gene.confidence === '2' ? 'Medium Confidence' : gene.confidence === '1' ? 'Low Confidence' : 'Unknown Confidence'}">${confidenceLabel}</span>
+                                        ${gene.moi !== 'N/A' && gene.moi ? `<span class="text-xs text-gray-600 bg-white bg-opacity-50 px-1 py-0.5 rounded">${gene.moi}</span>` : ''}
                                     </div>
-                                    <div class="text-xs text-right max-w-xs">
-                                        ${gene.moi !== 'N/A' ? `<div>MOI: ${gene.moi}</div>` : ''}
-                                        ${gene.phenotype !== 'N/A' && gene.phenotype.length > 3 ? `<div class="truncate" title="${gene.phenotype}">Phenotype: ${gene.phenotype}</div>` : ''}
+                                    <!-- gene.phenotype can be a string or a list of strings -->
+                                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                                        ${gene.phenotype !== 'N/A' && gene.phenotype && gene.phenotype.length > 3 ? `
+                                        <div class="text-xs text-gray-600 ml-2" title="${gene.phenotype}">
+                                        ${gene.phenotype}
+                                        </div>
+                                        ` : ''}
                                     </div>
                                 </div>
                             `;
                         }).join('')}
                     </div>
                 </div>
+                ` : `
+                <div class="flex-1 flex items-center justify-center text-gray-500 p-8">
+                    <div class="text-center">
+                        <div class="text-2xl mb-2">📋</div>
+                        <div>No gene information available</div>
+                    </div>
+                </div>
+                `}
             </div>
-            ` : ''}
             
-            <!-- Actions -->
-            <div class="flex justify-end space-x-3">
-                <button id="close-preview-btn" class="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50">
+            <!-- Footer Actions - fixed at bottom -->
+            <div class="flex justify-end space-x-2 p-3 border-t flex-shrink-0 bg-white">
+                <button id="close-preview-btn" class="px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50">
                     Close
                 </button>
                 ${selectElement && !isCurrentlySelected ? `
-                <button id="replace-panel-btn" class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700" data-panel-id="${previewData.id}" data-api-source="${previewData.api_source}">
-                    Select as Current Panel
+                <button id="replace-panel-btn" class="px-3 py-1.5 text-xs bg-orange-600 text-white rounded hover:bg-orange-700" data-panel-id="${previewData.id}" data-api-source="${previewData.api_source}">
+                    Select Panel
                 </button>
                 ` : ''}
             </div>

@@ -16,3 +16,4 @@ Dockerfile
 *.pem
 *.key
 .pytest_cache/
+*.tmp

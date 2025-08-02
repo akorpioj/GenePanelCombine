@@ -525,16 +525,20 @@ def api_panel_preview(panel_id):
             }
             
             # Get all genes with their details
-            all_genes = [
-                {
-                    'symbol': gene.get('gene_symbol', 'Unknown'),
-                    'confidence': gene.get('confidence_level', 'Unknown'),
-                    'moi': gene.get('mode_of_inheritance', 'N/A'),
-                    'phenotype': gene.get('phenotype', 'N/A')[:100] + ('...' if len(gene.get('phenotype', '')) > 100 else '')
-                }
-                for gene in genes_data
-                if gene.get('gene_symbol') and gene.get('gene_symbol') != 'Unknown'
-            ]
+            all_genes = []
+            for gene in genes_data:
+                if gene.get('gene_symbol') and gene.get('gene_symbol') != 'Unknown':
+                    phenotypes = gene.get('phenotypes', [])
+                    if isinstance(phenotypes, list) and phenotypes and len(phenotypes) > 0:
+                        phenotype_str = ', '.join(phenotypes)
+                    else:
+                        phenotype_str = gene.get('phenotype', 'N/A')
+                    all_genes.append({
+                        'symbol': gene.get('gene_symbol', 'Unknown'),
+                        'confidence': gene.get('confidence_level', 'Unknown'),
+                        'moi': gene.get('mode_of_inheritance', 'N/A'),
+                        'phenotype': phenotype_str
+                    })
             
             # Sort genes by confidence level (3=green, 2=amber, 1=red) then alphabetically
             confidence_order = {'3': 0, '2': 1, '1': 2, 'Unknown': 3, '': 3}

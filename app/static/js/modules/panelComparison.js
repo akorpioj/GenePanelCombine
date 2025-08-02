@@ -46,13 +46,13 @@ function createComparisonModal(selectedPanels) {
     
     // Create modal content
     const modalContent = document.createElement('div');
-    modalContent.className = 'bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-auto';
+    modalContent.className = 'bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col';
     
     // Modal header
     const modalHeader = document.createElement('div');
-    modalHeader.className = 'flex justify-between items-center p-6 border-b border-gray-200';
+    modalHeader.className = 'flex justify-between items-center p-4 border-b border-gray-200 flex-shrink-0';
     modalHeader.innerHTML = `
-        <h2 class="text-2xl font-semibold text-gray-900">Panel Comparison</h2>
+        <h2 class="text-xl font-semibold text-gray-900">Panel Comparison</h2>
         <button onclick="closePanelComparison()" class="text-gray-400 hover:text-gray-600">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -62,11 +62,13 @@ function createComparisonModal(selectedPanels) {
     
     // Modal body with loading state
     const modalBody = document.createElement('div');
-    modalBody.className = 'p-6';
+    modalBody.className = 'flex-1 overflow-y-auto p-4';
     modalBody.innerHTML = `
-        <div class="flex justify-center mb-4">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600"></div>
-            <span class="ml-2 text-gray-600">Loading panel details...</span>
+        <div class="flex justify-center items-center h-32">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto"></div>
+                <span class="mt-2 text-gray-600 block">Loading panel details...</span>
+            </div>
         </div>
     `;
     
@@ -125,21 +127,21 @@ function displayPanelComparison(panelDetails, modalBody) {
         return;
     }
     
-    // Create responsive comparison grid
+    // Create responsive comparison grid - side by side layout
     const gridCols = panelDetails.length === 2 ? 'grid-cols-2' : 
-                     panelDetails.length === 3 ? 'grid-cols-3' : 'grid-cols-4';
+                     panelDetails.length === 3 ? 'grid-cols-3' : 'grid-cols-2';
     
     modalBody.innerHTML = `
-        <div class="grid ${gridCols} gap-6 mb-6">
+        <div class="grid ${gridCols} gap-4 mb-4">
             ${panelDetails.map(panel => createPanelCard(panel)).join('')}
         </div>
         
-        <div class="border-t border-gray-200 pt-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Comparison Summary</h3>
+        <div class="border-t border-gray-200 pt-3">
+            <h3 class="text-base font-semibold text-gray-900 mb-2">Comparison Summary</h3>
             ${createComparisonSummary(panelDetails)}
         </div>
         
-        <div class="flex justify-end gap-3 mt-6">
+        <div class="flex justify-end gap-3 mt-3">
             <button onclick="closePanelComparison()" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
                 Close
             </button>
@@ -161,13 +163,13 @@ function createPanelCard(panel) {
         '<p class="text-gray-500 text-xs">No genes available</p>';
         
     return `
-        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            <div class="mb-3">
+        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50 min-h-[500px] max-h-[700px] overflow-hidden flex flex-col">
+            <div class="mb-3 flex-shrink-0">
                 <h4 class="font-semibold text-lg text-gray-900 mb-1">${panel.display_name}</h4>
                 <p class="text-sm text-gray-500">Version ${panel.version} • ID: ${panel.id}</p>
             </div>
             
-            <div class="space-y-3 text-sm">
+            <div class="space-y-3 text-sm flex-shrink-0">
                 <div>
                     <span class="font-medium text-gray-700">Gene Count:</span>
                     <span class="ml-2 px-2 py-1 bg-sky-100 text-sky-800 rounded text-xs font-medium">
@@ -177,13 +179,13 @@ function createPanelCard(panel) {
                 
                 <div>
                     <span class="font-medium text-gray-700">Disease Group:</span>
-                    <p class="text-gray-600 mt-1">${panel.disease_group}</p>
+                    <p class="text-gray-600 mt-1 text-xs">${panel.disease_group}</p>
                 </div>
                 
                 ${panel.disease_sub_group !== 'N/A' ? `
                 <div>
                     <span class="font-medium text-gray-700">Sub-group:</span>
-                    <p class="text-gray-600 mt-1">${panel.disease_sub_group}</p>
+                    <p class="text-gray-600 mt-1 text-xs">${panel.disease_sub_group}</p>
                 </div>
                 ` : ''}
                 
@@ -194,16 +196,22 @@ function createPanelCard(panel) {
                     </span>
                 </div>
                 
+                ${panel.description && panel.description !== 'No description available' ? `
                 <div>
-                    <span class="font-medium text-gray-700">Description:</span>
-                    <p class="text-gray-600 mt-1 text-xs leading-relaxed">${panel.description}</p>
+                    <details class="text-xs">
+                        <summary class="cursor-pointer font-medium text-gray-700 hover:text-gray-900 py-1">
+                            Description
+                        </summary>
+                        <p class="mt-1 text-gray-600 text-xs leading-relaxed pl-2">${panel.description}</p>
+                    </details>
                 </div>
-                
-                <div>
-                    <span class="font-medium text-gray-700">All Genes (${panel.gene_count}):</span>
-                    <div class="mt-2">
-                        ${geneDisplay}
-                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="mt-3 flex-1 min-h-0">
+                <span class="font-medium text-gray-700 text-sm">All Genes (${panel.gene_count}):</span>
+                <div class="mt-2 h-full">
+                    ${geneDisplay}
                 </div>
             </div>
         </div>
@@ -225,13 +233,10 @@ function createGeneDisplay(genes) {
     ).join('');
     
     return `
-        <div class="gene-display-container border border-gray-200 rounded p-2 bg-white">
+        <div class="gene-display-container border border-gray-200 rounded p-2 bg-white h-full overflow-y-auto">
             <div class="flex flex-wrap">
                 ${geneChips}
             </div>
-        </div>
-        <div class="mt-1 text-xs text-gray-500">
-            ${genes.length} gene${genes.length !== 1 ? 's' : ''} • Scroll to see all
         </div>
     `;
 }
@@ -257,29 +262,27 @@ function createComparisonSummary(panelDetails) {
     const diseaseGroups = [...new Set(panelDetails.map(p => p.disease_group))];
     
     return `
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div class="bg-blue-50 p-3 rounded">
-                <div class="text-2xl font-bold text-blue-600">${panelDetails.length}</div>
-                <div class="text-sm text-gray-600">Panels Selected</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center mb-3">
+            <div class="bg-blue-50 p-2 rounded">
+                <div class="text-lg font-bold text-blue-600">${panelDetails.length}</div>
+                <div class="text-xs text-gray-600">Panels</div>
             </div>
-            <div class="bg-green-50 p-3 rounded">
-                <div class="text-2xl font-bold text-green-600">${uniqueGenes}</div>
-                <div class="text-sm text-gray-600">Unique Genes</div>
+            <div class="bg-green-50 p-2 rounded">
+                <div class="text-lg font-bold text-green-600">${uniqueGenes}</div>
+                <div class="text-xs text-gray-600">Unique Genes</div>
             </div>
-            <div class="bg-purple-50 p-3 rounded">
-                <div class="text-2xl font-bold text-purple-600">${avgGenes}</div>
-                <div class="text-sm text-gray-600">Avg per Panel</div>
+            <div class="bg-purple-50 p-2 rounded">
+                <div class="text-lg font-bold text-purple-600">${avgGenes}</div>
+                <div class="text-xs text-gray-600">Avg per Panel</div>
             </div>
-            <div class="bg-orange-50 p-3 rounded">
-                <div class="text-2xl font-bold text-orange-600">${sources.length}</div>
-                <div class="text-sm text-gray-600">Data Source${sources.length > 1 ? 's' : ''}</div>
+            <div class="bg-orange-50 p-2 rounded">
+                <div class="text-lg font-bold text-orange-600">${sources.length}</div>
+                <div class="text-xs text-gray-600">Source${sources.length > 1 ? 's' : ''}</div>
             </div>
         </div>
         
-        <div class="mt-4 text-sm text-gray-600">
-            <p><strong>Disease Groups:</strong> ${diseaseGroups.join(', ')}</p>
-            <p><strong>Sources:</strong> ${sources.map(s => s.toUpperCase()).join(', ')}</p>
-            <p><strong>Gene Overlap:</strong> ${totalGenes - uniqueGenes} duplicate${totalGenes - uniqueGenes !== 1 ? 's' : ''} across panels</p>
+        <div class="text-xs text-gray-600 space-y-1">
+            <strong>Overlap:</strong> ${totalGenes - uniqueGenes} duplicate${totalGenes - uniqueGenes !== 1 ? 's' : ''}</p>
         </div>
     `;
 }
