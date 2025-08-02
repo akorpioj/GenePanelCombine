@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -57,7 +57,7 @@ class User(UserMixin, db.Model):
     role = db.Column(db.Enum(UserRole), default=UserRole.USER, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now(), nullable=False)
     last_login = db.Column(db.DateTime)
     login_count = db.Column(db.Integer, default=0)
     
@@ -102,6 +102,10 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         """Check if user is admin"""
         return self.role == UserRole.ADMIN
+    
+    def __repr__(self):
+        """String representation of User"""
+        return f'<User {self.username}>'
     
     @staticmethod
     def guest_can_upload():
@@ -205,7 +209,7 @@ class AuditLog(db.Model):
     details = EncryptedJSONField('_details')
     
     # Timestamp and status
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.datetime.now(), nullable=False)
     success = db.Column(db.Boolean, default=True, nullable=False)
     error_message = db.Column(db.String(1000))
     
@@ -261,7 +265,7 @@ class AdminMessage(db.Model):
     created_by = db.relationship('User', backref='admin_messages')
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now(), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=True)  # Optional expiration date
     
     # Status
@@ -274,7 +278,7 @@ class AdminMessage(db.Model):
         """Check if the message has expired"""
         if self.expires_at is None:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.datetime.now() > self.expires_at
     
     def is_visible(self):
         """Check if the message should be displayed"""
@@ -283,7 +287,7 @@ class AdminMessage(db.Model):
     @classmethod
     def get_active_messages(cls):
         """Get all active, non-expired messages"""
-        current_time = datetime.utcnow()
+        current_time = datetime.datetime.now()
         return cls.query.filter(
             cls.is_active == True,
             db.or_(cls.expires_at == None, cls.expires_at > current_time)

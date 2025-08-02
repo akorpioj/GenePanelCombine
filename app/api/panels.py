@@ -5,6 +5,7 @@ Panels API endpoints
 from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_login import login_required, current_user
+import werkzeug.exceptions
 from ..extensions import limiter
 from ..main.cache_utils import get_cached_all_panels, get_cached_panel_genes
 from ..main.utils import logger
@@ -155,6 +156,9 @@ class Panel(Resource):
             
             return preview_data
             
+        except werkzeug.exceptions.HTTPException:
+            # Re-raise HTTP exceptions (like 404) so they're handled correctly
+            raise
         except Exception as e:
             logger.error(f"Error getting panel preview for {panel_id}: {e}")
             ns.abort(500, f"Failed to get panel preview: {str(e)}")
@@ -220,6 +224,9 @@ class PanelGenes(Resource):
                 'panel_name': panel_info['name']
             }
             
+        except werkzeug.exceptions.HTTPException:
+            # Re-raise HTTP exceptions (like 404) so they're handled correctly
+            raise
         except Exception as e:
             logger.error(f"Error getting genes for panel {panel_id}: {e}")
             ns.abort(500, f"Failed to get panel genes: {str(e)}")
@@ -242,10 +249,29 @@ class PanelComparison(Resource):
             panel_details = []
             panel_ids = panel_ids_param.split(',')
             
+            # Validate input format first
             for panel_id_str in panel_ids:
                 if '-' not in panel_id_str:
-                    continue
+                    ns.abort(400, f"Invalid panel ID format: {panel_id_str}. Expected format: 'ID-source' (e.g., '123-uk')")
                     
+                parts = panel_id_str.strip().split('-', 1)
+                if len(parts) != 2:
+                    ns.abort(400, f"Invalid panel ID format: {panel_id_str}. Expected format: 'ID-source'")
+                    
+                panel_id, api_source = parts
+                
+                # Validate panel ID is numeric
+                try:
+                    int(panel_id)
+                except ValueError:
+                    ns.abort(400, f"Invalid panel ID: {panel_id}. Panel ID must be numeric")
+                
+                # Validate API source
+                if api_source not in ['uk', 'aus']:
+                    ns.abort(400, f"Invalid API source: {api_source}. Must be 'uk' or 'aus'")
+            
+            # Now process the validated input
+            for panel_id_str in panel_ids:
                 panel_id, api_source = panel_id_str.strip().split('-', 1)
                 
                 # Get basic panel info
@@ -311,6 +337,9 @@ class PanelComparison(Resource):
                 'comparison_id': panel_ids_param
             }
             
+        except werkzeug.exceptions.HTTPException:
+            # Re-raise HTTP exceptions (like 400, 404) so they're handled correctly
+            raise
         except Exception as e:
             logger.error(f"Error comparing panels: {e}")
             ns.abort(500, f"Failed to compare panels: {str(e)}")

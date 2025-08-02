@@ -195,7 +195,7 @@ def csp_report():
             document_uri=report.get('document-uri'),
             violated_directive=report.get('violated-directive'),
             blocked_uri=report.get('blocked-uri'),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.datetime.now()
         )
         db.session.add(csp_violation)
         db.session.commit()
@@ -434,7 +434,7 @@ class SecurityMonitor:
         """Log and analyze security events"""
         event = {
             'type': event_type,
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.datetime.now(),
             'details': details,
             'ip_address': request.remote_addr,
             'user_agent': request.user_agent.string
@@ -466,7 +466,7 @@ def send_security_alert(event_type, count):
     
     Event Type: {event_type}
     Count: {count} in last 10 minutes
-    Time: {datetime.utcnow()}
+    Time: {datetime.datetime.now()}
     
     Please investigate immediately.
     """

@@ -95,7 +95,7 @@ def migrate_audit_action_types():
                     "migration_type": "audit_action_types",
                     "values_added": values_to_add,
                     "total_types": len(final_values),
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now().isoformat()
                 }
             )
             
@@ -116,7 +116,7 @@ def migrate_audit_action_types():
                     details={
                         "migration_type": "audit_action_types",
                         "error": str(e),
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now().isoformat()
                     }
                 )
             except:

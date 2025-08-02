@@ -6,7 +6,6 @@ High-impact caching for API calls and data processing
 from app.extensions import cache
 from flask import current_app
 import requests
-from datetime import datetime, timedelta
 import pytz
 import logging
 

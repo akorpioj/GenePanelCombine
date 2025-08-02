@@ -263,13 +263,13 @@ def session_health():
             'status': 'healthy',
             'redis_connected': True,
             'token_generation': True,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.datetime.now().isoformat()
         }
     except Exception as e:
         return {
             'status': 'unhealthy',
             'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.datime.now().isoformat()
         }, 503
 ```
 
@@ -302,14 +302,14 @@ def destroy_session(self, session_token):
 ```python
 import logging
 import json
-from datetime import datetime
+import datetime
 
 class SessionSecurityFormatter(logging.Formatter):
     """Custom formatter for session security events"""
     
     def format(self, record):
         log_entry = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.datetime.now().isoformat(),
             'level': record.levelname,
             'component': 'session_security',
             'message': record.getMessage(),

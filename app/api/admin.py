@@ -5,7 +5,7 @@ Admin API endpoints
 from flask import request
 from flask_restx import Namespace, Resource
 from flask_login import login_required, current_user
-from datetime import datetime
+import datetime
 from ..models import AdminMessage, AuditLog, AuditActionType, db
 from ..extensions import limiter
 from ..audit_service import AuditService
@@ -101,7 +101,7 @@ class AdminMessageList(Resource):
             if expires_at_str:
                 try:
                     expires_at = datetime.strptime(expires_at_str, '%Y-%m-%d')
-                    if expires_at <= datetime.utcnow():
+                    if expires_at <= datetime.datetime.now():
                         ns.abort(400, "Expiration date must be in the future")
                 except ValueError:
                     ns.abort(400, "Invalid expiration date format. Use YYYY-MM-DD")

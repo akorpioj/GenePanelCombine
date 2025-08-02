@@ -5,7 +5,7 @@ Provides automated security event detection and logging
 
 import time
 import re
-from datetime import datetime, timedelta
+import datetime
 from collections import defaultdict
 from typing import Dict, List, Optional
 from flask import request, session, current_app, g
@@ -350,7 +350,7 @@ class SecurityMonitor:
         """Detect anomalous user behavior patterns"""
         # This is a simplified example - in production you'd use ML models
         try:
-            current_time = datetime.utcnow()
+            current_time = datetime.datetime.now()
             
             # Check for unusual timing (e.g., access outside normal hours)
             if current_time.hour < 6 or current_time.hour > 22:

@@ -5,7 +5,7 @@ Provides comprehensive logging of user actions and system changes
 
 import json
 import time
-from datetime import datetime
+import datetime
 from typing import Optional, Dict, Any, Union
 from flask import request, session, current_app
 from flask_login import current_user
@@ -96,7 +96,7 @@ class AuditService:
                 old_values=json.dumps(old_values) if old_values else None,
                 new_values=json.dumps(new_values) if new_values else None,
                 details=json.dumps(details) if details else None,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.datetime.now(),
                 success=success,
                 error_message=error_message[:1000] if error_message else None,
                 duration_ms=duration_ms
@@ -382,7 +382,7 @@ class AuditService:
             details={
                 "violation_type": violation_type,
                 "severity": severity,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.datetime.now().isoformat(),
                 **(details or {})
             }
         )
@@ -414,7 +414,7 @@ class AuditService:
                 "source_privilege": source_privilege,
                 "target_privilege": target_privilege,
                 "escalation_method": "session_service",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.datetime.now().isoformat()
             }
         )
 
@@ -445,7 +445,7 @@ class AuditService:
                 "attempt_count": attempt_count,
                 "time_window": time_window,
                 "source_ip": source_ip or AuditService._get_client_ip(),
-                "detection_time": datetime.utcnow().isoformat(),
+                "detection_time": datetime.datetime.now().isoformat(),
                 "threat_level": "HIGH" if attempt_count >= 10 else "MEDIUM"
             }
         )
@@ -461,7 +461,7 @@ class AuditService:
                 "reason": reason,
                 "lockout_duration": lockout_duration,
                 "automatic": automatic,
-                "lockout_time": datetime.utcnow().isoformat(),
+                "lockout_time": datetime.datetime.now().isoformat(),
                 "admin_action_required": not automatic
             }
         )
@@ -477,7 +477,7 @@ class AuditService:
                 "username": username,
                 "reset_method": method,  # email, admin, security_questions, etc.
                 "initiated_by": initiated_by,
-                "reset_time": datetime.utcnow().isoformat(),
+                "reset_time": datetime.datetime.now().isoformat(),
                 "verification_required": method == "email"
             }
         )
@@ -513,7 +513,7 @@ class AuditService:
                 "file_path": file_path,
                 "access_type": access_type,  # read, write, delete, download, upload
                 "file_size": file_size,
-                "access_time": datetime.utcnow().isoformat()
+                "access_time": datetime.datetime.now().isoformat()
             }
         )
 
@@ -546,7 +546,7 @@ class AuditService:
                 "compliance_type": compliance_type,
                 "regulation": regulation,
                 "compliant": compliant,
-                "event_time": datetime.utcnow().isoformat(),
+                "event_time": datetime.datetime.now().isoformat(),
                 "requires_review": not compliant
             }
         )
@@ -559,7 +559,7 @@ class AuditService:
             "event_type": event_type,
             "severity": severity,
             "system_component": system_component,
-            "event_time": datetime.utcnow().isoformat(),
+            "event_time": datetime.datetime.now().isoformat(),
             "auto_generated": True
         }
         
@@ -583,7 +583,7 @@ class AuditService:
             details={
                 "event_type": event_type,  # setup, verification, bypass, disable
                 "method": method,  # sms, email, app, hardware_token
-                "mfa_time": datetime.utcnow().isoformat(),
+                "mfa_time": datetime.datetime.now().isoformat(),
                 **(details or {})
             }
         )

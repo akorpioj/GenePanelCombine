@@ -25,7 +25,7 @@ def create_app(config_name=None):
     # Add visit logging middleware
     @app.before_request
     def log_visit():
-        from datetime import datetime
+        import datetime
         from .models import Visit, db
         from flask import request
                 
@@ -43,7 +43,7 @@ def create_app(config_name=None):
             
         visit = Visit(
             ip_address=ip,
-            visit_date=datetime.utcnow(),
+            visit_date=datetime.datetime.now(),
             path=request.path,
             user_agent=request.user_agent.string if request.user_agent else None
         )

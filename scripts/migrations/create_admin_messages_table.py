@@ -7,7 +7,7 @@ Description: Creates the admin_messages table for site-wide announcements and me
 
 import os
 import sys
-from datetime import datetime
+import datetime
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
@@ -50,7 +50,7 @@ def run_migration():
                         resource_id='table_creation',
                         details={
                             'migration': 'create_admin_messages_table',
-                            'timestamp': datetime.utcnow().isoformat(),
+                            'timestamp': datetime.datetime.now().isoformat(),
                             'description': 'Created admin_message table for site announcements'
                         }
                     )
@@ -101,7 +101,7 @@ def rollback_migration():
                         details={
                             'migration': 'create_admin_messages_table',
                             'action': 'rollback',
-                            'timestamp': datetime.utcnow().isoformat(),
+                            'timestamp': datetime.datetime.now().isoformat(),
                             'description': 'Dropped admin_message table (rollback)'
                         }
                     )

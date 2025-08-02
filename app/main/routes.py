@@ -1,6 +1,6 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import current_user
-from datetime import datetime
+import datetime
 from app.extensions import limiter, cache
 from . import main_bp # Import the Blueprint object defined in __init__.py
 from ..models import PanelDownload, db
@@ -324,7 +324,7 @@ def generate():
     download = PanelDownload(
         user_id=current_user.id if current_user.is_authenticated else None,
         ip_address=ip,
-        download_date=datetime.utcnow(),
+        download_date=datetime.datetime.now(),
         panel_ids=','.join(str(config['id']) for config in selected_panel_configs_for_generation),
         list_types=','.join(config['list_type'] for config in selected_panel_configs_for_generation),
         gene_count=len(final_unique_gene_set)

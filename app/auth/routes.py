@@ -6,7 +6,7 @@ Handles user registration, login, logout, and profile management
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
-from datetime import datetime
+import datetime
 import re
 from . import auth_bp
 from ..models import db, User, UserRole, AuditActionType
@@ -139,7 +139,7 @@ def login():
                 return render_template('auth/login.html')
             
             # Update login statistics
-            user.last_login = datetime.utcnow()
+            user.last_login = datetime.datetime.now()
             user.login_count = (user.login_count or 0) + 1
             db.session.commit()
             
@@ -440,8 +440,7 @@ def admin_users():
     users = User.query.all()
     
     # Calculate user statistics for the template
-    from datetime import datetime, timedelta
-    
+   
     # Total users
     total_users = len(users)
     
@@ -452,7 +451,7 @@ def admin_users():
     admin_users = len([u for u in users if u.role == UserRole.ADMIN])
     
     # Recent signups (users created in the last 30 days)
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
     recent_signups = len([u for u in users if u.created_at >= thirty_days_ago])
     
     user_stats = {
@@ -835,7 +834,6 @@ def admin_create_message():
     
     if request.method == 'POST':
         from ..models import AdminMessage
-        from datetime import datetime
         
         title = request.form.get('title', '').strip()
         message = request.form.get('message', '').strip()
@@ -852,7 +850,7 @@ def admin_create_message():
         if expires_at_str:
             try:
                 expires_at = datetime.strptime(expires_at_str, '%Y-%m-%dT%H:%M')
-                if expires_at <= datetime.utcnow():
+                if expires_at <= datetime.datetime.now():
                     flash('Expiration date must be in the future.', 'error')
                     return render_template('auth/admin_create_message.html')
             except ValueError:

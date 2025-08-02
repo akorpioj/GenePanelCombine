@@ -72,7 +72,7 @@ class User(UserMixin, db.Model):
     organization = db.Column(db.String(100))
     role = db.Column(db.Enum(UserRole), nullable=False, default=UserRole.USER)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now())
     last_login = db.Column(db.DateTime)
 ```
 

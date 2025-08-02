@@ -165,7 +165,7 @@ def create_admin_user():
                     'role': 'admin',
                     'is_active': True,
                     'is_verified': True,
-                    'created_at': datetime.now(timezone.utc),
+                    'created_at': datetime.now(),
                     'login_count': 0
                 })
                 

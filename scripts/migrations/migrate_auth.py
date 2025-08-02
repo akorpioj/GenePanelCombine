@@ -46,7 +46,7 @@ def migrate_database():
                     last_name='User',
                     role=UserRole.ADMIN,
                     is_active=True,
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now()
                 )
                 
                 db.session.add(admin_user)

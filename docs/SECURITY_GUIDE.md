@@ -888,7 +888,7 @@ AUDIT_RETENTION_DAYS = 365  # Configurable retention period
 
 def cleanup_old_audit_logs():
     """Clean up audit logs older than retention period"""
-    cutoff_date = datetime.utcnow() - timedelta(days=AUDIT_RETENTION_DAYS)
+    cutoff_date = datetime.datetime.now() - datetime.timedelta(days=AUDIT_RETENTION_DAYS)
     old_logs = AuditLog.query.filter(
         AuditLog.timestamp < cutoff_date
     ).all()

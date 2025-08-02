@@ -110,7 +110,7 @@ def migrate_user_schema():
                         'role': 'user',
                         'is_active': True,
                         'is_verified': False,
-                        'created_at': datetime.utcnow(),
+                        'created_at': datetime.now(),
                         'login_count': 0,
                         'user_id': user_id
                     })
@@ -151,7 +151,7 @@ def migrate_user_schema():
                         'role': 'admin',
                         'is_active': True,
                         'is_verified': True,
-                        'created_at': datetime.utcnow(),
+                        'created_at': datetime.now(),
                         'login_count': 0
                     })
                     
