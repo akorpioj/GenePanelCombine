@@ -3,15 +3,15 @@ PanelMerge Version Information
 """
 
 # Application version
-VERSION = "1.4.0"
-VERSION_NAME = "Security Enhanced"
-RELEASE_DATE = "2025-07-27"
+VERSION = "1.4.1"
+VERSION_NAME = "Developer Tools & Timezone Enhanced"
+RELEASE_DATE = "2025-08-02"
 
 # Version details
 VERSION_INFO = {
     "major": 1,
     "minor": 4,
-    "patch": 0,
+    "patch": 1,
     "version": VERSION,
     "name": VERSION_NAME,
     "release_date": RELEASE_DATE,
@@ -23,7 +23,10 @@ VERSION_INFO = {
         "Enhanced File Upload Validation",
         "Role-Based Access Control",
         "Redis Caching for Better Performance",
-        "Complete Audit Trail"
+        "Complete Audit Trail",
+        "Interactive API Documentation",
+        "Comprehensive Unit Testing Framework",
+        "Timezone Support with Profile Integration"
     ]
 }
 

@@ -57,7 +57,10 @@
                                     <strong>IP Address:</strong> {{ session.ip_address }}
                                 </div>
                                 <div>
-                                    <strong>Created:</strong> {{ session.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                    <strong>Created:</strong> 
+                                    <span data-timestamp="{{ session.created_at.isoformat() }}" data-format="datetime">
+                                        {{ session.created_at | user_datetime('%Y-%m-%d %H:%M:%S') }}
+                                    </span>
                                 </div>
                                 <div>
                                     <strong>Last Activity:</strong> {{ session.last_activity.strftime('%Y-%m-%d %H:%M:%S') }}

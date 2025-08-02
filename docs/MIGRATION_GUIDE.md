@@ -28,6 +28,7 @@ This guide provides step-by-step instructions for migrating between different ve
 
 | From → To | Complexity | Database Changes | Config Changes | Downtime |
 |-----------|------------|------------------|----------------|----------|
+| 1.4.0 → 1.4.1 | Low | Yes | No | ~2-5 min |
 | 1.3.x → 1.4.x | Medium | Yes | Yes | ~5-10 min |
 | 1.2.x → 1.4.x | High | Yes | Yes | ~15-30 min |
 | 1.1.x → 1.4.x | High | Yes | Yes | ~30-60 min |
@@ -64,6 +65,61 @@ This guide provides step-by-step instructions for migrating between different ve
 ---
 
 ## 🚀 Version-Specific Migrations
+
+### Migrating to v1.4.1 (Timezone Support)
+
+#### From v1.4.0 to v1.4.1
+
+**Major Changes**:
+- User timezone preference support
+- Timezone-aware datetime display throughout application
+- Automatic timezone detection via browser
+- Enhanced user profile with timezone settings
+
+**Migration Steps**:
+
+1. **Backup Current System**
+   ```bash
+   # Create backup directory
+   mkdir -p backups/v1.4.0-$(date +%Y%m%d-%H%M%S)
+   
+   # Backup database
+   pg_dump panelmerge > backups/v1.4.0-$(date +%Y%m%d-%H%M%S)/database.sql
+   
+   # Backup application
+   cp -r . backups/v1.4.0-$(date +%Y%m%d-%H%M%S)/application/
+   ```
+
+2. **Update Application Code**
+   ```bash
+   # Pull latest code
+   git fetch origin
+   git checkout v1.4.1
+   
+   # Update dependencies (no new dependencies for this version)
+   pip install -r requirements.txt
+   npm install
+   
+   # Build CSS with timezone styles
+   npm run build:css
+   ```
+
+3. **Run Database Migration**
+   ```bash
+   # Run timezone preference migration
+   python scripts/migrations/add_timezone_preference.py
+   
+   # Verify migration
+   python scripts/db/check_db.py
+   ```
+
+4. **Restart Services**
+   ```bash
+   # Restart application
+   systemctl restart panelmerge
+   
+   # No Redis restart needed (session structure unchanged)
+   ```
 
 ### Migrating to v1.4.x (Security Enhanced)
 
@@ -171,6 +227,19 @@ This guide provides step-by-step instructions for migrating between different ve
 
 ### Automatic Migration Scripts
 
+#### v1.4.1 Migration Scripts
+
+1. **Timezone Preference Migration**
+   ```bash
+   # Location: scripts/migrations/add_timezone_preference.py
+   python scripts/migrations/add_timezone_preference.py
+   
+   # This script will:
+   # - Add timezone_preference column to user table
+   # - Set default timezone to UTC for existing users
+   # - Verify migration success
+   ```
+
 #### v1.4.x Migration Scripts
 
 1. **Audit Action Types Migration**
@@ -199,6 +268,12 @@ This guide provides step-by-step instructions for migrating between different ve
 If automatic scripts fail, use manual SQL migration:
 
 ```sql
+-- Add timezone preference column (v1.4.1)
+ALTER TABLE "user" ADD COLUMN timezone_preference VARCHAR(50) DEFAULT 'UTC';
+
+-- Update existing users to have UTC timezone
+UPDATE "user" SET timezone_preference = 'UTC' WHERE timezone_preference IS NULL;
+
 -- Add new audit action types (v1.4.x)
 ALTER TYPE auditactiontype ADD VALUE IF NOT EXISTS 'SECURITY_VIOLATION';
 ALTER TYPE auditactiontype ADD VALUE IF NOT EXISTS 'ACCESS_DENIED';
@@ -239,6 +314,13 @@ with app.app_context():
         print('✅ admin_message table exists')
     else:
         print('❌ admin_message table missing')
+    
+    # Check timezone_preference column
+    user_columns = [col['name'] for col in inspector.get_columns('user')]
+    if 'timezone_preference' in user_columns:
+        print('✅ timezone_preference column exists')
+    else:
+        print('❌ timezone_preference column missing')
 "
 
 # Check audit action types
@@ -254,6 +336,10 @@ for action in AuditActionType:
 ## ⚙️ Configuration Updates
 
 ### Environment Variables Migration
+
+#### New Variables in v1.4.1
+
+No new environment variables required for v1.4.1 (timezone support uses existing configuration).
 
 #### New Variables in v1.4.x
 
@@ -319,6 +405,16 @@ echo "✅ Configuration migration completed"
 import os
 import sys
 
+V1_4_1_REQUIRED_VARS = [
+    'SECRET_KEY',
+    'ENCRYPTION_KEY',
+    'FLASK_ENV',
+    'DATABASE_URL',
+    'REDIS_URL',
+    'SECURITY_MONITORING_ENABLED',
+    'AUDIT_RETENTION_DAYS'
+]
+
 V1_4_REQUIRED_VARS = [
     'SECRET_KEY',
     'ENCRYPTION_KEY',
@@ -354,6 +450,33 @@ if __name__ == "__main__":
 ## 📦 Data Migration
 
 ### User Data Migration
+
+#### Timezone Preference Migration (v1.4.1)
+
+```python
+# migrate_timezone_preferences.py
+from app import create_app
+from app.models import db, User
+
+def migrate_user_timezones():
+    """Set default timezone for existing users"""
+    app = create_app()
+    
+    with app.app_context():
+        # Update users without timezone preference
+        users_updated = User.query.filter(
+            User.timezone_preference.is_(None)
+        ).update({User.timezone_preference: 'UTC'})
+        
+        if users_updated > 0:
+            db.session.commit()
+            print(f"✅ Updated {users_updated} users with default UTC timezone")
+        else:
+            print("ℹ️ All users already have timezone preferences set")
+
+if __name__ == "__main__":
+    migrate_user_timezones()
+```
 
 #### Session Data Migration (v1.4.x)
 
@@ -451,49 +574,76 @@ if __name__ == "__main__":
 ### Automated Verification Script
 
 ```python
-# verify_migration_v1.4.py
+# verify_migration_v1.4.1.py
 from app import create_app, db
 from app.models import User, AuditLog, AdminMessage, AuditActionType
 from app.session_service import session_service
 from app.audit_service import AuditService
+from app.timezone_service import TimezoneService
 import sys
 
 def verify_migration():
-    """Verify v1.4 migration completed successfully"""
+    """Verify v1.4.1 migration completed successfully"""
     app = create_app()
     errors = []
     
     with app.app_context():
-        # 1. Check database tables
+        # 1. Check timezone preference column
         try:
-            # Test AdminMessage model
+            user = User.query.first()
+            if user:
+                timezone = user.get_timezone()
+                print(f"✅ User timezone preference accessible: {timezone}")
+            else:
+                print("ℹ️ No users found to test timezone preference")
+        except Exception as e:
+            errors.append(f"Timezone preference error: {e}")
+        
+        # 2. Test TimezoneService
+        try:
+            user_tz = TimezoneService.get_user_timezone()
+            current_time = TimezoneService.now_in_user_timezone()
+            formatted_time = TimezoneService.format_datetime(current_time)
+            print(f"✅ TimezoneService working: {formatted_time}")
+        except Exception as e:
+            errors.append(f"TimezoneService error: {e}")
+        
+        # 3. Test timezone API endpoints
+        try:
+            from app.api.timezone import timezone_bp
+            print("✅ Timezone API blueprint accessible")
+        except Exception as e:
+            errors.append(f"Timezone API error: {e}")
+        
+        # 4. Check database tables (existing v1.4.x checks)
+        try:
             AdminMessage.query.first()
             print("✅ AdminMessage table accessible")
         except Exception as e:
             errors.append(f"AdminMessage table error: {e}")
         
-        # 2. Check audit action types
+        # 5. Check audit action types
         try:
             security_violation = AuditActionType.SECURITY_VIOLATION
             print("✅ New audit action types available")
         except Exception as e:
             errors.append(f"Audit action types error: {e}")
         
-        # 3. Check Redis connection
+        # 6. Check Redis connection
         try:
             session_service.redis_client.ping()
             print("✅ Redis connection working")
         except Exception as e:
             errors.append(f"Redis connection error: {e}")
         
-        # 4. Test audit logging
+        # 7. Test audit logging
         try:
             AuditService.log_admin_action("Migration verification test")
             print("✅ Audit logging working")
         except Exception as e:
             errors.append(f"Audit logging error: {e}")
         
-        # 5. Check encryption service
+        # 8. Check encryption service
         try:
             from app.encryption_service import EncryptionService
             enc_service = EncryptionService()
@@ -554,12 +704,31 @@ if __name__ == "__main__":
    - [ ] Admin user management
    - [ ] Admin message creation
    - [ ] Audit log viewing
+   - [ ] Timezone preference settings
+   - [ ] Timezone-aware timestamp display
+   - [ ] Automatic timezone detection
 
 ---
 
 ## 🔄 Rollback Procedures
 
 ### Database Rollback
+
+#### v1.4.1 Rollback
+
+```bash
+# Rollback timezone preference column
+python -c "
+from app import create_app, db
+import sqlalchemy as sa
+app = create_app()
+with app.app_context():
+    with db.engine.connect() as conn:
+        conn.execute(sa.text('ALTER TABLE \"user\" DROP COLUMN IF EXISTS timezone_preference'))
+        conn.commit()
+    print('✅ Timezone preference column removed')
+"
+```
 
 #### Automated Rollback
 
@@ -574,6 +743,9 @@ python scripts/migrations/add_audit_action_types.py rollback
 #### Manual Database Rollback
 
 ```sql
+-- Remove timezone preference column (v1.4.1)
+ALTER TABLE "user" DROP COLUMN IF EXISTS timezone_preference;
+
 -- Remove admin_message table
 DROP TABLE IF EXISTS admin_message;
 
@@ -704,6 +876,17 @@ chmod -R 755 __pycache__/
 
 #### Migration Script Failures
 
+**Issue**: Timezone migration script fails with PostgreSQL syntax error
+```bash
+# The error occurs because "user" is a reserved keyword in PostgreSQL
+# Solution: The migration script has been updated to use quoted table names
+
+# If you encounter the error, ensure you're using the latest migration script:
+python scripts/migrations/add_timezone_preference.py
+
+# The script now uses: ALTER TABLE "user" instead of ALTER TABLE user
+```
+
 **Issue**: Automatic migration scripts fail
 ```bash
 # Check database connection first
@@ -737,7 +920,7 @@ If migration partially fails:
    python scripts/migrations/[failed_migration].py migrate
    
    # Verify completion
-   python verify_migration_v1.4.py
+   python verify_migration_v1.4.1.py
    ```
 
 3. **Clean Up Partial Changes**
@@ -833,8 +1016,8 @@ After migration completion:
 
 ---
 
-**Last Updated**: 2025-07-27  
-**Document Version**: 1.0  
+**Last Updated**: 2025-08-02  
+**Document Version**: 1.1  
 **Maintainer**: Development Team
 
 > This migration guide should be updated with each new version release to ensure accurate migration paths and procedures.

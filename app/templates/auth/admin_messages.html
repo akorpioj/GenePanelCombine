@@ -68,7 +68,9 @@
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500">
-                        {{ message.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        <span data-timestamp="{{ message.created_at.isoformat() }}" data-format="datetime">
+                            {{ message.created_at | user_datetime('%Y-%m-%d %H:%M') }}
+                        </span>
                         <br>
                         <span class="text-xs">by {{ message.created_by.username }}</span>
                     </td>

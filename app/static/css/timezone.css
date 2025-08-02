@@ -1,0 +1,100 @@
+/* Timezone selector styling */
+.timezone-selector-container select,
+.timezone-selector-container-profile select {
+    appearance: none;
+    background-color: white;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: #374151;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    min-width: 200px;
+}
+
+.timezone-selector-container select:focus,
+.timezone-selector-container-profile select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.timezone-selector-container select:hover,
+.timezone-selector-container-profile select:hover {
+    border-color: #9ca3af;
+}
+
+/* Timezone display elements */
+.timezone-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.timezone-display .timezone-icon {
+    width: 1rem;
+    height: 1rem;
+    opacity: 0.7;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .timezone-selector-container select,
+    .timezone-selector-container-profile select {
+        min-width: 160px;
+        font-size: 0.8125rem;
+    }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+    .timezone-selector-container select,
+    .timezone-selector-container-profile select {
+        background-color: #1f2937;
+        border-color: #374151;
+        color: #f9fafb;
+    }
+    
+    .timezone-selector-container select:focus,
+    .timezone-selector-container-profile select:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+    }
+}
+
+/* Timestamp elements with dynamic updates */
+[data-timestamp] {
+    transition: opacity 0.3s ease;
+}
+
+[data-timestamp].updating {
+    opacity: 0.7;
+}
+
+/* Timezone preference section in profile */
+.timezone-preference-section {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+.timezone-preview {
+    font-family: monospace;
+    background-color: #e2e8f0;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    display: inline-block;
+    margin-top: 0.25rem;
+}

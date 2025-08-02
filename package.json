@@ -1,7 +1,7 @@
 {
   "name": "panel-merge",
-  "version": "1.4",
-  "description": "A secure, enterprise-grade Flask application for filtering gene panels with comprehensive security monitoring.",
+  "version": "1.4.1",
+  "description": "A secure, enterprise-grade Flask application for filtering gene panels with comprehensive security monitoring, API documentation, and timezone support.",
   "main": "index.js",
   "scripts": {
     "start": "python run.py",

@@ -1,4 +1,4 @@
-# PowerShell script to create an admin user for GenePanelCombine
+# PowerShell script to create an admin user for PanelMerge
 # This script sets up the environment and runs the Python admin user creation script
 
 param(
@@ -16,7 +16,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 $PythonScript = Join-Path $ScriptDir "db\create_admin_user.py"
 
-Write-Host "GenePanelCombine - Admin User Creation Script" -ForegroundColor Green
+Write-Host "PanelMerge - Admin User Creation Script" -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor Green
 Write-Host ""
 

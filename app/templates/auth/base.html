@@ -6,6 +6,7 @@
     <title>{% block title %}Authentication{% endblock %} - PanelMerge</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/timezone.css') }}">
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Navigation -->
@@ -58,6 +59,8 @@
         </div>
     </footer>
 
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/timezone.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -198,7 +198,10 @@
                                 </span>
                             </div>
                             <div class="text-xs text-gray-500">
-                                Joined {{ user.created_at.strftime('%b %d, %Y') }}
+                                Joined 
+                                <span data-timestamp="{{ user.created_at.isoformat() }}" data-format="date">
+                                    {{ user.created_at | user_datetime('%b %d, %Y') }}
+                                </span>
                             </div>
                         </div>
                         

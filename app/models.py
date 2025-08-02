@@ -66,6 +66,9 @@ class User(UserMixin, db.Model):
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime)
     
+    # User preferences
+    timezone_preference = db.Column(db.String(50), default='UTC')  # IANA timezone name
+    
     # Relationship to track user downloads
     downloads = db.relationship('PanelDownload', backref='user', lazy=True)
 
@@ -102,6 +105,30 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         """Check if user is admin"""
         return self.role == UserRole.ADMIN
+    
+    def get_timezone(self):
+        """Get user's preferred timezone"""
+        import pytz
+        try:
+            return pytz.timezone(self.timezone_preference or 'UTC')
+        except pytz.UnknownTimeZoneError:
+            return pytz.UTC
+    
+    def set_timezone(self, timezone_name):
+        """Set user's timezone preference"""
+        import pytz
+        try:
+            # Validate timezone
+            pytz.timezone(timezone_name)
+            self.timezone_preference = timezone_name
+            return True
+        except pytz.UnknownTimeZoneError:
+            return False
+    
+    def get_active_admin_messages(self):
+        """Get all active admin messages for display"""
+        # Since AdminMessage is defined in the same module, we can reference it directly
+        return AdminMessage.get_active_messages()
     
     def __repr__(self):
         """String representation of User"""

@@ -1,6 +1,6 @@
 # Admin User Creation Scripts
 
-This directory contains scripts to create admin users for the GenePanelCombine application.
+This directory contains scripts to create admin users for the PanelMerge application.
 
 ## Files
 

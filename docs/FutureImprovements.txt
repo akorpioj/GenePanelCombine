@@ -149,6 +149,7 @@
 - **Contextual Help**: In-app help and tutorials
 - **Keyboard Shortcuts**: Power user keyboard shortcuts
 - **Print-Friendly Views**: Optimized printing of results and reports
+- IMPLEMENTED: **Timezone Support**: User timezone preferences and timezone-aware datetime display with profile integration and current time display - 02/08/2025
 
 ## Integration & Workflow Features
 
@@ -238,4 +239,4 @@
 ---
 
 This document should be regularly updated as features are implemented and new ideas emerge.
-Last updated: July 2025
+Last updated: August 2025

@@ -219,23 +219,49 @@ def edit_profile():
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
         organization = request.form.get('organization', '').strip()
+        timezone_preference = request.form.get('timezone_preference', '').strip()
         
         # Update user profile
         try:
+            # Store old values for audit
+            old_data = {
+                'first_name': current_user.first_name,
+                'last_name': current_user.last_name,
+                'organization': current_user.organization,
+                'timezone_preference': current_user.timezone_preference or 'Browser default'
+            }
+            
+            # Update user fields
             current_user.first_name = first_name
             current_user.last_name = last_name
             current_user.organization = organization
             
+            # Handle timezone preference
+            if timezone_preference:
+                if current_user.set_timezone(timezone_preference):
+                    current_app.logger.info(f"Updated timezone preference for user {current_user.id} to {timezone_preference}")
+                else:
+                    flash('Invalid timezone selected.', 'warning')
+            else:
+                # Empty string means use browser timezone (no user preference)
+                current_user.timezone_preference = None
+            
             db.session.commit()
+            
+            # Prepare new values for audit
+            new_data = {
+                'first_name': first_name,
+                'last_name': last_name,
+                'organization': organization,
+                'timezone_preference': timezone_preference or 'Browser default'
+            }
             
             # Log profile update
             AuditService.log_profile_update(
+                current_user.id,
                 current_user.username,
-                changes={
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'organization': organization
-                }
+                old_data,
+                new_data
             )
             
             flash('Profile updated successfully!', 'success')

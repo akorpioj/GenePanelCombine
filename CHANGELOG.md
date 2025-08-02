@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2025-08-02 - Developer Tools & Timezone Enhanced
+
+### 🚀 Major Features Added
+- **Interactive API Documentation**: Comprehensive Swagger/OpenAPI documentation with live testing capabilities
+  - Complete endpoint documentation with request/response examples
+  - Interactive request testing interface
+  - Automatic API schema generation
+  - Developer-friendly documentation portal
+
+- **Comprehensive Unit Testing Framework**: Enterprise-grade testing infrastructure
+  - Full pytest and unittest integration
+  - Automated testing for authentication, API endpoints, and core functionality
+  - Test coverage analysis and reporting
+  - Mock data generation for testing
+  - Database migration testing capabilities
+
+- **Enhanced Timezone Support**: User-centric timezone management system
+  - Automatic timezone detection using browser Intl API
+  - User timezone preferences stored in database
+  - Timezone-aware datetime display throughout application
+  - Profile page integration for timezone management
+  - Real-time current time display
+  - Priority-based timezone selection (user preference > session > browser > UTC)
+
+### 🔧 Improvements
+- **Profile Management**: Enhanced user profile page with timezone information and management
+- **User Experience**: Cleaner UI with timezone information properly integrated into profile workflow
+- **Documentation**: Updated comprehensive timezone system documentation
+- **Bug Fixes**: Fixed profile update audit logging and current time display issues
+- **Template Fix**: Fixed corrupted HTML in audit logs template causing Jinja2 UndefinedError
+
+### 🧪 Testing & Quality Assurance
+- **Test Framework**: Complete test infrastructure setup
+- **API Testing**: Automated testing of all REST endpoints
+- **Authentication Testing**: Comprehensive user authentication flow testing
+- **Database Testing**: Migration and data integrity testing
+- **Cache Testing**: Redis caching functionality testing
+
 ## [1.4.0] - 2025-07-27 - Security Enhanced
 
 ### 🔒 Security Features Added

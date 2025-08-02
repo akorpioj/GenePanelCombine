@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to create an admin user for the GenePanelCombine application.
+Script to create an admin user for the PanelMerge application.
 This script can be run interactively or with command line arguments.
 """
 
@@ -42,7 +42,7 @@ def create_admin_user(username=None, email=None, password=None, first_name=None,
             
             # Collect user information
             if interactive:
-                print("Creating admin user for GenePanelCombine")
+                print("Creating admin user for PanelMerge")
                 print("=" * 40)
                 
                 if not username:
@@ -130,7 +130,7 @@ def create_admin_user(username=None, email=None, password=None, first_name=None,
 def main():
     """Main function to handle command line arguments and run the script."""
     parser = argparse.ArgumentParser(
-        description="Create an admin user for GenePanelCombine application"
+        description="Create an admin user for PanelMerge application"
     )
     parser.add_argument('-u', '--username', help='Username for the admin user')
     parser.add_argument('-e', '--email', help='Email address for the admin user')

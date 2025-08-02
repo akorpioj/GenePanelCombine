@@ -1,6 +1,24 @@
-# PanelMerge v1.4
+# PanelMerge v1.4.1
 
 PanelMerge is a secure, enterprise-grade web application for researchers and clinicians to easily combine, filter, and download gene lists from multiple sources, including Genomics England PanelApp, PanelApp Australia, and user-uploaded custom gene panels.
+
+## 🚀 New in v1.4.1 (August 2025)
+
+- **Interactive API Documentation:**
+  - Swagger/OpenAPI documentation with live testing capabilities
+  - Comprehensive endpoint documentation with examples
+  - Interactive request/response testing interface
+
+- **Comprehensive Unit Testing Framework:**
+  - Full pytest and unittest integration
+  - Automated testing for all core functionality
+  - Test coverage analysis and reporting
+
+- **Enhanced Timezone Support:**
+  - User timezone preferences with automatic detection
+  - Timezone-aware datetime display throughout the application
+  - Profile integration for timezone management
+  - Real-time current time display
 
 ## 🔒 Security Features (v1.4)
 

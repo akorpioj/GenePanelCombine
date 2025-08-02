@@ -40,6 +40,27 @@
                 </div>
                 
                 <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Timezone</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {% if current_user.timezone_preference %}
+                            <div>
+                                <span class="font-medium">{{ current_user.timezone_preference }}</span>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    Current time: <span id="current-user-time"></span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div>
+                                <span class="text-gray-500">Using browser timezone</span>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    Current time: <span id="current-user-time"></span>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </dd>
+                </div>
+                
+                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt class="text-sm font-medium text-gray-500">Role</dt>
                     <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
@@ -55,7 +76,9 @@
                 <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt class="text-sm font-medium text-gray-500">Account created</dt>
                     <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                        {{ current_user.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        <span data-timestamp="{{ current_user.created_at.isoformat() }}" data-format="date">
+                            {{ current_user.created_at | user_datetime('%B %d, %Y at %I:%M %p') }}
+                        </span>
                     </dd>
                 </div>
                 
@@ -63,7 +86,12 @@
                     <dt class="text-sm font-medium text-gray-500">Last login</dt>
                     <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                         {% if current_user.last_login %}
-                            {{ current_user.last_login.strftime('%B %d, %Y at %I:%M %p') }}
+                            <span data-timestamp="{{ current_user.last_login.isoformat() }}" data-format="relative">
+                                {{ current_user.last_login | relative_time }}
+                            </span>
+                            <span class="text-gray-500 text-xs ml-2">
+                                ({{ current_user.last_login | user_datetime('%B %d, %Y at %I:%M %p') }})
+                            </span>
                         {% else %}
                             <span class="text-gray-400">Never logged in</span>
                         {% endif %}

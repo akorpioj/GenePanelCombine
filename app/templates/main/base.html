@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}PanelMerge v1.4 - Secure Gene Panel Management{% endblock %}</title>
+  <title>{% block title %}PanelMerge v1.4.1 - Secure Gene Panel Management{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/timezone.css') }}">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   {% block head_extra %}{% endblock %}
 </head>
@@ -36,25 +37,22 @@
             <span class="text-gray-600">Welcome, Guest!</span>
             <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">User-level access</span>
             <a href="{{ url_for('auth.login') }}" class="text-sky-600 hover:text-sky-800 transition">Login</a>
-            <a href="{{ url_for('auth.register') }}" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1 rounded transition">Sign Up</a>
+            <a href="{{ url_for('auth.register') }}" class="text-sky-600 hover:text-sky-800 transition">Register</a>
           </div>
         {% endif %}
       </div>
     </nav>
   </header>
 
-  <!-- Flash Messages -->
+  <!-- Messages (alerts, notifications) -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="w-full max-w-6xl mb-6">
         {% for category, message in messages %}
-          <div class="mb-4 p-4 rounded-md relative {% if category == 'error' %}bg-red-100 border border-red-400 text-red-700{% elif category == 'warning' %}bg-yellow-100 border border-yellow-400 text-yellow-700{% elif category == 'info' %}bg-blue-100 border border-blue-400 text-blue-700{% else %}bg-green-100 border border-green-400 text-green-700{% endif %}" role="alert">
+          <div class="alert alert-{{ category }} bg-{% if category == 'error' %}red{% elif category == 'success' %}green{% elif category == 'warning' %}yellow{% else %}blue{% endif %}-100 border border-{% if category == 'error' %}red{% elif category == 'success' %}green{% elif category == 'warning' %}yellow{% else %}blue{% endif %}-300 text-{% if category == 'error' %}red{% elif category == 'success' %}green{% elif category == 'warning' %}yellow{% else %}blue{% endif %}-800 px-4 py-3 rounded relative mb-4">
             {{ message }}
-            <button type="button" class="absolute top-2 right-2 p-1 rounded-md {% if category == 'error' %}text-red-500 hover:bg-red-200{% elif category == 'warning' %}text-yellow-500 hover:bg-yellow-200{% elif category == 'info' %}text-blue-500 hover:bg-blue-200{% else %}text-green-500 hover:bg-green-200{% endif %} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400" onclick="this.parentElement.style.display='none'">
-              <span class="sr-only">Dismiss</span>
-              <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <button class="absolute top-0 bottom-0 right-0 px-4 py-3" onclick="this.parentElement.style.display='none';">
+              <span class="text-2xl">&times;</span>
             </button>
           </div>
         {% endfor %}
@@ -62,12 +60,79 @@
     {% endif %}
   {% endwith %}
 
+    <!-- Admin Messages -->
+    {% if admin_messages %}
+    <div class="mb-6 space-y-4">
+        {% for message in admin_messages %}
+        <div class="
+            {% if message.message_type == 'error' %}bg-red-50 border border-red-200 text-red-800
+            {% elif message.message_type == 'warning' %}bg-yellow-50 border border-yellow-200 text-yellow-800
+            {% elif message.message_type == 'success' %}bg-green-50 border border-green-200 text-green-800
+            {% else %}bg-blue-50 border border-blue-200 text-blue-800
+            {% endif %}
+            rounded-lg p-4
+        ">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    {% if message.message_type == 'error' %}
+                        <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                    {% elif message.message_type == 'warning' %}
+                        <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    {% elif message.message_type == 'success' %}
+                        <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                    {% else %}
+                        <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                        </svg>
+                    {% endif %}
+                </div>
+                <div class="ml-3 flex-1">
+                    <h3 class="text-sm font-medium">{{ message.title }}</h3>
+                    <div class="mt-2 text-sm">
+                        <p>{{ message.message }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
   {% block content %}{% endblock %}
 
-  <footer class="mt-12 text-center text-sm text-gray-500">
-    <p>PanelMerge v1.4 - Security Enhanced Edition</p>
-    <p>Built with Flask & Genomics England + Australia PanelApp APIs.</p>
-    <p class="mt-1">Remember to verify results against official sources.</p>
+  <footer class="w-full max-w-6xl mt-8 pt-6 border-t border-gray-300 text-center text-sm text-gray-500">
+    <p>&copy; 2025 PanelMerge. Enhanced security and user management.</p>
+    <p class="mt-1">
+      <span id="footer-current-time"></span>
+    </p>
   </footer>
+
+  <!-- Scripts -->
+  <script src="{{ url_for('static', filename='js/timezone.js') }}"></script>
+  {% block scripts %}{% endblock %}
+
+  <script>
+    // Update current time displays
+    function updateCurrentTime() {
+      const currentTimeElements = document.querySelectorAll('#current-user-time, #footer-current-time');
+      const currentTime = window.getCurrentUserTime();
+      
+      currentTimeElements.forEach(element => {
+        if (element) {
+          element.textContent = currentTime;
+        }
+      });
+    }
+
+    // Update time immediately and then every minute
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 60000);
+  </script>
 </body>
 </html>

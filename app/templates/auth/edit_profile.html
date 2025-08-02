@@ -49,6 +49,23 @@
                            value="{{ request.form.organization or current_user.organization or '' }}"
                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
+                
+                <div>
+                    <label for="timezone_preference" class="block text-sm font-medium text-gray-700">Timezone Preference</label>
+                    <div class="mt-1">
+                        <select name="timezone_preference" id="timezone_preference" 
+                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option value="">Loading timezones...</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">
+                            This setting controls how timestamps are displayed throughout the application.
+                            Your browser's timezone is automatically detected, but you can override it here.
+                        </p>
+                        <p class="mt-1 text-xs text-blue-600">
+                            Current time in your timezone: <span id="preview-timezone-time">Loading...</span>
+                        </p>
+                    </div>
+                </div>
             </div>
             
             <div class="pt-6 flex justify-between">
@@ -173,6 +190,85 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Setup timezone preview
+    function updateTimezonePreview() {
+        const previewElement = document.getElementById('preview-timezone-time');
+        if (previewElement && window.getCurrentUserTime) {
+            previewElement.textContent = window.getCurrentUserTime();
+        }
+    }
+    
+    // Setup timezone selector for profile page
+    async function setupProfileTimezoneSelector() {
+        const selectElement = document.getElementById('timezone_preference');
+        if (!selectElement) return;
+        
+        try {
+            // Get available timezones from API
+            const response = await fetch('/api/timezone/available');
+            const result = await response.json();
+            
+            if (result.success) {
+                // Clear existing options
+                selectElement.innerHTML = '';
+                
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Use browser timezone';
+                selectElement.appendChild(defaultOption);
+                
+                // Add timezone options
+                result.timezones.forEach(tz => {
+                    const option = document.createElement('option');
+                    option.value = tz.name;
+                    option.textContent = `${tz.display_name} (${tz.current_time})`;
+                    selectElement.appendChild(option);
+                });
+                
+                // Set current value if user has a preference
+                const userTimezone = '{{ current_user.timezone_preference or "" }}';
+                if (userTimezone) {
+                    selectElement.value = userTimezone;
+                } else {
+                    // Try to get current timezone from API for browser-detected timezone
+                    const currentResponse = await fetch('/api/timezone/current');
+                    const currentResult = await currentResponse.json();
+                    if (currentResult.success && currentResult.timezone !== 'UTC') {
+                        // Show current browser timezone but don't select it (user hasn't set preference)
+                        const previewElement = document.getElementById('preview-timezone-time');
+                        if (previewElement) {
+                            previewElement.textContent += ` (Browser: ${currentResult.timezone})`;
+                        }
+                    }
+                }
+            }
+            
+            // Add change event listener
+            selectElement.addEventListener('change', function() {
+                if (this.value) {
+                    // Set timezone via API
+                    fetch('/api/timezone/set', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ timezone: this.value })
+                    }).then(response => response.json())
+                      .then(result => {
+                          if (result.success) {
+                              setTimeout(updateTimezonePreview, 100);
+                          }
+                      });
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error setting up timezone selector:', error);
+            selectElement.innerHTML = '<option value="">Error loading timezones</option>';
+        }
+    }
+    
     // Event listeners
     usernameInput.addEventListener('input', function() {
         checkUsername(this.value);
@@ -181,6 +277,21 @@ document.addEventListener('DOMContentLoaded', function() {
     emailInput.addEventListener('input', function() {
         checkEmail(this.value);
     });
+    
+    // Setup timezone functionality
+    // Wait for timezone manager to be ready
+    function initializeTimezone() {
+        if (window.timezoneManager) {
+            setupProfileTimezoneSelector();
+            updateTimezonePreview();
+            setInterval(updateTimezonePreview, 60000); // Update every minute
+        } else {
+            // Wait a bit more for timezone manager to load
+            setTimeout(initializeTimezone, 100);
+        }
+    }
+    
+    initializeTimezone();
 });
 </script>
 {% endblock %}

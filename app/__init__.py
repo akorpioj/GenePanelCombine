@@ -121,6 +121,10 @@ def create_app(config_name=None):
     from .api import api_bp
     app.register_blueprint(api_bp)
 
+    # Register timezone API
+    from .api.timezone import timezone_bp
+    app.register_blueprint(timezone_bp)
+
     # You could register other Blueprints here
     # from .api import api_bp
     # app.register_blueprint(api_bp, url_prefix='/api/v1')
@@ -143,12 +147,17 @@ def create_app(config_name=None):
         return redirect(url_for('main.index'))
     app.errorhandler(429)(handle_429)
 
+    # Register timezone service and filters
+    from .timezone_service import register_timezone_filters
+    register_timezone_filters(app)
+
     # Add other application setup like custom logging, context processors, etc.
     @app.shell_context_processor
     def make_shell_context():
         """Makes variables automatically available in the 'flask shell'."""
         from .models import User, UserRole, Visit, PanelDownload, AuditLog, AuditActionType
         from .audit_service import AuditService
+        from .timezone_service import TimezoneService
         return {
             'db': db, 
             'User': User, 
@@ -157,7 +166,8 @@ def create_app(config_name=None):
             'PanelDownload': PanelDownload,
             'AuditLog': AuditLog,
             'AuditActionType': AuditActionType,
-            'AuditService': AuditService
+            'AuditService': AuditService,
+            'TimezoneService': TimezoneService
         }
 
     app.logger.info(f"Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
