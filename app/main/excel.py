@@ -6,7 +6,7 @@ from .utils import filter_genes_from_panel_data
 from .utils import MAX_PANELS
 from .utils import logger
 
-def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form, uploaded_panels=None):
+def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form, uploaded_panels=None, include_original_panels=True):
     # Create DataFrame and Excel file
     excel_output = io.BytesIO()
     try:
@@ -66,60 +66,62 @@ def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_genera
                     cell.border = border
             ws_combined.auto_filter.ref = ws_combined.dimensions
 
-            # SECOND: Write each panel's full gene list to its own sheet
-            for idx, (panel_genes, panel_name) in enumerate(zip(panel_full_gene_data, panel_names), 1):
-                if panel_genes:
-                    # Only keep specified fields
-                    keep_fields = [
-                        'entity_type', 'entity_name', 'confidence_level', 'publications', 'evidence', 'phenotypes', 'mode_of_inheritance'
-                    ]
-                    # Clean up values: if value is a list like ["foo"], convert to foo
-                    def clean_value(val):
-                        if isinstance(val, list) and len(val) == 1:
-                            return val[0]
-                        if isinstance(val, list):
-                            return ', '.join(str(v) for v in val)
-                        if isinstance(val, str) and val.startswith("['") and val.endswith("']"):
-                            return val[2:-2]
-                        return val
-                    cleaned = []
-                    for gene in panel_genes:
-                        row = {k: clean_value(gene.get(k, '')) for k in keep_fields}
-                        cleaned.append(row)
-                    df_panel = pd.DataFrame(cleaned)
-                    # Use a safe sheet name (Excel max 31 chars, no special chars)
-                    safe_name = f"Panel {idx}"
-                    if panel_name:
-                        safe_name = panel_name[:27]  # leave room for idx
-                    safe_name = f"{safe_name} ({idx})" if safe_name else f"Panel {idx}"
-                    for ch in ['\\', '/', '*', '?', ':', '[', ']']:
-                        safe_name = safe_name.replace(ch, '')
-                    df_panel.to_excel(writer, index=False, sheet_name=safe_name)
-                    # Set column widths and enable autofilter
-                    ws = writer.book[safe_name]
-                    # Fancy formatting: bold headers, bg color, borders
-                    from openpyxl.styles import Font, PatternFill, Border, Side
-                    header_fill = PatternFill(start_color="FFDEEAF6", end_color="FFDEEAF6", fill_type="solid")
-                    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-                    for col_idx, col in enumerate(df_panel.columns, 1):
-                        cell = ws.cell(row=1, column=col_idx)
-                        cell.font = Font(bold=True)
-                        cell.fill = header_fill
-                        # Set column width
-                        value = str(df_panel.columns[col_idx-1])
-                        if not df_panel.empty:
-                            first_row_val = str(df_panel.iloc[0, col_idx-1])
-                            width = max(len(value), len(first_row_val)) + 2
-                        else:
-                            width = len(value) + 2
-                        ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
-                    # Borders for all cells
-                    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-                        for cell in row:
-                            cell.border = border
-                    ws.auto_filter.ref = ws.dimensions
-            # Add uploaded user panels as separate sheets
-            if uploaded_panels:
+            # SECOND: Write each panel's full gene list to its own sheet (optional)
+            if include_original_panels:
+                for idx, (panel_genes, panel_name) in enumerate(zip(panel_full_gene_data, panel_names), 1):
+                    if panel_genes:
+                        # Only keep specified fields
+                        keep_fields = [
+                            'entity_type', 'entity_name', 'confidence_level', 'publications', 'evidence', 'phenotypes', 'mode_of_inheritance'
+                        ]
+                        # Clean up values: if value is a list like ["foo"], convert to foo
+                        def clean_value(val):
+                            if isinstance(val, list) and len(val) == 1:
+                                return val[0]
+                            if isinstance(val, list):
+                                return ', '.join(str(v) for v in val)
+                            if isinstance(val, str) and val.startswith("['") and val.endswith("']"):
+                                return val[2:-2]
+                            return val
+                        cleaned = []
+                        for gene in panel_genes:
+                            row = {k: clean_value(gene.get(k, '')) for k in keep_fields}
+                            cleaned.append(row)
+                        df_panel = pd.DataFrame(cleaned)
+                        # Use a safe sheet name (Excel max 31 chars, no special chars)
+                        safe_name = f"Panel {idx}"
+                        if panel_name:
+                            safe_name = panel_name[:27]  # leave room for idx
+                        safe_name = f"{safe_name} ({idx})" if safe_name else f"Panel {idx}"
+                        for ch in ['\\', '/', '*', '?', ':', '[', ']']:
+                            safe_name = safe_name.replace(ch, '')
+                        df_panel.to_excel(writer, index=False, sheet_name=safe_name)
+                        # Set column widths and enable autofilter
+                        ws = writer.book[safe_name]
+                        # Fancy formatting: bold headers, bg color, borders
+                        from openpyxl.styles import Font, PatternFill, Border, Side
+                        header_fill = PatternFill(start_color="FFDEEAF6", end_color="FFDEEAF6", fill_type="solid")
+                        border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+                        for col_idx, col in enumerate(df_panel.columns, 1):
+                            cell = ws.cell(row=1, column=col_idx)
+                            cell.font = Font(bold=True)
+                            cell.fill = header_fill
+                            # Set column width
+                            value = str(df_panel.columns[col_idx-1])
+                            if not df_panel.empty:
+                                first_row_val = str(df_panel.iloc[0, col_idx-1])
+                                width = max(len(value), len(first_row_val)) + 2
+                            else:
+                                width = len(value) + 2
+                            ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
+                        # Borders for all cells
+                        for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+                            for cell in row:
+                                cell.border = border
+                        ws.auto_filter.ref = ws.dimensions
+                        
+            # Add uploaded user panels as separate sheets (optional)
+            if uploaded_panels and include_original_panels:
                 for sheet_name, gene_list in uploaded_panels:
                     # Excel sheet names max 31 chars, remove special chars
                     safe_name = sheet_name[:31]

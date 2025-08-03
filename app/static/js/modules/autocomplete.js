@@ -100,11 +100,17 @@ export function initializeAutocomplete() {
     searchInput.addEventListener("input", debounce(async (e) => {
         const query = e.target.value.trim();
         
+        // Clear any pending gene suggestion timeouts
+        clearTimeout(suggestionTimeout);
+        
         // Show gene suggestions if it looks like a gene name
         if (query.length >= 2 && !query.includes(' ')) {
-            clearTimeout(suggestionTimeout);
             suggestionTimeout = setTimeout(() => {
-                showGeneSuggestions(query);
+                // Double-check that the input value hasn't changed
+                const currentQuery = searchInput.value.trim();
+                if (currentQuery === query) {
+                    showGeneSuggestions(query);
+                }
             }, 150);
         } else {
             hideAutocomplete();

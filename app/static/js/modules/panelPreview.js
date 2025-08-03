@@ -9,96 +9,22 @@
 export function initializePanelPreview() {
     console.log('Initializing panel preview functionality');
     
-    // Add event listeners for panel preview triggers immediately
-    attachPanelPreviewListeners();
-    
-    // Also set up observer for dynamic content
-    setupPanelObserver();
+    // Note: Preview buttons are now handled by dynamicPanels.js
+    // This module only provides the openPanelPreview function and modal functionality
 }
 
 /**
- * Attach preview listeners to panel elements
- */
-function attachPanelPreviewListeners() {
-    // Listen for panel option hover events
-    const panelSelects = document.querySelectorAll('select[id^="panel_id_"]');
-    
-    panelSelects.forEach(select => {
-        // Skip if preview button already exists
-        if (select.nextElementSibling && select.nextElementSibling.innerHTML && select.nextElementSibling.innerHTML.includes('Preview')) {
-            return;
-        }
-        
-        select.addEventListener('change', handlePanelSelection);
-        
-        // Add preview button next to each select
-        addPreviewButton(select);
-    });
-}
-
-/**
- * Setup observer to detect when panels are dynamically loaded
- */
-function setupPanelObserver() {
-    // Listen for custom panelsUpdated events
-    document.addEventListener('panelsUpdated', (event) => {
-        const select = event.target;
-        if (select && select.id && select.id.startsWith('panel_id_')) {
-            // Check if preview button already exists
-            if (!select.nextElementSibling || !select.nextElementSibling.innerHTML.includes('Preview')) {
-                addPreviewButton(select);
-            }
-        }
-    });
-}
-
-/**
- * Add preview button next to panel select
- */
-function addPreviewButton(selectElement) {
-    // Only add button if select has actual panel options (more than just "None")
-    const hasRealPanels = Array.from(selectElement.options).some(opt => 
-        opt.value !== "None" && opt.value !== "Loading" && opt.value !== ""
-    );
-    
-    if (!hasRealPanels) {
-        return;
-    }
-    
-    const previewBtn = document.createElement('button');
-    previewBtn.type = 'button';
-    previewBtn.className = 'ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors';
-    previewBtn.innerHTML = '👁️ Preview';
-    previewBtn.title = 'Quick panel preview';
-    previewBtn.style.display = 'inline-block'; // Always visible when panels are available
-    
-    previewBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const selectedValue = selectElement.value;
-        if (selectedValue && selectedValue !== 'None') {
-            showPanelPreview(selectedValue, previewBtn, selectElement);
-        } else {
-            // If no panel selected, show dropdown to choose which panel to preview
-            showPanelSelectionForPreview(selectElement, previewBtn);
-        }
-    });
-    
-    // Insert after the select element
-    selectElement.parentNode.insertBefore(previewBtn, selectElement.nextSibling);
-}
-
-/**
- * Handle panel selection change - no longer needed to hide/show preview button
+ * Handle panel selection change
  */
 function handlePanelSelection(event) {
-    // Preview button is always visible when panels are available
-    // No need to hide/show based on selection
+    // This is now handled by dynamicPanels.js
+    // Keeping this function for compatibility but it's no longer used for button creation
 }
 
 /**
  * Show panel selection dropdown for preview when no panel is currently selected
  */
-function showPanelSelectionForPreview(selectElement, triggerElement) {
+export function showPanelSelectionForPreview(selectElement, triggerElement) {
     // Get all available panel options from the select element
     const options = Array.from(selectElement.options).filter(opt => 
         opt.value !== "None" && opt.value !== "Loading" && opt.value !== ""
@@ -219,7 +145,7 @@ function showPanelSelectionForPreview(selectElement, triggerElement) {
 /**
  * Show panel preview modal or tooltip
  */
-async function showPanelPreview(panelIdStr, triggerElement, selectElement = null) {
+export async function showPanelPreview(panelIdStr, triggerElement, selectElement = null) {
     if (!panelIdStr || panelIdStr === 'None') return;
     
     const [panelId, apiSource] = panelIdStr.split('-');
@@ -600,5 +526,7 @@ export function addPanelPreviewTooltips() {
 
 export default {
     initializePanelPreview,
-    addPanelPreviewTooltips
+    addPanelPreviewTooltips,
+    showPanelSelectionForPreview,
+    showPanelPreview
 };

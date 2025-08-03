@@ -44,7 +44,20 @@ function generateDefaultFilename() {
  */
 function getSelectedPanelNames() {
     const selectedPanels = [];
-    for (let i = 1; i <= 8; i++) { // maxPanels = 8
+    // Import dynamically to avoid circular dependencies
+    import('./state.js').then(({ getMaxPanels }) => {
+        const maxPanels = getMaxPanels();
+        for (let i = 1; i <= maxPanels; i++) {
+            const select = document.getElementById(`panel_id_${i}`);
+            if (select && select.value !== "None") {
+                const panelName = select.options[select.selectedIndex].textContent;
+                selectedPanels.push(panelName);
+            }
+        }
+    });
+    
+    // Fallback: check up to 10 panels for immediate use
+    for (let i = 1; i <= 10; i++) {
         const select = document.getElementById(`panel_id_${i}`);
         if (select && select.value !== "None") {
             const panelName = select.options[select.selectedIndex].textContent;
@@ -146,38 +159,6 @@ function showFileNamingModal(defaultFilename) {
 }
 
 /**
- * Download file using File System Access API (modern browsers)
- * @param {Blob} blob File blob
- * @param {string} filename Filename
- */
-async function downloadWithFileSystemAPI(blob, filename) {
-    try {
-        const fileHandle = await window.showSaveFilePicker({
-            suggestedName: filename,
-            types: [{
-                description: 'Excel files',
-                accept: {
-                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
-                }
-            }]
-        });
-        
-        const writable = await fileHandle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        
-        return true;
-    } catch (error) {
-        if (error.name === 'AbortError') {
-            // User cancelled, this is expected
-            return false;
-        }
-        console.error('Error saving file:', error);
-        throw error;
-    }
-}
-
-/**
  * Download file using traditional method (fallback)
  * @param {Blob} blob File blob
  * @param {string} filename Filename
@@ -233,56 +214,96 @@ export async function handleEnhancedDownload(event) {
     const originalButtonText = submitButton.textContent;
     
     try {
-        // Show loading state
-        submitButton.disabled = true;
-        submitButton.textContent = '⏳ Generating...';
-        
         // Get default filename
         const defaultFilename = generateDefaultFilename();
         
-        // Show file naming modal
-        const selectedFilename = await showFileNamingModal(defaultFilename);
-        if (!selectedFilename) {
-            // User cancelled
-            return;
+        let fileHandle = null;
+        let useFileSystemAPI = false;
+        
+        // Try to get file handle IMMEDIATELY while we have user gesture
+        if (isFileSystemAccessSupported()) {
+            console.log('File System Access API is supported, trying to get file handle');
+            try {
+                fileHandle = await window.showSaveFilePicker({
+                    suggestedName: defaultFilename,
+                    types: [{
+                        description: 'Excel files',
+                        accept: {
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+                        }
+                    }]
+                });
+                useFileSystemAPI = true;
+                console.log('File handle obtained successfully');
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('User cancelled File System Access API save dialog');
+                    // User cancelled, we'll exit
+                    return;
+                } else {
+                    console.log('File System Access API failed:', error.message);
+                    // API failed, we'll fall back to modal approach after generating the file
+                }
+            }
         }
         
-        // Update button text
-        submitButton.textContent = '⬇️ Downloading...';
+        // Show loading state
+        submitButton.disabled = true;
+        submitButton.textContent = '⏳ Generating...';
         
         // Submit form and get blob
         const formData = new FormData(form);
         const blob = await submitFormAndGetBlob(formData);
         
-        // Try to download with File System Access API first
-        if (isFileSystemAccessSupported()) {
+        // Update button text
+        submitButton.textContent = '⬇️ Downloading...';
+        
+        let selectedFilename = defaultFilename;
+        let downloadSuccess = false;
+        
+        // If we have a file handle, use it
+        if (useFileSystemAPI && fileHandle) {
             try {
-                const success = await downloadWithFileSystemAPI(blob, selectedFilename);
-                if (!success) {
-                    // User cancelled the save dialog
-                    return;
-                }
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                
+                selectedFilename = fileHandle.name || defaultFilename;
+                downloadSuccess = true;
+                console.log('File saved successfully with File System Access API');
             } catch (error) {
-                // Fall back to traditional download
-                console.log('File System Access API failed, falling back to traditional download');
-                downloadWithTraditionalMethod(blob, selectedFilename);
+                console.log('Failed to write file with File System Access API:', error.message);
+                // Fall back to modal approach
             }
-        } else {
-            // Use traditional download for older browsers
-            downloadWithTraditionalMethod(blob, selectedFilename);
         }
         
-        // Show success message
-        const successMsg = document.createElement('div');
-        successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50';
-        successMsg.textContent = `✅ File downloaded: ${selectedFilename}`;
-        document.body.appendChild(successMsg);
-        
-        setTimeout(() => {
-            if (document.body.contains(successMsg)) {
-                document.body.removeChild(successMsg);
+        // If File System Access API didn't work or isn't supported, use modal approach
+        if (!downloadSuccess) {
+            console.log('Falling back to modal filename selection');
+            selectedFilename = await showFileNamingModal(defaultFilename);
+            if (!selectedFilename) {
+                // User cancelled the modal
+                return;
             }
-        }, 3000);
+            
+            // Use traditional download method
+            downloadWithTraditionalMethod(blob, selectedFilename);
+            downloadSuccess = true;
+        }
+        
+        // Show success message if download was successful
+        if (downloadSuccess) {
+            const successMsg = document.createElement('div');
+            successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50';
+            successMsg.textContent = `✅ File downloaded: ${selectedFilename}`;
+            document.body.appendChild(successMsg);
+            
+            setTimeout(() => {
+                if (document.body.contains(successMsg)) {
+                    document.body.removeChild(successMsg);
+                }
+            }, 3000);
+        }
         
     } catch (error) {
         console.error('Download error:', error);

@@ -218,8 +218,23 @@ def generate():
     panel_full_gene_data = []  # Store full gene data for each panel
     panel_names = []           # Store panel names for sheet naming    # Values from the POST form for generating the list
     search_term_from_post_form = request.form.get('search_term_hidden', '') # Get search term if passed from main form
+    include_original_panels = request.form.get('include_original_panels') == 'on'  # Get checkbox value
 
-    for i in range(1, MAX_PANELS + 1):
+    # Determine the maximum panel index from form data (dynamic panels)
+    max_panel_index = 0
+    for key in request.form.keys():
+        if key.startswith('panel_id_'):
+            try:
+                panel_index = int(key.split('_')[-1])
+                max_panel_index = max(max_panel_index, panel_index)
+            except (ValueError, IndexError):
+                continue
+    
+    # Fallback to MAX_PANELS if no dynamic panels found
+    if max_panel_index == 0:
+        max_panel_index = MAX_PANELS
+
+    for i in range(1, max_panel_index + 1):
         panel_id = None
         api_source = None
         panel_id_str = request.form.get(f'panel_id_{i}')
@@ -252,7 +267,7 @@ def generate():
         # Redirect back to index, trying to preserve search term and selections
         # This requires GET parameters, so we build them.
         redirect_params = {'search_term': search_term_from_post_form}
-        for i in range(1, MAX_PANELS + 1):
+        for i in range(1, max_panel_index + 1):
             redirect_params[f'selected_panel_id_{i}'] = request.form.get(f'panel_id_{i}')
             redirect_params[f'selected_list_type_{i}'] = request.form.get(f'list_type_{i}')
         return redirect(url_for('main.index', **redirect_params))
@@ -350,8 +365,9 @@ def generate():
     logger.info(f"Total unique genes for Excel: {len(final_unique_gene_set)}")
     logger.info(f"Panel names: {panel_names}")
     logger.info(f"User panels: {uploaded_panels}")
+    logger.info(f"Include original panels: {include_original_panels}")
     
-    return generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form, uploaded_panels=uploaded_panels)
+    return generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form, uploaded_panels=uploaded_panels, include_original_panels=include_original_panels)
 
 @main_bp.route('/upload_user_panel', methods=['POST'])
 @limiter.limit("30 per hour")

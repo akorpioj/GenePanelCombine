@@ -3,14 +3,36 @@
  * Handles panel selection, filtering, and UI updates
  */
 
-import { allPanels, currentAPI, maxPanels, listTypeOptions, getAllPanels } from './state.js';
+import { allPanels, currentAPI, getMaxPanels, listTypeOptions, getAllPanels } from './state.js';
 import { matches } from './utils.js';
 import { fetchPanelsByGene } from './api.js';
+
+// Track if search is currently in progress
+let isSearching = false;
+
+/**
+ * Set searching state for all panel selects
+ */
+export function setSearchingState() {
+    isSearching = true;
+    const maxPanels = getMaxPanels();
+    for (let i = 1; i <= maxPanels; i++) {
+        const select = document.getElementById(`panel_id_${i}`);
+        if (select) {
+            // Only update if currently showing "None" option (not a selected panel)
+            if (select.value === "None") {
+                select.innerHTML = '<option value="None" selected>Searching...</option>';
+                select.classList.remove('panel-source-uk', 'panel-source-aus');
+            }
+        }
+    }
+}
 
 /**
  * Set loading state for all panel selects
  */
 export function setLoadingState() {
+    const maxPanels = getMaxPanels();
     for (let i = 1; i <= maxPanels; i++) {
         const select = document.getElementById(`panel_id_${i}`);
         if (select) {
@@ -40,42 +62,64 @@ export async function populateAll() {
     const searchInput = document.getElementById("search_term_input");
     const term = searchInput ? searchInput.value.trim().toLowerCase() : "";
 
-    // Start with text-based filtering
-    let filtered = allPanels[currentAPI].filter(p => matches(p, term));
-
-    // If the search term is a single word, also try fetching panels by gene name
-    if (term && !term.includes(' ') && term.length > 1) {
-        try {
-            const genePanels = await fetchPanelsByGene(term, currentAPI);
-            if (genePanels && Array.isArray(genePanels)) {
-                // Merge gene panels with text-filtered results, removing duplicates
-                const existingIds = new Set(filtered.map(p => `${p.id}-${p.api_source}`));
-                genePanels.forEach(genePanel => {
-                    const panelKey = `${genePanel.id}-${genePanel.api_source}`;
-                    if (!existingIds.has(panelKey)) {
-                        filtered.push(genePanel);
-                        existingIds.add(panelKey);
-                    }
-                });
-            }
-        } catch (error) {
-            console.log('Gene search failed, continuing with text search only:', error);
-        }
+    // Set searching state if there's a search term
+    if (term) {
+        setSearchingState();
     }
 
-    for (let i = 1; i <= maxPanels; i++) {
-        const select = document.getElementById(`panel_id_${i}`);
-        if (!select) {
-            continue; // Skip if element doesn't exist
+    try {
+        // Start with text-based filtering
+        let filtered = allPanels[currentAPI].filter(p => matches(p, term));
+
+        // If the search term is a single word, also try fetching panels by gene name
+        if (term && !term.includes(' ') && term.length > 1) {
+            try {
+                const genePanels = await fetchPanelsByGene(term, currentAPI);
+                if (genePanels && Array.isArray(genePanels)) {
+                    // Merge gene panels with text-filtered results, removing duplicates
+                    const existingIds = new Set(filtered.map(p => `${p.id}-${p.api_source}`));
+                    genePanels.forEach(genePanel => {
+                        const panelKey = `${genePanel.id}-${genePanel.api_source}`;
+                        if (!existingIds.has(panelKey)) {
+                            filtered.push(genePanel);
+                            existingIds.add(panelKey);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.log('Gene search failed, continuing with text search only:', error);
+            }
         }
-        
-        const current = select.value || "None";
-        
-        // Keep current selection if it's from any source
-        const currentPanel = ((current !== "None") &&
-            getAllPanels().find(p => (String(p.id) + '-' + p.api_source) === current));
-        
-        updateSelectOptions(select, filtered, current, currentPanel);
+
+        // Check if search term has changed while we were processing
+        const currentTerm = searchInput ? searchInput.value.trim().toLowerCase() : "";
+        if (currentTerm !== term) {
+            console.log('Search term changed during processing, skipping update');
+            return; // Search term changed, skip this update
+        }
+
+        // Clear searching state
+        isSearching = false;
+
+        const maxPanels = getMaxPanels();
+        for (let i = 1; i <= maxPanels; i++) {
+            const select = document.getElementById(`panel_id_${i}`);
+            if (!select) {
+                continue; // Skip if element doesn't exist
+            }
+            
+            const current = select.value || "None";
+            
+            // Keep current selection if it's from any source
+            const currentPanel = ((current !== "None") &&
+                getAllPanels().find(p => (String(p.id) + '-' + p.api_source) === current));
+            
+            updateSelectOptions(select, filtered, current, currentPanel);
+        }
+    } catch (error) {
+        console.error('Error in populateAll:', error);
+        // Clear searching state on error
+        isSearching = false;
     }
 }
 
@@ -87,8 +131,17 @@ export async function populateAll() {
  * @param {Object} currentPanel - Currently selected panel object
  */
 export function updateSelectOptions(select, list, current, currentPanel) {
-    // start with a "None" option
-    const options = [{ id: "None", display_name: "None" }];
+    // start with a "None" option - show different text based on search state
+    const panelCount = list.length;
+    let noneLabel;
+    
+    if (isSearching) {
+        noneLabel = "Searching...";
+    } else {
+        noneLabel = `None (${panelCount} panel${panelCount !== 1 ? 's' : ''})`;
+    }
+    
+    const options = [{ id: "None", display_name: noneLabel }];
     const seen = new Set(["None"]);
 
     // add all filtered
@@ -116,7 +169,7 @@ export function updateSelectOptions(select, list, current, currentPanel) {
         const o = document.createElement("option");
         if (opt.id === "None") {
             o.value = "None";
-            o.textContent = "None";
+            o.textContent = opt.display_name; // This now includes the count or "Searching..."
         } else {
             o.value = `${opt.id}-${opt.api_source}`; // Combine ID + source
             o.textContent = opt.display_name;
@@ -175,6 +228,7 @@ export function clearAll() {
     }
     
     // Clear all panel selections
+    const maxPanels = getMaxPanels();
     for (let i = 1; i <= maxPanels; i++) {
         clearPanel(i);
     }
@@ -189,6 +243,7 @@ export function clearAll() {
  */
 export function getSelectedPanels() {
     const selectedPanels = [];
+    const maxPanels = getMaxPanels();
     for (let i = 1; i <= maxPanels; i++) {
         const select = document.getElementById(`panel_id_${i}`);
         if (select && select.value !== "None") {

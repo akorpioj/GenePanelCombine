@@ -9,8 +9,27 @@
 
 export let allPanels = { uk: [], aus: [] };
 export let currentAPI = 'uk';
-export const maxPanels = window.maxPanels || 10; // Get from global or default
-export const listTypeOptions = window.listTypeOptions || ['Green', 'Amber', 'Red']; // Get from global or default
+export const maxPanels = window.maxPanels || 10; // Keep for backward compatibility
+export const listTypeOptions = window.listTypeOptions || ['Whole gene panel', 'High evidence (Green only)', 'High + Moderate evidence (Green + Amber)', 'All evidence levels (Green + Amber + Red)']; // Get from global or default
+
+// Dynamic panel management
+let dynamicMaxPanels = 3; // Default starting panels
+
+/**
+ * Get current maximum panels (dynamic)
+ * @returns {number} Current max panels
+ */
+export function getMaxPanels() {
+    return dynamicMaxPanels;
+}
+
+/**
+ * Set current maximum panels (dynamic)
+ * @param {number} count - New panel count
+ */
+export function setMaxPanels(count) {
+    dynamicMaxPanels = count;
+}
 
 // Search configuration
 export const fieldsToSearch = [

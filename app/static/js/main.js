@@ -11,12 +11,16 @@ import { initializeDragAndDrop, initializeFileUpload } from './modules/fileUploa
 import { openPanelComparison } from './modules/panelComparison.js';
 import { initializePanelPreview } from './modules/panelPreview.js';
 import { initializeEnhancedDownload } from './modules/downloadManager.js';
+import { initializeDynamicPanels } from './modules/dynamicPanels.js';
 
 /**
  * Initialize all functionality when DOM is loaded
  */
 function initializeApp() {
     console.log("PanelMerge: Initializing application");
+    
+    // Initialize dynamic panels first (this creates the panel structure)
+    initializeDynamicPanels();
     
     // Set initial loading state for panel selects
     setLoadingState();
