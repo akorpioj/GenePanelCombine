@@ -2,9 +2,10 @@ from flask_login import LoginManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
+from flask_migrate import Migrate
 
-#db = SQLAlchemy()
-#migrate = Migrate()
+# Initialize Flask-Migrate
+migrate = Migrate()
 
 login_manager = LoginManager()
 # Configure LoginManager settings

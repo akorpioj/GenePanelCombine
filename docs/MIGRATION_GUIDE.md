@@ -22,12 +22,15 @@ This guide provides step-by-step instructions for migrating between different ve
 
 - **Major Version Migration** (1.x.x → 2.x.x): May include breaking changes
 - **Minor Version Migration** (1.3.x → 1.4.x): New features, backward compatible
+- **Feature Version Migration** (1.4.x → 1.5.x): Major new features (Saved Panels System)
 - **Patch Version Migration** (1.4.0 → 1.4.1): Bug fixes, security patches
 
 ### Migration Complexity
 
 | From → To | Complexity | Database Changes | Config Changes | Downtime |
 |-----------|------------|------------------|----------------|----------|
+| 1.5.0 → 1.5.1 | Low | Minimal | No | ~2-5 min |
+| 1.4.x → 1.5.x | High | Major (5 new tables) | Minimal | ~10-20 min |
 | 1.4.0 → 1.4.1 | Low | Yes | No | ~2-5 min |
 | 1.3.x → 1.4.x | Medium | Yes | Yes | ~5-10 min |
 | 1.2.x → 1.4.x | High | Yes | Yes | ~15-30 min |
@@ -263,6 +266,37 @@ This guide provides step-by-step instructions for migrating between different ve
    python scripts/migrations/create_admin_messages_table.py info
    ```
 
+#### v1.5.x Migration Scripts (Saved Panels System)
+
+1. **Saved Panels System Migration** - IMPLEMENTED 03/08/2025
+   ```bash
+   # Initialize Flask-Migrate (if not already done)
+   flask db init
+   
+   # Create migration for saved panels tables
+   flask db migrate -m "Add saved panels system - correct order"
+   
+   # Apply migration to database
+   flask db upgrade
+   
+   # Verify migration status
+   flask db current
+   ```
+
+   **Migration creates 5 new tables:**
+   - `saved_panels` - Core panel metadata and ownership
+   - `panel_versions` - Version history with timestamps and changelogs
+   - `panel_genes` - Gene data with confidence levels and modifications
+   - `panel_shares` - Sharing permissions and team access control
+   - `panel_changes` - Detailed change tracking for diff views
+
+   **Key Features:**
+   - Foreign key relationships with proper dependency resolution
+   - Circular dependency handling (saved_panels ↔ panel_versions)
+   - Performance-optimized indexes for common query patterns
+   - Support for version control and collaborative editing
+   - Integration with existing user authentication system
+
 #### Manual Database Migration
 
 If automatic scripts fail, use manual SQL migration:
@@ -296,6 +330,130 @@ CREATE TABLE IF NOT EXISTS admin_message (
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_admin_message_active ON admin_message(is_active);
 CREATE INDEX IF NOT EXISTS idx_admin_message_expires ON admin_message(expires_at);
+
+-- Manual Saved Panels System Migration (v1.5.x)
+-- Note: Use Flask-Migrate instead when possible, this is for emergency rollback
+
+-- 1. Create enum types
+CREATE TYPE panelstatus AS ENUM ('ACTIVE', 'ARCHIVED', 'DELETED', 'DRAFT');
+CREATE TYPE panelvisibility AS ENUM ('PRIVATE', 'SHARED', 'PUBLIC');
+CREATE TYPE changetype AS ENUM ('GENE_ADDED', 'GENE_REMOVED', 'GENE_MODIFIED', 'METADATA_CHANGED', 'CONFIDENCE_CHANGED', 'SOURCE_UPDATED');
+CREATE TYPE sharepermission AS ENUM ('VIEW', 'COMMENT', 'EDIT', 'ADMIN');
+
+-- 2. Create saved_panels table (without circular reference)
+CREATE TABLE IF NOT EXISTS saved_panels (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    tags VARCHAR(500),
+    owner_id INTEGER NOT NULL,
+    status panelstatus NOT NULL DEFAULT 'ACTIVE',
+    visibility panelvisibility NOT NULL DEFAULT 'PRIVATE',
+    gene_count INTEGER NOT NULL DEFAULT 0,
+    source_type VARCHAR(50),
+    source_reference VARCHAR(255),
+    current_version_id INTEGER, -- Will be added later
+    version_count INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_accessed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    storage_backend VARCHAR(20) NOT NULL DEFAULT 'local',
+    storage_path VARCHAR(500),
+    FOREIGN KEY (owner_id) REFERENCES "user"(id)
+);
+
+-- 3. Create panel_versions table
+CREATE TABLE IF NOT EXISTS panel_versions (
+    id SERIAL PRIMARY KEY,
+    panel_id INTEGER NOT NULL,
+    version_number INTEGER NOT NULL,
+    comment TEXT,
+    created_by_id INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    gene_count INTEGER,
+    changes_summary TEXT,
+    storage_path VARCHAR(500),
+    FOREIGN KEY (created_by_id) REFERENCES "user"(id),
+    FOREIGN KEY (panel_id) REFERENCES saved_panels(id),
+    CONSTRAINT uq_panel_version UNIQUE (panel_id, version_number)
+);
+
+-- 4. Add the circular foreign key constraint
+ALTER TABLE saved_panels ADD CONSTRAINT fk_saved_panels_current_version 
+    FOREIGN KEY (current_version_id) REFERENCES panel_versions(id);
+
+-- 5. Create remaining tables
+CREATE TABLE IF NOT EXISTS panel_genes (
+    id SERIAL PRIMARY KEY,
+    panel_id INTEGER NOT NULL,
+    gene_symbol VARCHAR(50) NOT NULL,
+    gene_name VARCHAR(255),
+    ensembl_id VARCHAR(50),
+    hgnc_id VARCHAR(20),
+    confidence_level VARCHAR(20),
+    mode_of_inheritance VARCHAR(100),
+    phenotype TEXT,
+    evidence_level VARCHAR(20),
+    source_panel_id VARCHAR(50),
+    source_list_type VARCHAR(20),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    added_by_id INTEGER,
+    added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_notes TEXT,
+    custom_confidence VARCHAR(20),
+    is_modified BOOLEAN DEFAULT false,
+    FOREIGN KEY (added_by_id) REFERENCES "user"(id),
+    FOREIGN KEY (panel_id) REFERENCES saved_panels(id),
+    CONSTRAINT uq_panel_gene_symbol UNIQUE (panel_id, gene_symbol)
+);
+
+CREATE TABLE IF NOT EXISTS panel_shares (
+    id SERIAL PRIMARY KEY,
+    panel_id INTEGER NOT NULL,
+    shared_by_id INTEGER NOT NULL,
+    shared_with_user_id INTEGER,
+    shared_with_team_id INTEGER,
+    permission_level sharepermission NOT NULL DEFAULT 'VIEW',
+    can_reshare BOOLEAN NOT NULL DEFAULT false,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_accessed_at TIMESTAMP,
+    share_token VARCHAR(255),
+    FOREIGN KEY (panel_id) REFERENCES saved_panels(id),
+    FOREIGN KEY (shared_by_id) REFERENCES "user"(id),
+    FOREIGN KEY (shared_with_user_id) REFERENCES "user"(id),
+    CONSTRAINT check_share_target CHECK (
+        (shared_with_user_id IS NOT NULL) OR 
+        (shared_with_team_id IS NOT NULL) OR 
+        (share_token IS NOT NULL)
+    )
+);
+
+CREATE TABLE IF NOT EXISTS panel_changes (
+    id SERIAL PRIMARY KEY,
+    panel_id INTEGER NOT NULL,
+    version_id INTEGER NOT NULL,
+    change_type changetype NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
+    target_id VARCHAR(100),
+    old_value_encrypted TEXT,
+    new_value_encrypted TEXT,
+    changed_by_id INTEGER NOT NULL,
+    changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    change_reason VARCHAR(255),
+    FOREIGN KEY (changed_by_id) REFERENCES "user"(id),
+    FOREIGN KEY (panel_id) REFERENCES saved_panels(id),
+    FOREIGN KEY (version_id) REFERENCES panel_versions(id)
+);
+
+-- 6. Create performance indexes (see Flask-Migrate file for complete list)
+-- Key indexes for performance
+CREATE INDEX IF NOT EXISTS idx_saved_panels_owner_status ON saved_panels(owner_id, status);
+CREATE INDEX IF NOT EXISTS idx_panel_versions_panel_version ON panel_versions(panel_id, version_number);
+CREATE INDEX IF NOT EXISTS idx_panel_genes_panel_symbol ON panel_genes(panel_id, gene_symbol);
+CREATE INDEX IF NOT EXISTS idx_panel_shares_panel_active ON panel_shares(panel_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_panel_changes_panel_version ON panel_changes(panel_id, version_id);
 ```
 
 ### Database Migration Verification
@@ -310,10 +468,21 @@ with app.app_context():
     inspector = inspect(db.engine)
     tables = inspector.get_table_names()
     print('Tables:', tables)
+    
+    # Check admin_message table
     if 'admin_message' in tables:
         print('✅ admin_message table exists')
     else:
         print('❌ admin_message table missing')
+    
+    # Check saved panels system tables (v1.5.x)
+    saved_panels_tables = ['saved_panels', 'panel_versions', 'panel_genes', 'panel_shares', 'panel_changes']
+    print('\nSaved Panels System Tables:')
+    for table in saved_panels_tables:
+        if table in tables:
+            print(f'✅ {table} - EXISTS')
+        else:
+            print(f'❌ {table} - MISSING')
     
     # Check timezone_preference column
     user_columns = [col['name'] for col in inspector.get_columns('user')]
@@ -897,6 +1066,101 @@ python scripts/migrations/create_admin_messages_table.py migrate --verbose
 
 # Check migration status
 python scripts/migrations/create_admin_messages_table.py info
+```
+
+#### Saved Panels Migration Issues (v1.5.x)
+
+**Issue**: Flask-Migrate circular dependency error
+```bash
+# Error: "unresolvable cycles between tables saved_panels, panel_versions"
+# This is expected and handled automatically in the migration
+
+# Check if migration completed successfully:
+flask db current
+# Should show: 64ca2e43ca66 (head)
+
+# Verify tables exist:
+python -c "
+from app import create_app, db
+from sqlalchemy import inspect
+app = create_app()
+with app.app_context():
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+    saved_panels_tables = ['saved_panels', 'panel_versions', 'panel_genes', 'panel_shares', 'panel_changes']
+    for table in saved_panels_tables:
+        print(f'✅ {table}' if table in tables else f'❌ {table} MISSING')
+"
+```
+
+**Issue**: Migration fails with "relation does not exist" error
+```bash
+# This indicates table creation order issue
+# Solution: Reset migrations and recreate
+
+# 1. Remove migrations directory
+rm -rf migrations/
+
+# 2. Clear alembic version table
+python -c "
+from app import create_app, db
+from sqlalchemy import text
+app = create_app()
+with app.app_context():
+    db.session.execute(text('DELETE FROM alembic_version'))
+    db.session.commit()
+    print('✅ Cleared alembic version table')
+"
+
+# 3. Reinitialize and migrate
+flask db init
+flask db migrate -m "Add saved panels system - correct order"
+flask db upgrade
+```
+
+**Issue**: Foreign key constraint violations during migration
+```bash
+# Check for orphaned data before migration
+python -c "
+from app import create_app, db
+from sqlalchemy import text
+app = create_app()
+with app.app_context():
+    # Check for users without valid IDs
+    result = db.session.execute(text('SELECT COUNT(*) FROM \"user\"'))
+    print(f'User count: {result.scalar()}')
+    
+    # Ensure user table has data before migrating saved panels
+    if result.scalar() == 0:
+        print('❌ No users found - create admin user first')
+    else:
+        print('✅ Users exist - safe to migrate')
+"
+```
+
+**Issue**: Migration succeeds but tables are empty or missing constraints
+```bash
+# Verify table structure
+python -c "
+from app import create_app, db
+from sqlalchemy import inspect, text
+app = create_app()
+with app.app_context():
+    inspector = inspect(db.engine)
+    
+    # Check saved_panels table structure
+    if 'saved_panels' in inspector.get_table_names():
+        columns = inspector.get_columns('saved_panels')
+        fks = inspector.get_foreign_keys('saved_panels')
+        print(f'saved_panels columns: {len(columns)}')
+        print(f'saved_panels foreign keys: {len(fks)}')
+        
+        # Check for circular FK
+        has_current_version_fk = any(fk['referred_table'] == 'panel_versions' for fk in fks)
+        print(f'✅ Circular FK exists: {has_current_version_fk}')
+    else:
+        print('❌ saved_panels table not found')
+"
 ```
 
 ### Recovery Procedures

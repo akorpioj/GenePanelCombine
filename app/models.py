@@ -321,6 +321,407 @@ class AdminMessage(db.Model):
         ).order_by(cls.created_at.desc()).all()
 
 
+# ===== SAVED PANELS SYSTEM MODELS =====
+
+class PanelStatus(Enum):
+    """Status of a saved panel"""
+    ACTIVE = "ACTIVE"           # Panel is active and available
+    ARCHIVED = "ARCHIVED"       # Panel is archived but accessible
+    DELETED = "DELETED"         # Panel is soft-deleted
+    DRAFT = "DRAFT"            # Panel is in draft state
+
+class PanelVisibility(Enum):
+    """Visibility levels for panels"""
+    PRIVATE = "PRIVATE"         # Only owner can see
+    SHARED = "SHARED"          # Shared with specific users/teams
+    PUBLIC = "PUBLIC"          # Visible to all users (future feature)
+
+class SavedPanel(db.Model):
+    """Main saved panel model - stores panel metadata"""
+    __tablename__ = 'saved_panels'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Panel metadata
+    name = db.Column(db.String(255), nullable=False, index=True)
+    description = db.Column(db.Text)
+    tags = db.Column(db.String(500))  # Comma-separated tags
+    
+    # Ownership and permissions
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    owner = db.relationship('User', backref='saved_panels', lazy=True)
+    
+    # Panel properties
+    status = db.Column(db.Enum(PanelStatus), default=PanelStatus.ACTIVE, nullable=False, index=True)
+    visibility = db.Column(db.Enum(PanelVisibility), default=PanelVisibility.PRIVATE, nullable=False)
+    gene_count = db.Column(db.Integer, default=0, nullable=False)
+    
+    # Source information
+    source_type = db.Column(db.String(50))  # 'upload', 'panelapp', 'manual', 'template'
+    source_reference = db.Column(db.String(255))  # Original source reference
+    
+    # Version tracking
+    current_version_id = db.Column(db.Integer, db.ForeignKey('panel_versions.id'), nullable=True)
+    version_count = db.Column(db.Integer, default=1, nullable=False)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now, nullable=False)
+    last_accessed_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    
+    # Storage backend reference
+    storage_backend = db.Column(db.String(20), default='gcs', nullable=False)  # 'gcs', 'local'
+    storage_path = db.Column(db.String(500))  # Path in storage backend
+    
+    # Relationships
+    versions = db.relationship('PanelVersion', backref='panel', lazy='dynamic', 
+                             foreign_keys='PanelVersion.panel_id')
+    current_version = db.relationship('PanelVersion', foreign_keys=[current_version_id], 
+                                    post_update=True, uselist=False)
+    shares = db.relationship('PanelShare', backref='panel', lazy='dynamic', cascade='all, delete-orphan')
+    genes = db.relationship('PanelGene', backref='panel', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Indexes for performance
+    __table_args__ = (
+        db.Index('idx_saved_panels_owner_status', 'owner_id', 'status'),
+        db.Index('idx_saved_panels_created', 'created_at'),
+        db.Index('idx_saved_panels_updated', 'updated_at'),
+        db.Index('idx_saved_panels_name_owner', 'name', 'owner_id'),
+    )
+    
+    def __repr__(self):
+        return f'<SavedPanel {self.id}: {self.name} by {self.owner.username if self.owner else "Unknown"}>'
+    
+    def get_latest_version(self):
+        """Get the latest version of this panel"""
+        return self.versions.order_by(PanelVersion.version_number.desc()).first()
+    
+    def create_new_version(self, user_id, comment=None):
+        """Create a new version of this panel"""
+        latest = self.get_latest_version()
+        new_version_number = (latest.version_number + 1) if latest else 1
+        
+        new_version = PanelVersion(
+            panel_id=self.id,
+            version_number=new_version_number,
+            created_by_id=user_id,
+            comment=comment or f"Version {new_version_number}",
+            gene_count=self.gene_count
+        )
+        
+        db.session.add(new_version)
+        db.session.flush()  # Get the ID
+        
+        # Update panel reference
+        self.current_version_id = new_version.id
+        self.version_count = new_version_number
+        self.updated_at = datetime.datetime.now()
+        
+        return new_version
+    
+    def is_shared_with_user(self, user_id):
+        """Check if panel is shared with specific user"""
+        return self.shares.filter_by(shared_with_user_id=user_id, is_active=True).first() is not None
+    
+    def to_dict(self, include_genes=False):
+        """Convert panel to dictionary"""
+        result = {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'tags': self.tags.split(',') if self.tags else [],
+            'owner': {
+                'id': self.owner.id,
+                'username': self.owner.username,
+                'full_name': self.owner.get_full_name()
+            } if self.owner else None,
+            'status': self.status.value,
+            'visibility': self.visibility.value,
+            'gene_count': self.gene_count,
+            'source_type': self.source_type,
+            'source_reference': self.source_reference,
+            'version_count': self.version_count,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_accessed_at': self.last_accessed_at.isoformat() if self.last_accessed_at else None,
+        }
+        
+        if include_genes:
+            result['genes'] = [gene.to_dict() for gene in self.genes.filter_by(is_active=True)]
+        
+        return result
+
+class PanelVersion(db.Model):
+    """Panel version history - tracks changes over time"""
+    __tablename__ = 'panel_versions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    panel_id = db.Column(db.Integer, db.ForeignKey('saved_panels.id'), nullable=False, index=True)
+    
+    # Version information
+    version_number = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text)
+    
+    # Version metadata
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_by = db.relationship('User', lazy=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    
+    # Snapshot data
+    gene_count = db.Column(db.Integer, default=0)
+    changes_summary = db.Column(db.Text)  # JSON string of what changed
+    
+    # Storage reference for this version
+    storage_path = db.Column(db.String(500))  # Path to version data in storage
+    
+    # Relationships
+    changes = db.relationship('PanelChange', backref='version', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Constraints
+    __table_args__ = (
+        db.UniqueConstraint('panel_id', 'version_number', name='uq_panel_version'),
+        db.Index('idx_panel_versions_panel_version', 'panel_id', 'version_number'),
+        db.Index('idx_panel_versions_created', 'created_at'),
+    )
+    
+    def __repr__(self):
+        return f'<PanelVersion {self.panel_id}v{self.version_number}>'
+    
+    def to_dict(self):
+        """Convert version to dictionary"""
+        return {
+            'id': self.id,
+            'version_number': self.version_number,
+            'comment': self.comment,
+            'created_by': {
+                'id': self.created_by.id,
+                'username': self.created_by.username,
+                'full_name': self.created_by.get_full_name()
+            } if self.created_by else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'gene_count': self.gene_count,
+            'changes_summary': self.changes_summary,
+        }
+
+class PanelGene(db.Model):
+    """Individual genes within a saved panel"""
+    __tablename__ = 'panel_genes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    panel_id = db.Column(db.Integer, db.ForeignKey('saved_panels.id'), nullable=False, index=True)
+    
+    # Gene information
+    gene_symbol = db.Column(db.String(50), nullable=False, index=True)
+    gene_name = db.Column(db.String(255))
+    ensembl_id = db.Column(db.String(50), index=True)
+    hgnc_id = db.Column(db.String(20))
+    
+    # Panel-specific gene data
+    confidence_level = db.Column(db.String(20))  # 'high', 'medium', 'low'
+    mode_of_inheritance = db.Column(db.String(100))
+    phenotype = db.Column(db.Text)
+    evidence_level = db.Column(db.String(20))
+    
+    # Source information
+    source_panel_id = db.Column(db.String(50))  # Original PanelApp panel ID
+    source_list_type = db.Column(db.String(20))  # 'green', 'amber', 'red'
+    
+    # Status and metadata
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    added_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    added_by = db.relationship('User', lazy=True)
+    added_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    
+    # Custom user notes and modifications
+    user_notes = db.Column(db.Text)
+    custom_confidence = db.Column(db.String(20))  # User override of confidence
+    is_modified = db.Column(db.Boolean, default=False)  # True if user modified this gene
+    
+    # Indexes for performance
+    __table_args__ = (
+        db.Index('idx_panel_genes_panel_active', 'panel_id', 'is_active'),
+        db.Index('idx_panel_genes_symbol', 'gene_symbol'),
+        db.Index('idx_panel_genes_panel_symbol', 'panel_id', 'gene_symbol'),
+        db.UniqueConstraint('panel_id', 'gene_symbol', name='uq_panel_gene_symbol'),
+    )
+    
+    def __repr__(self):
+        return f'<PanelGene {self.gene_symbol} in panel {self.panel_id}>'
+    
+    def to_dict(self):
+        """Convert gene to dictionary"""
+        return {
+            'id': self.id,
+            'gene_symbol': self.gene_symbol,
+            'gene_name': self.gene_name,
+            'ensembl_id': self.ensembl_id,
+            'hgnc_id': self.hgnc_id,
+            'confidence_level': self.confidence_level,
+            'mode_of_inheritance': self.mode_of_inheritance,
+            'phenotype': self.phenotype,
+            'evidence_level': self.evidence_level,
+            'source_panel_id': self.source_panel_id,
+            'source_list_type': self.source_list_type,
+            'is_active': self.is_active,
+            'added_by': {
+                'id': self.added_by.id,
+                'username': self.added_by.username
+            } if self.added_by else None,
+            'added_at': self.added_at.isoformat() if self.added_at else None,
+            'user_notes': self.user_notes,
+            'custom_confidence': self.custom_confidence,
+            'is_modified': self.is_modified,
+        }
+
+class SharePermission(Enum):
+    """Permission levels for shared panels"""
+    VIEW = "VIEW"          # Can view the panel
+    COMMENT = "COMMENT"    # Can view and comment
+    EDIT = "EDIT"         # Can modify the panel
+    ADMIN = "ADMIN"       # Can manage sharing and permissions
+
+class PanelShare(db.Model):
+    """Panel sharing and collaboration"""
+    __tablename__ = 'panel_shares'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    panel_id = db.Column(db.Integer, db.ForeignKey('saved_panels.id'), nullable=False, index=True)
+    
+    # Sharing details
+    shared_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    shared_by = db.relationship('User', foreign_keys=[shared_by_id], lazy=True)
+    
+    shared_with_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    shared_with_user = db.relationship('User', foreign_keys=[shared_with_user_id], lazy=True)
+    
+    # Team sharing (future feature)
+    shared_with_team_id = db.Column(db.Integer, nullable=True)  # Future: ForeignKey to Team model
+    
+    # Permissions and settings
+    permission_level = db.Column(db.Enum(SharePermission), default=SharePermission.VIEW, nullable=False)
+    can_reshare = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Status and metadata
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=True)  # Optional expiration
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    last_accessed_at = db.Column(db.DateTime, nullable=True)
+    
+    # Optional sharing link
+    share_token = db.Column(db.String(255), unique=True, nullable=True, index=True)
+    
+    # Constraints
+    __table_args__ = (
+        db.Index('idx_panel_shares_panel_active', 'panel_id', 'is_active'),
+        db.Index('idx_panel_shares_user_active', 'shared_with_user_id', 'is_active'),
+        db.CheckConstraint(
+            '(shared_with_user_id IS NOT NULL) OR (shared_with_team_id IS NOT NULL) OR (share_token IS NOT NULL)',
+            name='check_share_target'
+        ),
+    )
+    
+    def __repr__(self):
+        return f'<PanelShare panel:{self.panel_id} with user:{self.shared_with_user_id}>'
+    
+    def is_expired(self):
+        """Check if the share has expired"""
+        return self.expires_at and datetime.datetime.now() > self.expires_at
+    
+    def is_valid(self):
+        """Check if the share is valid and active"""
+        return self.is_active and not self.is_expired()
+    
+    def to_dict(self):
+        """Convert share to dictionary"""
+        return {
+            'id': self.id,
+            'panel_id': self.panel_id,
+            'shared_by': {
+                'id': self.shared_by.id,
+                'username': self.shared_by.username,
+                'full_name': self.shared_by.get_full_name()
+            } if self.shared_by else None,
+            'shared_with_user': {
+                'id': self.shared_with_user.id,
+                'username': self.shared_with_user.username,
+                'full_name': self.shared_with_user.get_full_name()
+            } if self.shared_with_user else None,
+            'permission_level': self.permission_level.value,
+            'can_reshare': self.can_reshare,
+            'is_active': self.is_active,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_accessed_at': self.last_accessed_at.isoformat() if self.last_accessed_at else None,
+        }
+
+class ChangeType(Enum):
+    """Types of changes that can be tracked"""
+    GENE_ADDED = "GENE_ADDED"
+    GENE_REMOVED = "GENE_REMOVED"
+    GENE_MODIFIED = "GENE_MODIFIED"
+    METADATA_CHANGED = "METADATA_CHANGED"
+    CONFIDENCE_CHANGED = "CONFIDENCE_CHANGED"
+    SOURCE_UPDATED = "SOURCE_UPDATED"
+
+class PanelChange(db.Model):
+    """Detailed change tracking for panels"""
+    __tablename__ = 'panel_changes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    panel_id = db.Column(db.Integer, db.ForeignKey('saved_panels.id'), nullable=False, index=True)
+    version_id = db.Column(db.Integer, db.ForeignKey('panel_versions.id'), nullable=False, index=True)
+    
+    # Change details
+    change_type = db.Column(db.Enum(ChangeType), nullable=False)
+    target_type = db.Column(db.String(50), nullable=False)  # 'gene', 'metadata', 'panel'
+    target_id = db.Column(db.String(100))  # Gene symbol or field name
+    
+    # Change data (encrypted for sensitive information)
+    _old_value = db.Column('old_value_encrypted', db.Text)
+    _new_value = db.Column('new_value_encrypted', db.Text)
+    
+    # Use encryption descriptors
+    old_value = EncryptedJSONField('_old_value')
+    new_value = EncryptedJSONField('_new_value')
+    
+    # Metadata
+    changed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    changed_by = db.relationship('User', lazy=True)
+    changed_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    
+    change_reason = db.Column(db.String(255))  # Optional reason for change
+    
+    # Indexes
+    __table_args__ = (
+        db.Index('idx_panel_changes_panel_version', 'panel_id', 'version_id'),
+        db.Index('idx_panel_changes_type', 'change_type'),
+        db.Index('idx_panel_changes_date', 'changed_at'),
+    )
+    
+    def __repr__(self):
+        return f'<PanelChange {self.change_type.value} on {self.target_type}:{self.target_id}>'
+    
+    def to_dict(self):
+        """Convert change to dictionary"""
+        return {
+            'id': self.id,
+            'change_type': self.change_type.value,
+            'target_type': self.target_type,
+            'target_id': self.target_id,
+            'old_value': self.old_value,
+            'new_value': self.new_value,
+            'changed_by': {
+                'id': self.changed_by.id,
+                'username': self.changed_by.username,
+                'full_name': self.changed_by.get_full_name()
+            } if self.changed_by else None,
+            'changed_at': self.changed_at.isoformat() if self.changed_at else None,
+            'change_reason': self.change_reason,
+        }
+
+
 def db_init(app):
     """
     Initializes database connection. For testing, uses SQLite in-memory database.
