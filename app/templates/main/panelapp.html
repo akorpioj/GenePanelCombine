@@ -1,25 +1,33 @@
 <!-- PanelApp search and generate form section -->
     <div id="panelapp-section">
         <h2 class="text-xl font-semibold text-sky-600 mb-3">Filter Panel List</h2>
-            <div class="flex-grow mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p class="text-xs text-sky-700 mb-2">
-                    💡 Search for specific panels by panel name, disease group/sub-group, description, 
-                    or gene name. Gene names show autocomplete suggestions as you type (try "BRCA" or "TP5").</p>
-                <p class="text-xs text-sky-700 mb-2">
-                    💡 Start typing in the search field and the drop-down lists of the panels are updated.
-                    Selections that you've already made are not removed from the list.</p>
-                <p class="text-xs text-sky-700 mb-2">
-                    💡 If you want to see all available panels, just clear the search term.
-                    You can also clear all selections and the search term using the button on the right.
-                </p>
-                <p class="text-xs text-gray-400 mb-2">
-                  <strong>Examples:</strong>
-                </p>
-                <ul class="text-xs text-gray-400 list-disc list-inside ml-4 space-y-1">
-                    <li>Gene names with autocomplete: "BRCA1", "TP53", "CFTR"</li>
-                    <li>Panel names: "cardiac", "malformation", "neuro"</li> 
-                    <li>Multi-word searches: "heart disease", "intellectual disability"</li>
-                </ul>
+            <div class="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <details class="group">
+                    <summary class="cursor-pointer text-sm font-medium text-sky-700 hover:text-sky-800 transition-colors flex items-center gap-2">
+                        <span class="transform group-open:rotate-90 transition-transform">▶</span>
+                        Search Instructions & Examples
+                    </summary>
+                    <div class="mt-3 pt-3 border-t border-blue-200">
+                        <p class="text-xs text-sky-700 mt-2 mb-2">
+                            💡 Search for specific panels by panel name, disease group/sub-group, description, 
+                            or gene name. Gene names show autocomplete suggestions as you type (try "BRCA" or "TP5").</p>
+                        <p class="text-xs text-sky-700 mb-2">
+                            💡 Start typing in the search field and the drop-down lists of the panels are updated.
+                            Selections that you've already made are not removed from the list.</p>
+                        <p class="text-xs text-sky-700 mb-2">
+                            💡 If you want to see all available panels, just clear the search term.
+                            You can also clear all selections and the search term using the button on the right.
+                        </p>
+                        <p class="text-xs text-gray-400 mb-2">
+                          <strong>Examples:</strong>
+                        </p>
+                        <ul class="text-xs text-gray-400 list-disc list-inside ml-4 space-y-1">
+                            <li>Gene names with autocomplete: "BRCA1", "TP53", "CFTR"</li>
+                            <li>Panel names: "cardiac", "malformation", "neuro"</li> 
+                            <li>Multi-word searches: "heart disease", "intellectual disability"</li>
+                        </ul>
+                    </div>
+                </details>
             </div>
             <div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
                 <div class="flex-grow mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">

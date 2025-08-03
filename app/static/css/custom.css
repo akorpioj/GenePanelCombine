@@ -46,18 +46,26 @@ body { font-family: 'Inter', sans-serif; }
 
 .tab-button {
     border-bottom-color: transparent;
-    color: #64748b;
+    color: #76859b;
+    background: transparent;
+    border: none;
 }
 
 .tab-button:hover {
     color: #0369a1;
-    border-bottom-color: #0369a1;
+    background: rgba(243, 244, 246, 0.5);
 }
 
 .tab-button.active {
     color: #0369a1;
-    border-bottom-color: #0369a1;
+    background: var(--color-red-100);
     font-weight: 600;
+    border-top: 1px solid #d1d5db;
+    border-left: 1px solid #d1d5db;
+    border-right: 1px solid #d1d5db;
+    border-bottom: none;
+    margin: 0 0 -5px 0;
+    border-radius: 0.375rem 0.375rem 0 0;
 }
 
 /* Add source indicator for selected panels */
