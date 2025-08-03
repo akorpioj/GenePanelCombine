@@ -17,6 +17,18 @@
 - **Panel Categories**: Group panels by disease areas or specialties
 - **Favorites**: Allow users to mark frequently used panels as favorites
 - **Panel Notes**: Let users add personal notes to selected panels
+- **Saved Panel Library**: Personal and shared panel management system with version control
+  - **Personal Panel Storage**: Users can save downloaded panels with modifications
+  - **Panel Sharing**: Share custom panels with other users and teams
+  - **Version Control**: Track all changes with configurable version retention
+  - **Diff Viewer**: Visual comparison between panel versions
+  - **Source Merge**: Merge upstream panel updates with user customizations
+  - **Panel Templates**: Use saved panels as templates for new panel creation
+  - **Export Formats**: Export panels as Excel, CSV, TSV formats
+  - **Profile Integration**: Dedicated "My Panels" tab in user profile
+  - **Storage Options**: Multiple storage backends (local, cloud database, OneDrive API)
+  - **Panel Inheritance**: Create new panels based on existing saved panels
+  - **Collaborative Editing**: Real-time collaboration on shared panels
 
 ### Upload Improvements
 - IMPLEMENTED: **File Validation Preview**: Show detailed validation results before upload - 26/07/2025
@@ -46,6 +58,45 @@
 - **Incremental Updates**: Smart updates that only fetch changed data
 - **Data Backup**: Automated backup and restore functionality
 - **Data Validation**: Real-time validation of panel data integrity
+- **Saved Panel Storage System**: Comprehensive panel library with version control
+  - **Database Schema**: 
+    - `saved_panels` table: metadata, ownership, sharing permissions
+    - `panel_versions` table: version history with timestamps and changelogs
+    - `panel_genes` table: gene data with confidence levels and modifications
+    - `panel_shares` table: sharing permissions and team access
+    - `panel_changes` table: detailed change tracking for diff views
+  - **Storage Architecture**:
+    - **Option 1 (Recommended MVP)**: PostgreSQL + local file system for panel data
+    - **Option 2**: Cloud database (AWS RDS/Azure SQL) + object storage
+    - **Option 3**: OneDrive API integration with local metadata cache
+    - **Option 4**: Hybrid approach with configurable storage backends
+    - **IMPLEMENTED**: Google Cloud Storage integration with multi-backend support 03/08/2025
+      - **Primary Backend**: Google Cloud Storage with three buckets
+        - `gene-panel-combine-panels`: Active panel data (Standard storage)
+        - `gene-panel-combine-versions`: Panel version history (Standard storage)
+        - `gene-panel-combine-backups`: Long-term backups (Coldline storage)
+      - **Backup Backend**: Local file system for redundancy
+      - **Service Account**: `gene-panel-storage@gene-panel-combine.iam.gserviceaccount.com`
+      - **Permissions**: Storage Object Admin role for full bucket access
+      - **Authentication**: Service account key (`gcs-service-account-key.json`)
+      - **Abstraction Layer**: `storage_backends.py` module with pluggable backends
+      - **Configuration**: Environment-based backend selection and settings
+  - **Version Control System**:
+    - Git-like versioning with branch/merge capabilities
+    - Configurable retention policy (default: keep last 10 versions)
+    - Automatic versioning on save with optional commit messages
+    - Tag system for important versions (e.g., "v1.0-production")
+  - **Merge Engine**:
+    - Three-way merge: original source, user modifications, updated source
+    - Conflict resolution UI for gene-level conflicts
+    - Automatic merge for non-conflicting changes
+    - Manual review mode for all changes
+  - **Export System**:
+    - Excel format with multiple sheets (genes, metadata, version history)
+    - CSV/TSV with configurable column selection
+    - JSON format for programmatic access
+    - BED format for genomic coordinate data
+    - Batch export functionality for multiple panels
 
 ### Security & Privacy
 - IMPLEMENTED: **User Accounts**: Full user registration and authentication system - 26/07/2025
@@ -102,6 +153,22 @@
 - IMPLEMENTED: **API Documentation**: Interactive API documentation with Swagger/OpenAPI - 01/08/2025
 - **Rate Limiting**: Sophisticated rate limiting with user tiers
 - **API Analytics**: Usage analytics and monitoring
+- **Saved Panel API Endpoints**:
+  - `GET /api/user/panels` - List user's saved panels with metadata
+  - `POST /api/user/panels` - Save new panel from current selection
+  - `GET /api/user/panels/{id}` - Get specific panel data
+  - `PUT /api/user/panels/{id}` - Update panel with new version
+  - `DELETE /api/user/panels/{id}` - Delete panel and all versions
+  - `GET /api/user/panels/{id}/versions` - List all versions of a panel
+  - `GET /api/user/panels/{id}/versions/{version}` - Get specific version
+  - `POST /api/user/panels/{id}/versions/{version}/restore` - Restore to specific version
+  - `GET /api/user/panels/{id}/diff/{version1}/{version2}` - Get diff between versions
+  - `POST /api/user/panels/{id}/merge` - Merge source updates with user changes
+  - `POST /api/user/panels/{id}/share` - Share panel with users/teams
+  - `POST /api/user/panels/{id}/duplicate` - Create copy of panel
+  - `GET /api/user/panels/{id}/export/{format}` - Export panel in specified format
+  - `POST /api/user/panels/import` - Import panel from file upload
+  - `GET /api/shared/panels` - List panels shared with current user
 
 ## Analytics & Reporting
 
@@ -150,6 +217,40 @@
 - **Keyboard Shortcuts**: Power user keyboard shortcuts
 - **Print-Friendly Views**: Optimized printing of results and reports
 - IMPLEMENTED: **Timezone Support**: User timezone preferences and timezone-aware datetime display with profile integration and current time display - 02/08/2025
+- **My Panels Profile Tab**: Comprehensive panel library management interface
+  - **Panel Library Grid**: Sortable grid with thumbnails, metadata, and quick actions
+  - **Search & Filter**: Advanced filtering by name, date, source, gene count, sharing status
+  - **Version Timeline**: Visual timeline showing panel evolution with branch visualization
+  - **Diff Viewer Component**: Side-by-side comparison with highlighted changes
+    - Gene additions/removals highlighted in green/red
+    - Confidence level changes with visual indicators
+    - Metadata changes with expandable details
+    - Export diff report functionality
+  - **Merge Conflict Resolution UI**: 
+    - Three-pane merge view (original, user changes, source updates)
+    - Gene-by-gene conflict resolution with accept/reject options
+    - Bulk conflict resolution with smart suggestions
+    - Preview merged result before applying
+  - **Panel Editor Modal**: 
+    - Inline editing of panel metadata (name, description, tags)
+    - Gene list editing with add/remove/modify capabilities
+    - Confidence level adjustments with validation
+    - Real-time validation and error highlighting
+  - **Sharing Management**: 
+    - User/team picker with autocomplete
+    - Permission levels (view, edit, admin)
+    - Sharing link generation with expiration options
+    - Activity feed showing who accessed/modified shared panels
+  - **Export Wizard**: 
+    - Format selection (Excel, CSV, TSV, JSON, BED)
+    - Column customization and filtering options
+    - Template creation for recurring export needs
+    - Batch export for multiple panels
+  - **Import Interface**: 
+    - Drag-and-drop file upload with format detection
+    - Column mapping for non-standard formats
+    - Validation preview before import
+    - Conflict resolution for duplicate panel names
 
 ## Integration & Workflow Features
 
@@ -223,10 +324,11 @@
 1. User account system - IMPLEMENTED 26/07/2025
 2. **API Testing Suite**: Complete API endpoint testing
 3. **Database Testing**: Data integrity and migration testing
-4. OMIM/ClinVar integration
-5. Advanced analytics dashboard
-6. Team collaboration features
-7. Progressive Web App
+4. **Saved Panel Library System**: Personal and collaborative panel management with version control
+5. OMIM/ClinVar integration
+6. Advanced analytics dashboard
+7. Team collaboration features
+8. Progressive Web App
 
 ### Long-term Goals
 1. Full API ecosystem
@@ -235,6 +337,101 @@
 4. Enterprise integrations
 5. Multi-language support
 6. **Comprehensive Test Automation**: Full CI/CD testing pipeline
+
+## Implementation Roadmap: Saved Panel Library System
+
+### Phase 1: Core Infrastructure (4-6 weeks)
+1. **Database Schema Design & Migration**
+   - Create tables for saved_panels, panel_versions, panel_genes, panel_shares
+   - Implement foreign key relationships and indexes
+   - Add database migration scripts
+   - Storage backend abstraction layer
+
+2. **Basic API Endpoints**
+   - CRUD operations for saved panels
+   - Version management endpoints
+   - Basic sharing functionality
+   - Authentication and authorization
+
+3. **Profile Tab Foundation**
+   - Add "My Panels" tab to user profile
+   - Basic panel listing with search/filter
+   - Simple panel creation from current selection
+   - Basic export functionality (CSV/Excel)
+
+### Phase 2: Version Control & Diff System (3-4 weeks)
+1. **Version Control Engine**
+   - Implement Git-like versioning system
+   - Version retention policies and cleanup
+   - Branch/tag management system
+   - Version metadata tracking
+
+2. **Diff Engine & UI**
+   - Three-way diff algorithm implementation
+   - Visual diff viewer component
+   - Gene-level change highlighting
+   - Export diff reports
+
+3. **Conflict Resolution System**
+   - Merge algorithm for source updates
+   - Conflict detection and categorization
+   - UI for manual conflict resolution
+   - Preview and rollback capabilities
+
+### Phase 3: Advanced Features (4-5 weeks)
+1. **Collaborative Features**
+   - Team-based sharing with permissions
+   - Real-time collaboration indicators
+   - Activity feeds and notifications
+   - Comment system for panels
+
+2. **Advanced Export/Import**
+   - Multiple export formats with customization
+   - Template-based export configurations
+   - Batch operations for multiple panels
+   - Advanced import with validation
+
+3. **Integration with Main Workflow**
+   - Use saved panels like uploaded files
+   - Panel templates and inheritance
+   - Quick panel switching in main interface
+   - Merge saved panels with current selection
+
+### Phase 4: Storage Options & Optimization (2-3 weeks)
+1. **Storage Backend Options**
+   - Local file system + database (default)
+   - Cloud database integration
+   - OneDrive API integration
+   - S3/Azure Blob storage option
+
+2. **Performance Optimization**
+   - Lazy loading for large panel libraries
+   - Caching strategies for frequently accessed panels
+   - Background processing for large operations
+   - Search index optimization
+
+### Technical Considerations
+- **Security**: Encrypt panel data, implement proper access controls
+- **Scalability**: Design for thousands of panels per user
+- **Backup**: Automated backup strategies for saved panels
+- **Migration**: Data migration tools for existing user data
+- **Testing**: Comprehensive test suite for all components
+- **Documentation**: User guides and API documentation
+
+### Storage Solution Recommendations
+1. **MVP Approach**: PostgreSQL + local JSON files
+   - Pros: Simple, fast, no external dependencies
+   - Cons: Not scalable for multiple servers, backup complexity
+
+2. **Production Approach**: Cloud database + object storage
+   - Pros: Scalable, reliable, automated backups
+   - Cons: Higher cost, cloud dependency
+
+3. **OneDrive Integration**: 
+   - Pros: User controls their data, familiar interface
+   - Cons: API rate limits, requires user consent, complexity
+
+**Recommendation**: Start with MVP approach, build OneDrive integration as optional feature, migrate to cloud solution for production scaling.
 
 ---
 
