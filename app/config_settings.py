@@ -47,7 +47,14 @@ class Config:
     
     # Google Cloud Storage Configuration
     GOOGLE_CLOUD_PROJECT = os.getenv('GOOGLE_CLOUD_PROJECT', 'gene-panel-combine')
-    GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'gcs-service-account-key.json')
+    
+    # Only set GOOGLE_APPLICATION_CREDENTIALS if the file exists
+    # This allows fallback to user authentication for development
+    gcs_key_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'gcs_credentials/gcs-service-account-key.json')
+    if os.path.exists(gcs_key_path):
+        GOOGLE_APPLICATION_CREDENTIALS = gcs_key_path
+    else:
+        GOOGLE_APPLICATION_CREDENTIALS = None  # Use default authentication (user credentials)
     
     # Storage Backend Configuration
     PRIMARY_STORAGE_BACKEND = os.getenv('PRIMARY_STORAGE_BACKEND', 'gcs')  # 'gcs' or 'local'

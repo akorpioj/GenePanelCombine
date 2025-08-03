@@ -341,20 +341,32 @@ WHERE tablename IN ('users', 'audit_logs', 'panel_downloads', 'visits');
 
 ### Common Issues
 
-1. **Connection Timeout**
+1. **Authentication Conflicts with Google Cloud Storage**
+   ```
+   google.auth.exceptions.DefaultCredentialsError: 403 NOT_AUTHORIZED
+   Failed to initialize Cloud SQL connector: File gcs-service-account-key.json was not found
+   ```
+   **Root Cause**: Google Cloud libraries automatically use `GOOGLE_APPLICATION_CREDENTIALS` for all services. If the service account only has storage permissions, Cloud SQL connections will fail.
+   
+   **Solutions**:
+   - **Development**: Comment out `GOOGLE_APPLICATION_CREDENTIALS` in `.env` to use user authentication
+   - **Production**: Create service account with both Cloud SQL and Storage permissions
+   - **Verify user has both roles**: `gcloud projects get-iam-policy PROJECT_ID --filter="bindings.members:user:YOUR_EMAIL" --format="value(bindings.role)" | grep -E "(sql|storage)"`
+
+2. **Connection Timeout**
    ```bash
    # Check firewall rules
    gcloud compute firewall-rules list --filter="direction:INGRESS AND allowed.ports:5432"
    ```
 
-2. **SSL Certificate Issues**
+3. **SSL Certificate Issues**
    ```bash
    # Regenerate SSL certificates
    gcloud sql ssl-certs delete client-cert --instance=gene-panel-user-db
    gcloud sql ssl-certs create client-cert client-key.pem --instance=gene-panel-user-db
    ```
 
-3. **Permission Denied**
+4. **Permission Denied**
    ```sql
    -- Re-grant permissions
    GRANT ALL PRIVILEGES ON DATABASE "genepanel-userdb" TO genepanel_app;

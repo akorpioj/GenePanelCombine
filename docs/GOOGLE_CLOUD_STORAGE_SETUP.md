@@ -27,12 +27,13 @@ Three GCS buckets are used for different types of data:
    - Disaster recovery
    - Infrequent access, cost-optimized
 
-### Service Account
+### Service Account vs User Authentication
 
-- **Name**: `gene-panel-storage`
-- **Role**: Storage Object Admin
-- **Purpose**: Provides secure access to GCS buckets
-- **Key File**: `gcs-service-account-key.json` (local development)
+- **Service Account Name**: `gene-panel-storage`
+- **Service Account Role**: Storage Object Admin  
+- **Service Account Purpose**: Provides secure access to GCS buckets for production deployments
+- **Service Account Key File**: `gcs-service-account-key.json` (production environments)
+- **User Authentication**: Alternative for development using `gcloud auth login` (no key file required)
 
 ## Prerequisites
 
@@ -98,7 +99,11 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --role="roles/storage.objectAdmin"
 ```
 
-### 4. Generate Service Account Key
+### 4. Authentication Setup
+
+You have two options for authentication:
+
+#### Option A: Service Account Authentication (Production)
 
 ```bash
 # Generate and download service account key
@@ -108,11 +113,34 @@ gcloud iam service-accounts keys create gcs-service-account-key.json \
 
 **⚠️ Security Note**: Keep this key file secure and never commit it to version control. It's already included in `.gitignore`.
 
+#### Option B: User Authentication (Development)
+
+```bash
+# Authenticate with your user account
+gcloud auth login
+
+# Grant your user account Storage Object Admin role
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:your-email@gmail.com" \
+  --role="roles/storage.objectAdmin"
+
+# Verify permissions
+gcloud projects get-iam-policy $PROJECT_ID \
+  --filter="bindings.members:user:your-email@gmail.com" \
+  --format="value(bindings.role)" | grep storage
+```
+
+This approach is recommended for development as it:
+- Eliminates the need to manage service account key files
+- Uses your existing authenticated gcloud session
+- Reduces security risks from key file exposure
+- Automatically works with other Google Cloud services
+
 ### 5. Configure Application
 
 #### Environment Variables (.env)
 
-Add the following to your `.env` file:
+**For Production (Service Account Authentication):**
 
 ```bash
 # Google Cloud Storage Configuration
@@ -129,6 +157,26 @@ MAX_PANEL_VERSIONS=10
 AUTO_BACKUP_ENABLED=True
 BACKUP_RETENTION_DAYS=90
 ```
+
+**For Development (User Authentication):**
+
+```bash
+# Google Cloud Storage Configuration
+GOOGLE_CLOUD_PROJECT=your-project-id
+# GOOGLE_APPLICATION_CREDENTIALS=gcs-service-account-key.json  # Commented out to use user auth
+
+# Storage Backend Configuration
+PRIMARY_STORAGE_BACKEND=gcs
+BACKUP_STORAGE_BACKEND=local
+LOCAL_STORAGE_PATH=instance/saved_panels
+
+# Panel Storage Configuration
+MAX_PANEL_VERSIONS=10
+AUTO_BACKUP_ENABLED=True
+BACKUP_RETENTION_DAYS=90
+```
+
+**Important**: When using user authentication, comment out or remove the `GOOGLE_APPLICATION_CREDENTIALS` line to prevent conflicts with other Google Cloud services (like Cloud SQL).
 
 #### Update Bucket Names
 
@@ -296,21 +344,33 @@ gcloud alpha monitoring policies create \
 
 1. **Authentication Errors**
    ```
-   google.auth.exceptions.DefaultCredentialsError
+   google.auth.exceptions.DefaultCredentialsError: File gcs-service-account-key.json was not found
    ```
-   - Verify `GOOGLE_APPLICATION_CREDENTIALS` path
-   - Check service account key file exists
+   **Solutions**:
+   - **For Service Account Auth**: Verify `GOOGLE_APPLICATION_CREDENTIALS` path and ensure key file exists
+   - **For User Auth**: Comment out `GOOGLE_APPLICATION_CREDENTIALS` in `.env` and run `gcloud auth login`
    - Ensure gcloud is authenticated: `gcloud auth list`
 
-2. **Permission Denied**
+2. **Cloud SQL Connection Conflicts**
+   ```
+   google.auth.exceptions.DefaultCredentialsError when connecting to Cloud SQL
+   ```
+   **Root Cause**: GCS service account key is being used for Cloud SQL authentication
+   **Solutions**:
+   - **Development**: Comment out `GOOGLE_APPLICATION_CREDENTIALS` to use user authentication for both services
+   - **Production**: Create service account with both Cloud SQL and Storage permissions
+   - **Verify user permissions**: `gcloud projects get-iam-policy PROJECT_ID --filter="bindings.members:user:YOUR_EMAIL" --format="value(bindings.role)"`
+
+3. **Permission Denied**
    ```
    google.api_core.exceptions.PermissionDenied: 403 Insufficient Permission
    ```
-   - Verify service account has Storage Object Admin role
+   - **Service Account**: Verify service account has Storage Object Admin role
+   - **User Account**: Grant Storage Object Admin role to your user account
    - Check bucket names are correct
    - Ensure Storage API is enabled
 
-3. **Bucket Not Found**
+4. **Bucket Not Found**
    ```
    google.api_core.exceptions.NotFound: 404 The specified bucket does not exist
    ```

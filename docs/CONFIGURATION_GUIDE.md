@@ -104,7 +104,7 @@ CLOUD_SQL_CONNECTION_NAME=project:region:instance  # Cloud SQL connection name
 # DB_USER=genepanel_app
 
 # Google Cloud Storage (for saved panels)
-GOOGLE_APPLICATION_CREDENTIALS=gcs-service-account-key.json  # Service account key file
+# GOOGLE_APPLICATION_CREDENTIALS=gcs-service-account-key.json  # Service account key file (optional - comment out to use user auth)
 BACKUP_STORAGE_BACKEND=local             # Backup storage backend
 BACKUP_RETENTION_DAYS=90                 # Days to retain backups
 STORAGE_ENCRYPTION_ENABLED=True          # Enable storage encryption
@@ -367,7 +367,7 @@ PanelMerge v1.4 introduces a robust storage system for saved panels with support
 ```bash
 # Google Cloud Storage Configuration
 GOOGLE_CLOUD_PROJECT=your-project-id     # GCP project ID
-GOOGLE_APPLICATION_CREDENTIALS=gcs-service-account-key.json  # Service account key file
+# GOOGLE_APPLICATION_CREDENTIALS=gcs-service-account-key.json  # Service account key file (optional)
 
 # Storage Backend Configuration
 PRIMARY_STORAGE_BACKEND=gcs              # Primary storage backend (gcs or local)
@@ -380,10 +380,14 @@ BACKUP_STORAGE_BACKEND=local             # Backup storage backend (local or none
 - Cost-effective with lifecycle policies
 - Global accessibility
 
+**Authentication Options**:
+1. **User Authentication (Recommended for Development)**: Comment out `GOOGLE_APPLICATION_CREDENTIALS` to use gcloud user authentication
+2. **Service Account (Production)**: Use service account key file for production deployments
+
 **Setup Requirements**:
 - Google Cloud Platform account
 - Enabled Cloud Storage API
-- Service account with Storage Object Admin role
+- Either gcloud user authentication OR service account with Storage Object Admin role
 - Three GCS buckets (panels, versions, backups)
 
 For detailed setup instructions, see [Google Cloud Storage Setup Guide](GOOGLE_CLOUD_STORAGE_SETUP.md).
@@ -481,7 +485,7 @@ STORAGE_METRICS_ENABLED=False
 #### Production Configuration
 
 ```bash
-# Production storage (GCS with local backup)
+# Production storage (GCS with service account)
 GOOGLE_CLOUD_PROJECT=your-production-project
 GOOGLE_APPLICATION_CREDENTIALS=/app/config/gcs-key.json
 PRIMARY_STORAGE_BACKEND=gcs
@@ -492,6 +496,20 @@ AUTO_BACKUP_ENABLED=True
 BACKUP_RETENTION_DAYS=365
 STORAGE_ENCRYPTION_ENABLED=True
 STORAGE_ACCESS_LOGGING=True
+STORAGE_METRICS_ENABLED=True
+```
+
+#### Development with Cloud Storage
+
+```bash
+# Development storage (GCS with user authentication)
+GOOGLE_CLOUD_PROJECT=your-project-id
+# GOOGLE_APPLICATION_CREDENTIALS=  # Commented out - use gcloud user auth
+PRIMARY_STORAGE_BACKEND=gcs
+BACKUP_STORAGE_BACKEND=local
+LOCAL_STORAGE_PATH=instance/backup_panels
+MAX_PANEL_VERSIONS=5
+AUTO_BACKUP_ENABLED=True
 STORAGE_METRICS_ENABLED=True
 ```
 
@@ -511,9 +529,11 @@ STORAGE_PREFETCH_ENABLED=True            # Enable data prefetching
 Common storage configuration issues and solutions:
 
 1. **Authentication Errors (GCS)**:
-   - Verify `GOOGLE_APPLICATION_CREDENTIALS` file exists
-   - Check service account permissions
+   - Verify service account key file exists (if using service account authentication)
+   - OR ensure `gcloud auth login` is completed (if using user authentication)
+   - Check service account permissions OR user account permissions
    - Ensure Storage API is enabled
+   - Consider commenting out `GOOGLE_APPLICATION_CREDENTIALS` to use user authentication in development
 
 2. **Permission Issues (Local)**:
    - Verify directory permissions for `LOCAL_STORAGE_PATH`
@@ -835,23 +855,35 @@ SSL_CERT_PATH=/path/to/cert.pem
 SSL_KEY_PATH=/path/to/key.pem
 ```
 
-**6. Storage Backend Issues**
+**7. Cloud SQL Authentication Conflicts**
+
+If Cloud SQL connection fails after adding Google Cloud Storage configuration:
+
 ```bash
-# Test local storage
-mkdir -p instance/saved_panels
-chmod 755 instance/saved_panels
+# Check for conflicting authentication
+echo $GOOGLE_APPLICATION_CREDENTIALS
 
-# Test Google Cloud Storage
-python -c "
-from app.storage_backends import get_storage_manager
-storage = get_storage_manager()
-print('Storage backend initialized successfully')
-"
+# If set to GCS service account, temporarily clear it for Cloud SQL
+# Option 1: Comment out in .env file
+# GOOGLE_APPLICATION_CREDENTIALS=gcs-service-account-key.json
 
-# Verify GCS service account
-gcloud auth activate-service-account --key-file=gcs-service-account-key.json
-gsutil ls gs://your-project-id-panels/
+# Option 2: Use different service account with both Cloud SQL and Storage permissions
+# Or ensure user account has both roles/cloudsql.client and roles/storage.objectAdmin
+
+# Test Cloud SQL connection without GCS credentials
+unset GOOGLE_APPLICATION_CREDENTIALS
+gcloud sql connect gene-panel-user-db --user=genepanel_app --database=genepanel-userdb
+
+# Verify user permissions include both Cloud SQL and Storage
+gcloud projects get-iam-policy PROJECT_ID --filter="bindings.members:user:YOUR_EMAIL@gmail.com" --format="value(bindings.role)" | grep -E "(sql|storage)"
 ```
+
+**Root Cause**: Google Cloud libraries automatically use `GOOGLE_APPLICATION_CREDENTIALS` file for all services. If the service account only has storage permissions, Cloud SQL connections will fail.
+
+**Solutions**:
+1. **Development**: Use user authentication (comment out `GOOGLE_APPLICATION_CREDENTIALS`)
+2. **Production**: Create service account with both Cloud SQL and Storage permissions
+3. **Hybrid**: Use different service accounts for different services with explicit credential passing
 
 ### Configuration Testing
 

@@ -334,7 +334,6 @@ def db_init(app):
         db.init_app(app)
     else:
         # Production/Development Cloud SQL setup
-        db_pass = os.getenv("DB_PASS")
 
         # --- Cloud SQL Python Connector Initialization ---   
         if app.config.get("CLOUD_SQL_CONNECTION_NAME"):

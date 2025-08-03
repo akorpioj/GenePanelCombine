@@ -18,3 +18,4 @@ Dockerfile
 .pytest_cache/
 *.tmp
 *key.json
+gcs_credentials/
