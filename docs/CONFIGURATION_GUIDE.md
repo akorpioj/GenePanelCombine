@@ -8,10 +8,11 @@ This guide provides comprehensive configuration instructions for PanelMerge v1.4
 2. [Database Configuration](#database-configuration)
 3. [Security Configuration](#security-configuration)
 4. [Redis Configuration](#redis-configuration)
-5. [API Configuration](#api-configuration)
-6. [Deployment Configurations](#deployment-configurations)
-7. [Development vs Production](#development-vs-production)
-8. [Troubleshooting](#troubleshooting)
+5. [Storage Configuration](#storage-configuration)
+6. [API Configuration](#api-configuration)
+7. [Deployment Configurations](#deployment-configurations)
+8. [Development vs Production](#development-vs-production)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -75,6 +76,12 @@ SECURITY_MONITORING_ENABLED=True         # Enable automated security monitoring
 THREAT_DETECTION_SENSITIVITY=medium      # Options: low, medium, high
 IP_BLOCKING_ENABLED=True                 # Enable automatic IP blocking
 BRUTE_FORCE_THRESHOLD=5                  # Failed attempts before brute force detection
+
+# Storage Configuration (New in v1.4)
+PRIMARY_STORAGE_BACKEND=local            # Storage backend: gcs or local
+LOCAL_STORAGE_PATH=instance/saved_panels # Local storage directory
+MAX_PANEL_VERSIONS=10                    # Maximum versions per panel
+AUTO_BACKUP_ENABLED=True                 # Enable automatic backups
 ```
 
 ### Optional Variables
@@ -90,6 +97,13 @@ CLOUD_SQL_CONNECTION_NAME=project:region:instance  # Cloud SQL connection name
 CLOUD_SQL_DATABASE_USER=postgres         # Cloud SQL database user
 CLOUD_SQL_DATABASE_PASSWORD=password     # Cloud SQL database password
 CLOUD_SQL_DATABASE_NAME=panelmerge       # Cloud SQL database name
+
+# Google Cloud Storage (for saved panels)
+GOOGLE_APPLICATION_CREDENTIALS=gcs-service-account-key.json  # Service account key file
+BACKUP_STORAGE_BACKEND=local             # Backup storage backend
+BACKUP_RETENTION_DAYS=90                 # Days to retain backups
+STORAGE_ENCRYPTION_ENABLED=True          # Enable storage encryption
+STORAGE_ACCESS_LOGGING=True              # Log storage access
 
 # SSL/TLS Configuration
 SSL_CERT_PATH=/path/to/cert.pem          # SSL certificate file path
@@ -289,6 +303,184 @@ REDIS_DEFAULT_TIMEOUT=300                # Default key expiration (5 minutes)
 REDIS_SESSION_TIMEOUT=3600               # Session expiration (1 hour)
 REDIS_CACHE_TIMEOUT=1800                 # Cache expiration (30 minutes)
 ```
+
+---
+
+## 💾 Storage Configuration
+
+PanelMerge v1.4 introduces a robust storage system for saved panels with support for multiple storage backends, including Google Cloud Storage and local file systems.
+
+### Storage Backend Options
+
+#### Google Cloud Storage (Recommended for Production)
+
+```bash
+# Google Cloud Storage Configuration
+GOOGLE_CLOUD_PROJECT=your-project-id     # GCP project ID
+GOOGLE_APPLICATION_CREDENTIALS=gcs-service-account-key.json  # Service account key file
+
+# Storage Backend Configuration
+PRIMARY_STORAGE_BACKEND=gcs              # Primary storage backend (gcs or local)
+BACKUP_STORAGE_BACKEND=local             # Backup storage backend (local or none)
+```
+
+**Benefits**:
+- Scalable and reliable cloud storage
+- Automatic redundancy and backup
+- Cost-effective with lifecycle policies
+- Global accessibility
+
+**Setup Requirements**:
+- Google Cloud Platform account
+- Enabled Cloud Storage API
+- Service account with Storage Object Admin role
+- Three GCS buckets (panels, versions, backups)
+
+For detailed setup instructions, see [Google Cloud Storage Setup Guide](GOOGLE_CLOUD_STORAGE_SETUP.md).
+
+#### Local File Storage
+
+```bash
+# Local Storage Configuration
+PRIMARY_STORAGE_BACKEND=local            # Use local file system
+LOCAL_STORAGE_PATH=instance/saved_panels # Local storage directory
+BACKUP_STORAGE_BACKEND=none              # No backup storage
+```
+
+**Benefits**:
+- Simple setup with no external dependencies
+- Full control over data location
+- No cloud service costs
+
+**Limitations**:
+- Limited scalability
+- No automatic redundancy
+- Requires manual backup strategies
+
+### Panel Storage Configuration
+
+```bash
+# Panel Management Settings
+MAX_PANEL_VERSIONS=10                    # Maximum versions per panel
+AUTO_BACKUP_ENABLED=True                 # Enable automatic backups
+BACKUP_RETENTION_DAYS=90                 # Days to retain backups
+
+# Storage Optimization
+PANEL_COMPRESSION_ENABLED=True           # Enable panel data compression
+METADATA_CACHING_ENABLED=True            # Cache panel metadata
+STORAGE_HEALTH_CHECK_INTERVAL=300        # Health check interval (seconds)
+```
+
+### Multi-Backend Configuration
+
+You can configure a primary storage backend with a secondary backup backend:
+
+```bash
+# Hybrid Configuration Example
+PRIMARY_STORAGE_BACKEND=gcs              # Google Cloud Storage for primary
+BACKUP_STORAGE_BACKEND=local             # Local backup for redundancy
+LOCAL_STORAGE_PATH=instance/backup_panels
+
+# Failover Settings
+STORAGE_FAILOVER_ENABLED=True            # Enable automatic failover
+STORAGE_RETRY_ATTEMPTS=3                 # Retry attempts before failover
+STORAGE_RETRY_DELAY=1                    # Delay between retries (seconds)
+```
+
+### Storage Security
+
+```bash
+# Encryption Settings
+STORAGE_ENCRYPTION_ENABLED=True          # Enable storage encryption
+STORAGE_ENCRYPTION_KEY=your-32-byte-key  # Storage encryption key
+
+# Access Control
+STORAGE_ACCESS_LOGGING=True              # Log storage access
+STORAGE_AUDIT_ENABLED=True               # Enable storage auditing
+STORAGE_IP_RESTRICTIONS=                 # Comma-separated allowed IPs (optional)
+```
+
+### Monitoring and Maintenance
+
+```bash
+# Storage Monitoring
+STORAGE_METRICS_ENABLED=True             # Enable storage metrics collection
+STORAGE_ALERT_THRESHOLD=90               # Storage usage alert threshold (%)
+STORAGE_CLEANUP_ENABLED=True             # Enable automatic cleanup
+
+# Maintenance Settings
+STORAGE_CLEANUP_SCHEDULE=daily           # Cleanup schedule (daily, weekly, monthly)
+STORAGE_VACUUM_ENABLED=True              # Enable storage optimization
+STORAGE_INTEGRITY_CHECK_ENABLED=True     # Enable integrity checks
+```
+
+### Environment-Specific Examples
+
+#### Development Configuration
+
+```bash
+# Development storage (local only)
+PRIMARY_STORAGE_BACKEND=local
+LOCAL_STORAGE_PATH=instance/dev_panels
+BACKUP_STORAGE_BACKEND=none
+MAX_PANEL_VERSIONS=3
+AUTO_BACKUP_ENABLED=False
+STORAGE_METRICS_ENABLED=False
+```
+
+#### Production Configuration
+
+```bash
+# Production storage (GCS with local backup)
+GOOGLE_CLOUD_PROJECT=your-production-project
+GOOGLE_APPLICATION_CREDENTIALS=/app/config/gcs-key.json
+PRIMARY_STORAGE_BACKEND=gcs
+BACKUP_STORAGE_BACKEND=local
+LOCAL_STORAGE_PATH=/app/storage/backup_panels
+MAX_PANEL_VERSIONS=10
+AUTO_BACKUP_ENABLED=True
+BACKUP_RETENTION_DAYS=365
+STORAGE_ENCRYPTION_ENABLED=True
+STORAGE_ACCESS_LOGGING=True
+STORAGE_METRICS_ENABLED=True
+```
+
+### Storage Performance Optimization
+
+```bash
+# Performance Settings
+STORAGE_CONNECTION_POOL_SIZE=10          # Connection pool size
+STORAGE_REQUEST_TIMEOUT=30               # Request timeout (seconds)
+STORAGE_BULK_OPERATION_SIZE=100          # Bulk operation batch size
+STORAGE_CACHE_SIZE=1000                  # Storage cache size (items)
+STORAGE_PREFETCH_ENABLED=True            # Enable data prefetching
+```
+
+### Troubleshooting Storage Issues
+
+Common storage configuration issues and solutions:
+
+1. **Authentication Errors (GCS)**:
+   - Verify `GOOGLE_APPLICATION_CREDENTIALS` file exists
+   - Check service account permissions
+   - Ensure Storage API is enabled
+
+2. **Permission Issues (Local)**:
+   - Verify directory permissions for `LOCAL_STORAGE_PATH`
+   - Check write access to backup directories
+   - Ensure sufficient disk space
+
+3. **Performance Issues**:
+   - Adjust `STORAGE_CONNECTION_POOL_SIZE`
+   - Enable compression for large panels
+   - Consider regional bucket placement (GCS)
+
+4. **Backup Failures**:
+   - Check backup storage configuration
+   - Verify sufficient storage space
+   - Review backup retention settings
+
+For detailed troubleshooting, see the [Google Cloud Storage Setup Guide](GOOGLE_CLOUD_STORAGE_SETUP.md).
 
 ---
 
@@ -527,6 +719,24 @@ SSL_CERT_PATH=/path/to/cert.pem
 SSL_KEY_PATH=/path/to/key.pem
 ```
 
+**6. Storage Backend Issues**
+```bash
+# Test local storage
+mkdir -p instance/saved_panels
+chmod 755 instance/saved_panels
+
+# Test Google Cloud Storage
+python -c "
+from app.storage_backends import get_storage_manager
+storage = get_storage_manager()
+print('Storage backend initialized successfully')
+"
+
+# Verify GCS service account
+gcloud auth activate-service-account --key-file=gcs-service-account-key.json
+gsutil ls gs://your-project-id-panels/
+```
+
 ### Configuration Testing
 
 ```bash
@@ -582,12 +792,13 @@ WORKER_TIMEOUT=30                        # Worker timeout in seconds
 - **PostgreSQL Connection**: https://www.postgresql.org/docs/current/libpq-connect.html
 - **Redis Configuration**: https://redis.io/docs/manual/config/
 - **Google Cloud SQL**: https://cloud.google.com/sql/docs/postgres/connect-app-engine
+- **Google Cloud Storage Setup**: See `GOOGLE_CLOUD_STORAGE_SETUP.md`
 - **Security Best Practices**: See `SECURITY_CONFIGURATION_GUIDE.md`
 
 ---
 
-**Last Updated**: 2025-07-27  
-**Document Version**: 1.0  
+**Last Updated**: 2025-08-03  
+**Document Version**: 1.1  
 **Maintainer**: Development Team
 
 > This configuration guide should be reviewed and updated with each release to ensure all configuration options are documented and current.

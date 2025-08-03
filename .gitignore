@@ -17,3 +17,4 @@ Dockerfile
 *.key
 .pytest_cache/
 *.tmp
+*key.json

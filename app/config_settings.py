@@ -44,6 +44,20 @@ class Config:
     CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 3600))
     CACHE_PANEL_TIMEOUT = int(os.getenv('CACHE_PANEL_TIMEOUT', 1800))
     CACHE_GENE_TIMEOUT = int(os.getenv('CACHE_GENE_TIMEOUT', 86400))
+    
+    # Google Cloud Storage Configuration
+    GOOGLE_CLOUD_PROJECT = os.getenv('GOOGLE_CLOUD_PROJECT', 'gene-panel-combine')
+    GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'gcs-service-account-key.json')
+    
+    # Storage Backend Configuration
+    PRIMARY_STORAGE_BACKEND = os.getenv('PRIMARY_STORAGE_BACKEND', 'gcs')  # 'gcs' or 'local'
+    BACKUP_STORAGE_BACKEND = os.getenv('BACKUP_STORAGE_BACKEND', 'local')  # 'local' for redundancy
+    LOCAL_STORAGE_PATH = os.getenv('LOCAL_STORAGE_PATH', 'instance/saved_panels')
+    
+    # Panel Storage Configuration
+    MAX_PANEL_VERSIONS = int(os.getenv('MAX_PANEL_VERSIONS', '10'))  # Keep last 10 versions
+    AUTO_BACKUP_ENABLED = os.getenv('AUTO_BACKUP_ENABLED', 'True').lower() == 'true'
+    BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', '90'))  # Keep backups for 90 days
 
 # Add other application-wide configurations here
 class DevelopmentConfig(Config):
