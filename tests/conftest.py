@@ -18,6 +18,7 @@ def app():
     # Set environment variables to force test mode
     os.environ['FLASK_ENV'] = 'testing'
     os.environ['TESTING'] = 'True'
+    os.environ['CLOUD_SQL_CONNECTION_NAME'] = ''  # Disable Cloud SQL
     
     # Create a temporary file to serve as the database
     db_fd, db_path = tempfile.mkstemp()
@@ -33,6 +34,8 @@ def app():
         'CACHE_TYPE': 'SimpleCache',  # Use simple cache for testing
         'SQLALCHEMY_TRACK_MODIFICATIONS': False,
         'DATABASE_URL': f'sqlite:///{db_path}',  # Override any production DB
+        'CLOUD_SQL_CONNECTION_NAME': None,  # Ensure Cloud SQL is disabled
+        'ENCRYPT_SENSITIVE_FIELDS': False,  # Disable encryption for testing
     })
     
     # Establish an application context

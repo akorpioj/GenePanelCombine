@@ -11,12 +11,15 @@ tests/
 ├── conftest.py                 # Shared fixtures and configuration
 ├── unit/                       # Unit tests
 │   ├── test_models.py         # Database model tests
+│   ├── test_database.py       # Comprehensive database operation tests
+│   ├── test_database_migrations.py # Database migration and schema tests
 │   ├── test_auth.py           # Authentication tests
 │   ├── test_api.py            # API endpoint tests
 │   ├── test_cache.py          # Caching functionality tests
 │   └── test_file_upload.py    # File upload tests
 ├── integration/               # Integration tests
-│   └── test_workflows.py      # End-to-end workflow tests
+│   ├── test_workflows.py      # End-to-end workflow tests
+│   └── test_database_integration.py # Database integration tests
 └── fixtures/                  # Test data and utilities
     └── test_factories.py      # Factory classes for test data
 ```
@@ -27,6 +30,8 @@ tests/
 - **Unit Tests**: Individual component testing
 - **Integration Tests**: Full workflow testing
 - **API Tests**: Complete API endpoint coverage
+- **Database Tests**: CRUD operations, data integrity, and schema validation
+- **Migration Tests**: Database schema evolution and migration testing
 - **Security Tests**: Authentication and authorization
 - **Performance Tests**: Load and response time testing
 - **File Upload Tests**: Upload validation and processing
@@ -147,6 +152,24 @@ Shared fixtures include:
 - Admin message functionality
 - Database constraints and uniqueness
 
+#### Database Operations (test_database.py)
+- **Schema Integrity**: Table structure and constraint validation
+- **CRUD Operations**: Create, Read, Update, Delete operations
+- **Data Integrity**: Unique constraints, foreign keys, data types
+- **Transaction Handling**: Commit, rollback, nested transactions
+- **Relationship Testing**: Model relationships and cascading
+- **Performance Testing**: Bulk operations and query optimization
+- **Security Testing**: SQL injection prevention, password hashing
+- **Stress Testing**: Large dataset handling, concurrent access
+
+#### Database Migrations (test_database_migrations.py)
+- **Schema Structure**: Current database schema validation
+- **Migration Compatibility**: Forward and backward compatibility
+- **Data Type Validation**: Field types and constraints
+- **Index Validation**: Critical index existence and effectiveness
+- **Version Tracking**: Schema evolution and versioning
+- **Rollback Testing**: Migration rollback scenarios
+
 #### Authentication (test_auth.py)
 - Login/logout workflows
 - User registration
@@ -188,6 +211,13 @@ Shared fixtures include:
 - Cache integration with real data
 - Database transaction handling
 - Performance with large datasets
+
+#### Database Integration (test_database_integration.py)
+- **Workflow Testing**: Complete database workflows (registration, login, downloads)
+- **Concurrency Testing**: Concurrent database operations and deadlock prevention
+- **Performance Integration**: Large-scale operations and real-world scenarios
+- **Backup/Recovery**: Data export/import cycles and consistency validation
+- **Complex Relationships**: Multi-table operations and relationship queries
 
 ## Test Data Management
 
@@ -368,6 +398,46 @@ When adding new features:
 # Basic test commands
 python run_tests.py                    # Run all tests
 python run_tests.py --type unit        # Unit tests only
+python run_tests.py --type integration # Integration tests only
+python run_tests.py --type database    # Database tests only
+python run_tests.py --coverage --html  # With HTML coverage report
+python run_tests.py --report          # Generate comprehensive report
+
+# Database-specific testing
+python run_tests.py --database                    # All database tests
+python run_tests.py --database-type unit          # Unit database tests
+python run_tests.py --database-type integration   # Integration database tests
+python run_tests.py --database-type migrations    # Migration tests
+python run_tests.py --database-type performance   # Performance database tests
+
+# Dedicated database test runner
+python run_database_tests.py                      # All database tests
+python run_database_tests.py --type unit          # Unit database tests
+python run_database_tests.py --type migrations    # Migration tests
+python run_database_tests.py --benchmark          # Performance benchmarks
+python run_database_tests.py --schema             # Schema validation
+python run_database_tests.py --stress             # Stress tests
+python run_database_tests.py --report             # Comprehensive database report
+
+# Marker-based testing  
+python run_tests.py --markers unit database       # Unit + database tests
+python run_tests.py --markers api security        # API + security tests
+python run_tests.py --markers slow               # Performance tests
+
+# Pattern-based testing
+python run_tests.py --pattern "test_user"        # Tests matching pattern
+
+# Setup and maintenance
+python run_tests.py --setup           # Set up test environment
+python run_tests.py --install-deps    # Install dependencies
+
+# Direct pytest commands
+pytest tests/unit/                    # Unit tests
+pytest -m "unit and database"         # Marker combination
+pytest -k "test_user"                 # Pattern matching
+pytest tests/unit/test_database.py    # Specific database test file
+pytest tests/unit/test_database_migrations.py::TestDatabaseSchema # Specific test class
+pytest -m "database and not slow"     # Database tests excluding slow ones
 python run_tests.py --type integration # Integration tests only
 python run_tests.py --coverage --html  # With HTML coverage report
 python run_tests.py --report          # Generate comprehensive report

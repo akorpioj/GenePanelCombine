@@ -83,6 +83,10 @@ class TestingConfig(Config):
     # Use simple cache for testing
     CACHE_TYPE = 'SimpleCache'
     CACHE_DEFAULT_TIMEOUT = 300
+    # Disable Cloud SQL for testing
+    CLOUD_SQL_CONNECTION_NAME = None
+    # Disable encryption for testing
+    ENCRYPT_SENSITIVE_FIELDS = False
 
 class ProductionConfig(Config):
     DEBUG = False

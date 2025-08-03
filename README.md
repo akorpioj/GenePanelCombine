@@ -147,5 +147,16 @@ python run.py
 - Use `SQLITE_DB_PATH` for local SQLite database
 - Deploy to cloud with Google Cloud SQL for production
 
+### Database Setup
+- **Google Cloud PostgreSQL**: See [`docs/GOOGLE_CLOUD_POSTGRESQL_SETUP.md`](docs/GOOGLE_CLOUD_POSTGRESQL_SETUP.md) for complete setup instructions
+- **Quick Reference**: See [`docs/POSTGRESQL_QUICK_REFERENCE.md`](docs/POSTGRESQL_QUICK_REFERENCE.md) for daily operations
+- **Testing**: Comprehensive database testing framework with 32 test cases
+
+## Documentation
+- [`docs/FutureImprovements.txt`](docs/FutureImprovements.txt) - Feature roadmap and implementation status
+- [`docs/GOOGLE_CLOUD_POSTGRESQL_SETUP.md`](docs/GOOGLE_CLOUD_POSTGRESQL_SETUP.md) - PostgreSQL database setup guide
+- [`docs/POSTGRESQL_QUICK_REFERENCE.md`](docs/POSTGRESQL_QUICK_REFERENCE.md) - Database quick reference
+- [`docs/TESTING_FRAMEWORK.md`](docs/TESTING_FRAMEWORK.md) - Testing framework documentation
+
 ## License
 MIT License

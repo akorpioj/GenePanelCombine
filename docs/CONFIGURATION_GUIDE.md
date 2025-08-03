@@ -32,6 +32,7 @@ DEBUG=False                             # Set to True only in development
 WITHOUT_DB=False                        # Set to True to run without database
 DATABASE_URL=postgresql://user:pass@host:port/dbname  # Full database connection string
 SQLITE_DB_PATH=instance/gene_panel.db   # Path for SQLite database (development only)
+GOOGLE_CLOUD_SQL=True                   # Set to True for Google Cloud SQL (production)
 
 # Security Configuration
 ENCRYPTION_KEY=your-encryption-key-here  # 32-byte key for data encryption
@@ -92,11 +93,15 @@ FLASK_DEBUG=True                         # Enable Flask debug mode (development 
 WERKZEUG_DEBUG_PIN=off                   # Disable Werkzeug debug PIN
 
 # Cloud SQL (Google Cloud Platform)
-GOOGLE_CLOUD_PROJECT=your-project-id     # GCP project ID
+GOOGLE_CLOUD_SQL=True                    # Enable Google Cloud SQL mode
+GOOGLE_CLOUD_PROJECT=your-project-id     # GCP project ID  
 CLOUD_SQL_CONNECTION_NAME=project:region:instance  # Cloud SQL connection name
-CLOUD_SQL_DATABASE_USER=postgres         # Cloud SQL database user
-CLOUD_SQL_DATABASE_PASSWORD=password     # Cloud SQL database password
-CLOUD_SQL_DATABASE_NAME=panelmerge       # Cloud SQL database name
+
+# Current Production Instance (gene-panel-user-db)
+# CLOUD_SQL_CONNECTION_NAME=PROJECT_ID:europe-north1:gene-panel-user-db
+# DB_HOST=35.228.157.4 (or localhost if using proxy)
+# DB_NAME=genepanel-userdb
+# DB_USER=genepanel_app
 
 # Google Cloud Storage (for saved panels)
 GOOGLE_APPLICATION_CREDENTIALS=gcs-service-account-key.json  # Service account key file
@@ -162,6 +167,49 @@ DATABASE_URL=postgresql://panelmerge_user:secure_password@db.example.com:5432/pa
 
 For Google Cloud Platform deployments:
 
+#### Current Production Setup (gene-panel-user-db)
+
+```bash
+# Current Production Configuration
+GOOGLE_CLOUD_SQL=True
+DATABASE_URL=postgresql://genepanel_app:YOUR_PASSWORD@35.228.157.4:5432/genepanel-userdb?sslmode=require
+DB_HOST=35.228.157.4
+DB_PORT=5432
+DB_NAME=genepanel-userdb
+DB_USER=genepanel_app
+DB_PASSWORD=YOUR_SECURE_APP_PASSWORD
+DB_SSLMODE=require
+
+# Instance Details
+# Instance Name: gene-panel-user-db
+# Database Version: PostgreSQL 14
+# Location: europe-north1-c
+# Tier: db-f1-micro
+```
+
+#### SSL Certificate Configuration (Optional)
+
+For enhanced security with client certificates:
+
+```bash
+DB_SSLCERT=client-cert.pem
+DB_SSLKEY=client-key.pem
+DB_SSLROOTCERT=server-ca.pem
+```
+
+#### Cloud SQL Proxy Connection
+
+Alternative secure connection method using Cloud SQL Proxy:
+
+```bash
+# Start proxy: ./cloud-sql-proxy.exe PROJECT_ID:europe-north1:gene-panel-user-db
+DATABASE_URL=postgresql://genepanel_app:YOUR_PASSWORD@localhost:5432/genepanel-userdb
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+#### Generic Cloud SQL Setup (for reference)
+
 ```bash
 GOOGLE_CLOUD_PROJECT=my-project
 CLOUD_SQL_CONNECTION_NAME=my-project:us-central1:panelmerge-db
@@ -170,6 +218,8 @@ CLOUD_SQL_DATABASE_PASSWORD=secure_password
 CLOUD_SQL_DATABASE_NAME=panelmerge
 DATABASE_URL=postgresql+pg8000://postgres:password@/panelmerge?unix_sock=/cloudsql/my-project:us-central1:panelmerge-db/.s.PGSQL.5432
 ```
+
+**Important**: See [`docs/GOOGLE_CLOUD_POSTGRESQL_SETUP.md`](GOOGLE_CLOUD_POSTGRESQL_SETUP.md) for complete setup instructions and [`docs/POSTGRESQL_QUICK_REFERENCE.md`](POSTGRESQL_QUICK_REFERENCE.md) for daily operations.
 
 ### Database-Free Mode
 
@@ -561,8 +611,20 @@ RATE_LIMIT_PER_MINUTE=100
 FLASK_ENV=production
 DEBUG=False
 SECRET_KEY=production-secret-key-32-chars-min
-DATABASE_URL=postgresql://user:pass@prod-db:5432/panelmerge
+
+# Google Cloud PostgreSQL Configuration
+GOOGLE_CLOUD_SQL=True
+DATABASE_URL=postgresql://genepanel_app:SECURE_PASSWORD@35.228.157.4:5432/genepanel-userdb?sslmode=require
+DB_HOST=35.228.157.4
+DB_PORT=5432
+DB_NAME=genepanel-userdb
+DB_USER=genepanel_app
+DB_SSLMODE=require
+
+# Redis Configuration
 REDIS_URL=redis://prod-redis:6379/0
+
+# Security Settings
 LOG_LEVEL=WARNING
 SECURITY_MONITORING_ENABLED=True
 RATE_LIMIT_PER_MINUTE=60
@@ -570,6 +632,21 @@ FORCE_HTTPS=True
 SESSION_COOKIE_SECURE=True
 SESSION_COOKIE_HTTPONLY=True
 SESSION_COOKIE_SAMESITE=Strict
+
+# SSL Certificates (if using client certs)
+# DB_SSLCERT=client-cert.pem
+# DB_SSLKEY=client-key.pem
+# DB_SSLROOTCERT=server-ca.pem
+```
+
+### Production with Cloud SQL Proxy
+
+```bash
+# Alternative: Using Cloud SQL Proxy for enhanced security
+# Start proxy: ./cloud-sql-proxy.exe PROJECT_ID:europe-north1:gene-panel-user-db
+DATABASE_URL=postgresql://genepanel_app:SECURE_PASSWORD@localhost:5432/genepanel-userdb
+DB_HOST=localhost
+DB_PORT=5432
 ```
 
 ### Docker Configuration
@@ -673,12 +750,51 @@ python config_validator.py
 ### Common Configuration Issues
 
 **1. Database Connection Errors**
+
+*SQLite (Development):*
+```bash
+# Check SQLite database path
+SQLITE_DB_PATH=instance/gene_panel.db
+mkdir -p instance
+chmod 755 instance
+```
+
+*PostgreSQL (Production):*
 ```bash
 # Check database URL format
 DATABASE_URL=postgresql://user:password@host:port/database
 
-# Test connection
-python -c "from app import create_app; app = create_app(); print('Database connected!')"
+# Test connection with psql
+psql "postgresql://genepanel_app:PASSWORD@35.228.157.4:5432/genepanel-userdb?sslmode=require"
+```
+
+*Google Cloud SQL Specific:*
+```bash
+# Check instance status
+gcloud sql instances describe gene-panel-user-db
+
+# Test connection via gcloud
+gcloud sql connect gene-panel-user-db --user=genepanel_app --database=genepanel-userdb
+
+# Test Cloud SQL Proxy connection
+./cloud-sql-proxy.exe PROJECT_ID:europe-north1:gene-panel-user-db
+psql "postgresql://genepanel_app:PASSWORD@localhost:5432/genepanel-userdb"
+
+# Check authorized networks
+gcloud sql instances describe gene-panel-user-db --format="value(settings.ipConfiguration.authorizedNetworks[].value)"
+
+# Test application connection
+python -c "
+import os
+os.environ['GOOGLE_CLOUD_SQL'] = 'true'
+os.environ['DATABASE_URL'] = 'postgresql://genepanel_app:PASSWORD@35.228.157.4:5432/genepanel-userdb?sslmode=require'
+from app import create_app
+app = create_app()
+with app.app_context():
+    from app.extensions import db
+    db.create_all()
+    print('Google Cloud SQL connection successful!')
+"
 ```
 
 **2. Redis Connection Errors**
@@ -790,15 +906,17 @@ WORKER_TIMEOUT=30                        # Worker timeout in seconds
 
 - **Flask Configuration**: https://flask.palletsprojects.com/en/2.3.x/config/
 - **PostgreSQL Connection**: https://www.postgresql.org/docs/current/libpq-connect.html
+- **Google Cloud PostgreSQL Setup**: See [`GOOGLE_CLOUD_POSTGRESQL_SETUP.md`](GOOGLE_CLOUD_POSTGRESQL_SETUP.md)
+- **PostgreSQL Quick Reference**: See [`POSTGRESQL_QUICK_REFERENCE.md`](POSTGRESQL_QUICK_REFERENCE.md)
 - **Redis Configuration**: https://redis.io/docs/manual/config/
 - **Google Cloud SQL**: https://cloud.google.com/sql/docs/postgres/connect-app-engine
-- **Google Cloud Storage Setup**: See `GOOGLE_CLOUD_STORAGE_SETUP.md`
-- **Security Best Practices**: See `SECURITY_CONFIGURATION_GUIDE.md`
+- **Google Cloud Storage Setup**: See [`GOOGLE_CLOUD_STORAGE_SETUP.md`](GOOGLE_CLOUD_STORAGE_SETUP.md)
+- **Security Best Practices**: See [`SECURITY_CONFIGURATION_GUIDE.md`](SECURITY_CONFIGURATION_GUIDE.md)
 
 ---
 
 **Last Updated**: 2025-08-03  
-**Document Version**: 1.1  
+**Document Version**: 1.2  
 **Maintainer**: Development Team
 
-> This configuration guide should be reviewed and updated with each release to ensure all configuration options are documented and current.
+> This configuration guide should be reviewed and updated with each release to ensure all configuration options are documented and current. Updated to include current Google Cloud PostgreSQL production configuration.

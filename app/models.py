@@ -323,38 +323,45 @@ class AdminMessage(db.Model):
 
 def db_init(app):
     """
-    Initializes a connection pool for a Cloud SQL instance of Postgres
-    using the Cloud SQL Python Connector. The application is configured to use
-    this pool for all database operations.
-    """# These variables are set in the Cloud Run environment.
-    db_pass = os.getenv("DB_PASS")                  # e.g. 'my-db-password'
+    Initializes database connection. For testing, uses SQLite in-memory database.
+    For production, uses Cloud SQL with Python Connector.
+    """
+    
+    # Skip Cloud SQL connector for testing
+    if app.config.get('TESTING', False):
+        app.logger.info("Testing mode: Using SQLite in-memory database")
+        # Use the SQLite URI from testing config
+        db.init_app(app)
+    else:
+        # Production/Development Cloud SQL setup
+        db_pass = os.getenv("DB_PASS")
 
-    # --- Cloud SQL Python Connector Initialization ---   
-    if app.config["CLOUD_SQL_CONNECTION_NAME"]:
-        try:
-            connector = Connector()
+        # --- Cloud SQL Python Connector Initialization ---   
+        if app.config.get("CLOUD_SQL_CONNECTION_NAME"):
+            try:
+                connector = Connector()
 
-            def getconn() -> sqlalchemy.engine.base.Connection:
-                conn = connector.connect(
-                    app.config["CLOUD_SQL_CONNECTION_NAME"],
-                    "pg8000",
-                    user=app.config["DB_USER"],
-                    password=app.config["DB_PASS"],
-                    db=app.config["DB_NAME"],
-                    ip_type=IPTypes.PRIVATE if os.getenv('CLOUD_RUN') else IPTypes.PUBLIC
-                )
-                return conn
-        except Exception as e:
-            app.logger.error(f"Failed to initialize Cloud SQL connector: {e}")
-            raise
+                def getconn() -> sqlalchemy.engine.base.Connection:
+                    conn = connector.connect(
+                        app.config["CLOUD_SQL_CONNECTION_NAME"],
+                        "pg8000",
+                        user=app.config["DB_USER"],
+                        password=app.config["DB_PASS"],
+                        db=app.config["DB_NAME"],
+                        ip_type=IPTypes.PRIVATE if os.getenv('CLOUD_RUN') else IPTypes.PUBLIC
+                    )
+                    return conn
+            except Exception as e:
+                app.logger.error(f"Failed to initialize Cloud SQL connector: {e}")
+                raise
 
-        app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql+pg8000://"
-        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-            "creator": getconn
-        }
-    # --- End of Connector Logic ---
+            app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql+pg8000://"
+            app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+                "creator": getconn
+            }
+        # --- End of Connector Logic ---
 
-    db.init_app(app)
+        db.init_app(app)
 
     # Ensure the instance folder exists
     try:
