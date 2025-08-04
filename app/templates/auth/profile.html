@@ -2,12 +2,31 @@
 
 {% block title %}User Profile{% endblock %}
 
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div class="px-4 py-5 sm:px-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">User Profile</h3>
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">Personal details and account information.</p>
+<div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <!-- Tab Navigation -->
+    <div class="mb-6">
+        <nav class="flex space-x-8" aria-label="Tabs">
+            <button id="profile-tab" class="tab-button active whitespace-nowrap py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600" aria-current="page">
+                Profile Details
+            </button>
+            <button id="panels-tab" class="tab-button whitespace-nowrap py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                My Panels
+            </button>
+        </nav>
+    </div>
+
+    <!-- Profile Details Tab -->
+    <div id="profile-content" class="tab-content">
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">User Profile</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">Personal details and account information.</p>
+            </div>
         </div>
         
         <div class="border-t border-gray-200">
@@ -114,94 +133,279 @@
                 </div>
             </dl>
         </div>
-    </div>
     
-    <!-- Permissions Section -->
-    <div class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
-        <div class="px-4 py-5 sm:px-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Account Permissions</h3>
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">What you can do with your current role.</p>
-        </div>
-        
-        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div class="flex items-center">
-                    {% if current_user.can_upload() %}
+        <!-- Permissions Section -->
+        <div class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Account Permissions</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">What you can do with your current role.</p>
+            </div>
+            
+            <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div class="flex items-center">
+                        {% if current_user.can_upload() %}
+                            <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-sm text-gray-900">Upload gene panels</span>
+                        {% else %}
+                            <svg class="h-5 w-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-sm text-gray-400">Upload gene panels</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex items-center">
+                        {% if current_user.can_moderate() %}
+                            <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-sm text-gray-900">Moderate content</span>
+                        {% else %}
+                            <svg class="h-5 w-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-sm text-gray-400">Moderate content</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex items-center">
+                        {% if current_user.is_admin() %}
+                            <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-sm text-gray-900">Administrative access</span>
+                        {% else %}
+                            <svg class="h-5 w-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-sm text-gray-400">Administrative access</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex items-center">
                         <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                         </svg>
-                        <span class="text-sm text-gray-900">Upload gene panels</span>
-                    {% else %}
-                        <svg class="h-5 w-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="text-sm text-gray-400">Upload gene panels</span>
-                    {% endif %}
-                </div>
-                
-                <div class="flex items-center">
-                    {% if current_user.can_moderate() %}
-                        <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="text-sm text-gray-900">Moderate content</span>
-                    {% else %}
-                        <svg class="h-5 w-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="text-sm text-gray-400">Moderate content</span>
-                    {% endif %}
-                </div>
-                
-                <div class="flex items-center">
-                    {% if current_user.is_admin() %}
-                        <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="text-sm text-gray-900">Administrative access</span>
-                    {% else %}
-                        <svg class="h-5 w-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="text-sm text-gray-400">Administrative access</span>
-                    {% endif %}
-                </div>
-                
-                <div class="flex items-center">
-                    <svg class="h-5 w-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                    </svg>
-                    <span class="text-sm text-gray-900">View and download panels</span>
+                        <span class="text-sm text-gray-900">View and download panels</span>
+                    </div>
                 </div>
             </div>
         </div>
+        
+        <!-- Action Buttons -->
+        <div class="mt-8 flex justify-between">
+            <div>
+                <a href="{{ url_for('auth.edit_profile') }}" 
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Edit Profile
+                </a>
+                <a href="{{ url_for('auth.change_password') }}" 
+                class="ml-3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Change Password
+                </a>
+                <a href="{{ url_for('auth.view_sessions') }}" 
+                class="ml-3 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Manage Sessions
+                </a>
+            </div>
+            
+            {% if current_user.is_admin() %}
+            <div>
+                <a href="{{ url_for('auth.admin_users') }}" 
+                class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Manage Users
+                </a>
+            </div>
+            {% endif %}
+        </div>    
     </div>
     
-    <!-- Action Buttons -->
-    <div class="mt-8 flex justify-between">
-        <div>
-            <a href="{{ url_for('auth.edit_profile') }}" 
-               class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                Edit Profile
-            </a>
-            <a href="{{ url_for('auth.change_password') }}" 
-               class="ml-3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                Change Password
-            </a>
-            <a href="{{ url_for('auth.view_sessions') }}" 
-               class="ml-3 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                Manage Sessions
-            </a>
+    <!-- My Panels Tab -->
+    <div id="panels-content" class="tab-content hidden">
+        <div class="space-y-6">
+            <!-- Panel Controls -->
+            <div class="bg-white shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">My Saved Panels</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-gray-500">Manage your personal panel library.</p>
+                        </div>
+                        <button id="create-panel-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Create New Panel
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Search and Filter Controls -->
+                <div class="px-4 py-4 border-b border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <input type="text" id="panel-search" placeholder="Search panels..." 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <select id="status-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">All Status</option>
+                                <option value="ACTIVE">Active</option>
+                                <option value="DRAFT">Draft</option>
+                                <option value="ARCHIVED">Archived</option>
+                            </select>
+                        </div>
+                        <div>
+                            <select id="visibility-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">All Visibility</option>
+                                <option value="PRIVATE">Private</option>
+                                <option value="SHARED">Shared</option>
+                                <option value="PUBLIC">Public</option>
+                            </select>
+                        </div>
+                        <div>
+                            <select id="sort-select" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="updated_at">Last Updated</option>
+                                <option value="created_at">Date Created</option>
+                                <option value="name">Name</option>
+                                <option value="gene_count">Gene Count</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panels Grid -->
+            <div id="panels-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Panel cards will be loaded here -->
+                <div id="panels-loading" class="col-span-full text-center py-8">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p class="mt-4 text-gray-500">Loading your panels...</p>
+                </div>
+            </div>
+            
+            <!-- Empty State -->
+            <div id="panels-empty" class="hidden text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No panels found</h3>
+                <p class="mt-1 text-sm text-gray-500">Get started by creating your first panel.</p>
+                <div class="mt-6">
+                    <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="-ml-1 mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        Create your first panel
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div id="pagination-container" class="hidden bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 flex justify-between sm:hidden">
+                        <button id="prev-page-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</button>
+                        <button id="next-page-mobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</button>
+                    </div>
+                    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-sm text-gray-700">
+                                Showing <span id="page-start">1</span> to <span id="page-end">10</span> of <span id="total-panels">0</span> panels
+                            </p>
+                        </div>
+                        <div>
+                            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                <button id="prev-page" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</button>
+                                <div id="page-numbers" class="flex"></div>
+                                <button id="next-page" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</button>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        {% if current_user.is_admin() %}
-        <div>
-            <a href="{{ url_for('auth.admin_users') }}" 
-               class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                Manage Users
-            </a>
+    </div>    
+</div>
+
+<!-- Panel Creation/Edit Modal -->
+<div id="panel-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg font-medium text-gray-900" id="modal-title">Create New Panel</h3>
+                <button type="button" id="close-modal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="panel-form" class="space-y-4">
+                <input type="hidden" id="panel-id" value="">
+                
+                <div>
+                    <label for="panel-name" class="block text-sm font-medium text-gray-700">Panel Name *</label>
+                    <input type="text" id="panel-name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                
+                <div>
+                    <label for="panel-description" class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea id="panel-description" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                </div>
+                
+                <div>
+                    <label for="panel-tags" class="block text-sm font-medium text-gray-700">Tags</label>
+                    <input type="text" id="panel-tags" placeholder="cancer,BRCA,hereditary" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <p class="mt-1 text-sm text-gray-500">Separate tags with commas</p>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="panel-status" class="block text-sm font-medium text-gray-700">Status</label>
+                        <select id="panel-status" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option value="ACTIVE">Active</option>
+                            <option value="DRAFT">Draft</option>
+                            <option value="ARCHIVED">Archived</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="panel-visibility" class="block text-sm font-medium text-gray-700">Visibility</label>
+                        <select id="panel-visibility" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option value="PRIVATE">Private</option>
+                            <option value="SHARED">Shared</option>
+                            <option value="PUBLIC">Public</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="panel-genes" class="block text-sm font-medium text-gray-700">Genes</label>
+                    <textarea id="panel-genes" rows="5" placeholder="Enter gene symbols, one per line or comma-separated" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                    <p class="mt-1 text-sm text-gray-500">Enter gene symbols (e.g., BRCA1, BRCA2, TP53)</p>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="cancel-panel" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        Cancel
+                    </button>
+                    <button type="submit" id="save-panel" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        Save Panel
+                    </button>
+                </div>
+            </form>
         </div>
-        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+import { initializeProfileManager } from "{{ url_for('static', filename='js/modules/profileManager.js') }}";
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeProfileManager();
+});
+</script>
 {% endblock %}

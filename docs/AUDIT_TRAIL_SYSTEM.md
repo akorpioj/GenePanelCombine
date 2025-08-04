@@ -69,6 +69,10 @@ The system tracks the following action types:
 | `PANEL_DOWNLOAD` | Gene panel downloads |
 | `PANEL_UPLOAD` | Panel file uploads |
 | `PANEL_DELETE` | Panel deletions |
+| `PANEL_CREATE` | Saved panel creation |
+| `PANEL_UPDATE` | Saved panel updates |
+| `PANEL_SHARE` | Panel sharing operations |
+| `PANEL_LIST` | Panel listing/browsing |
 | `SEARCH` | Search operations |
 | `VIEW` | Panel view operations |
 | `ADMIN_ACTION` | Administrative actions |

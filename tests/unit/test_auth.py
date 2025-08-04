@@ -189,7 +189,7 @@ class TestUserAuthentication:
 class TestSessionSecurity:
     """Test session security features."""
     
-    @patch('app.audit_service.AuditService.log_user_action')
+    @patch('app.audit_service.AuditService.log_action')
     def test_login_audit_logging(self, mock_audit, client, sample_user):
         """Test that login attempts are audited."""
         client.post('/auth/login', data={
@@ -200,7 +200,7 @@ class TestSessionSecurity:
         # Should have called audit logging
         assert mock_audit.called
     
-    @patch('app.audit_service.AuditService.log_user_action')
+    @patch('app.audit_service.AuditService.log_action')
     def test_logout_audit_logging(self, mock_audit, authenticated_client):
         """Test that logout is audited."""
         authenticated_client.get('/auth/logout')

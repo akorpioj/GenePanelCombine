@@ -176,6 +176,10 @@ class AuditActionType(Enum):
     PANEL_DOWNLOAD = "PANEL_DOWNLOAD"
     PANEL_UPLOAD = "PANEL_UPLOAD"
     PANEL_DELETE = "PANEL_DELETE"
+    PANEL_CREATE = "PANEL_CREATE"
+    PANEL_UPDATE = "PANEL_UPDATE"
+    PANEL_SHARE = "PANEL_SHARE"
+    PANEL_LIST = "PANEL_LIST"
     SEARCH = "SEARCH"
     VIEW = "VIEW"
     CACHE_CLEAR = "CACHE_CLEAR"
@@ -658,6 +662,7 @@ class PanelShare(db.Model):
 
 class ChangeType(Enum):
     """Types of changes that can be tracked"""
+    PANEL_CREATED = "PANEL_CREATED"
     GENE_ADDED = "GENE_ADDED"
     GENE_REMOVED = "GENE_REMOVED"
     GENE_MODIFIED = "GENE_MODIFIED"

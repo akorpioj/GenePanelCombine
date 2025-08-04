@@ -54,7 +54,7 @@ class TestDatabaseIntegrationWorkflows:
             'password': 'testpassword'
         }
         
-        with patch('app.audit_service.AuditService.log_user_action') as mock_audit:
+        with patch('app.audit_service.AuditService.log_action') as mock_audit:
             response = client.post('/auth/login', data=login_data)
             
             # Verify audit was called

@@ -226,6 +226,12 @@ def auth_headers(api_headers, jwt_token):
     return headers
 
 
+@pytest.fixture
+def auth_client(authenticated_client):
+    """Alias for authenticated client for API tests."""
+    return authenticated_client
+
+
 # Custom markers for test organization
 pytest.mark.unit = pytest.mark.unit
 pytest.mark.integration = pytest.mark.integration

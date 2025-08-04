@@ -69,6 +69,82 @@ This guide provides step-by-step instructions for migrating between different ve
 
 ## 🚀 Version-Specific Migrations
 
+## v1.5.0 Migration (Saved Panels System)
+
+#### From v1.4.x to v1.5.0
+
+**Major Changes**:
+- Complete saved panels system with 5 new database tables
+- Full CRUD API with authentication and audit trail
+- Panel versioning and change tracking system
+- Panel sharing and collaboration features
+- New audit action types for panel operations (PANEL_CREATE, PANEL_UPDATE, PANEL_SHARE, PANEL_LIST)
+- Enhanced change tracking with PANEL_CREATED type
+- Database enum migrations using Flask-Migrate
+
+**Migration Steps**:
+
+1. **Backup Current System**
+   ```bash
+   # Create backup directory
+   mkdir -p backups/v1.4.x-$(date +%Y%m%d-%H%M%S)
+   
+   # Backup database
+   pg_dump panelmerge > backups/v1.4.x-$(date +%Y%m%d-%H%M%S)/database.sql
+   
+   # Backup application
+   cp -r . backups/v1.4.x-$(date +%Y%m%d-%H%M%S)/application/
+   ```
+
+2. **Update Application Code**
+   ```bash
+   # Pull latest code
+   git fetch origin
+   git checkout v1.5.0
+   
+   # Update dependencies (no new dependencies for this version)
+   pip install -r requirements.txt
+   
+   # Build CSS (no changes needed)
+   npm run build:css
+   ```
+
+3. **Run Database Migration**
+   ```bash
+   # Generate migration for new enum values
+   flask db migrate -m "Add new PANEL_* to AuditActionType and PANEL_CREATED to ChangeType enum"
+   
+   # Apply migration to database
+   flask db upgrade
+   
+   # Verify migration status
+   flask db current
+   
+   # Check enum values in database
+   python scripts/check_enum_types.py
+   ```
+
+4. **Restart Services**
+   ```bash
+   # Restart application
+   systemctl restart panelmerge
+   
+   # No Redis restart needed (no session changes)
+   ```
+
+5. **Verify New Audit Types**
+   ```bash
+   # Test new audit action types
+   python -c "
+   from app.models import AuditActionType, ChangeType
+   print('✅ New AuditActionTypes:')
+   for action in ['PANEL_CREATE', 'PANEL_UPDATE', 'PANEL_SHARE', 'PANEL_LIST']:
+       print(f'  - {action}: {getattr(AuditActionType, action)}')
+   print('✅ New ChangeType:')
+   print(f'  - PANEL_CREATED: {ChangeType.PANEL_CREATED}')
+   "
+   ```
+
 ### Migrating to v1.4.1 (Timezone Support)
 
 #### From v1.4.0 to v1.4.1

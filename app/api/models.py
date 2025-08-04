@@ -175,3 +175,154 @@ version_info_model = api.model('VersionInfo', {
     'commit_hash': fields.String(description='Git commit hash'),
     'environment': fields.String(description='Environment (development/production)')
 })
+
+# Saved Panel Models
+saved_panel_gene_model = api.model('SavedPanelGene', {
+    'id': fields.Integer(description='Gene ID'),
+    'gene_symbol': fields.String(required=True, description='Gene symbol'),
+    'gene_name': fields.String(description='Gene name'),
+    'ensembl_id': fields.String(description='Ensembl gene ID'),
+    'hgnc_id': fields.String(description='HGNC gene ID'),
+    'confidence_level': fields.String(description='Confidence level (1=red, 2=amber, 3=green)'),
+    'mode_of_inheritance': fields.String(description='Mode of inheritance'),
+    'phenotype': fields.String(description='Associated phenotype'),
+    'evidence_level': fields.String(description='Evidence level'),
+    'source_panel_id': fields.String(description='Source panel ID'),
+    'source_list_type': fields.String(description='Source list type'),
+    'user_notes': fields.String(description='User notes'),
+    'custom_confidence': fields.String(description='Custom confidence rating'),
+    'is_modified': fields.Boolean(description='Whether gene has been modified'),
+    'added_at': fields.String(description='Date gene was added')
+})
+
+saved_panel_owner_model = api.model('SavedPanelOwner', {
+    'id': fields.Integer(required=True, description='User ID'),
+    'username': fields.String(required=True, description='Username')
+})
+
+saved_panel_model = api.model('SavedPanel', {
+    'id': fields.Integer(required=True, description='Panel ID'),
+    'name': fields.String(required=True, description='Panel name'),
+    'description': fields.String(description='Panel description'),
+    'tags': fields.String(description='Panel tags (comma-separated)'),
+    'status': fields.String(description='Panel status (ACTIVE/DRAFT/ARCHIVED)'),
+    'visibility': fields.String(description='Panel visibility (PRIVATE/SHARED/PUBLIC)'),
+    'gene_count': fields.Integer(description='Number of genes in panel'),
+    'version_count': fields.Integer(description='Number of versions'),
+    'created_at': fields.String(description='Creation timestamp'),
+    'updated_at': fields.String(description='Last update timestamp'),
+    'last_accessed_at': fields.String(description='Last access timestamp'),
+    'source_type': fields.String(description='Source type (manual/panelapp/upload)'),
+    'source_reference': fields.String(description='Source reference identifier'),
+    'storage_backend': fields.String(description='Storage backend (gcs/local)'),
+    'current_version_id': fields.Integer(description='Current version ID'),
+    'owner': fields.Nested(saved_panel_owner_model, description='Panel owner'),
+    'genes': fields.List(fields.Nested(saved_panel_gene_model), description='Panel genes')
+})
+
+saved_panel_pagination_model = api.model('SavedPanelPagination', {
+    'page': fields.Integer(description='Current page number'),
+    'per_page': fields.Integer(description='Items per page'),
+    'total': fields.Integer(description='Total number of items'),
+    'pages': fields.Integer(description='Total number of pages'),
+    'has_next': fields.Boolean(description='Whether there is a next page'),
+    'has_prev': fields.Boolean(description='Whether there is a previous page')
+})
+
+saved_panel_list_model = api.model('SavedPanelList', {
+    'panels': fields.List(fields.Nested(saved_panel_model)),
+    'pagination': fields.Nested(saved_panel_pagination_model, description='Pagination info'),
+    'total': fields.Integer(description='Total number of panels')
+})
+
+saved_panel_create_gene_model = api.model('SavedPanelCreateGene', {
+    'gene_symbol': fields.String(required=True, description='Gene symbol'),
+    'gene_name': fields.String(description='Gene name'),
+    'ensembl_id': fields.String(description='Ensembl gene ID'),
+    'hgnc_id': fields.String(description='HGNC gene ID'),
+    'confidence_level': fields.String(description='Confidence level'),
+    'mode_of_inheritance': fields.String(description='Mode of inheritance'),
+    'phenotype': fields.String(description='Associated phenotype'),
+    'evidence_level': fields.String(description='Evidence level'),
+    'source_panel_id': fields.String(description='Source panel ID'),
+    'source_list_type': fields.String(description='Source list type'),
+    'user_notes': fields.String(description='User notes'),
+    'custom_confidence': fields.String(description='Custom confidence rating')
+})
+
+saved_panel_create_model = api.model('SavedPanelCreate', {
+    'name': fields.String(required=True, description='Panel name'),
+    'description': fields.String(description='Panel description'),
+    'tags': fields.String(description='Panel tags (comma-separated)'),
+    'status': fields.String(description='Panel status (ACTIVE/DRAFT/ARCHIVED)', default='ACTIVE'),
+    'visibility': fields.String(description='Panel visibility (PRIVATE/SHARED/PUBLIC)', default='PRIVATE'),
+    'source_type': fields.String(description='Source type (manual/panelapp/upload)', default='manual'),
+    'source_reference': fields.String(description='Source reference identifier'),
+    'version_comment': fields.String(description='Version comment'),
+    'genes': fields.List(fields.Nested(saved_panel_create_gene_model), required=True, description='Panel genes')
+})
+
+saved_panel_update_model = api.model('SavedPanelUpdate', {
+    'name': fields.String(description='Panel name'),
+    'description': fields.String(description='Panel description'),
+    'tags': fields.String(description='Panel tags (comma-separated)'),
+    'status': fields.String(description='Panel status (ACTIVE/DRAFT/ARCHIVED)'),
+    'visibility': fields.String(description='Panel visibility (PRIVATE/SHARED/PUBLIC)'),
+    'version_comment': fields.String(description='Version comment for this update')
+})
+
+# Panel Version Models
+panel_version_creator_model = api.model('PanelVersionCreator', {
+    'id': fields.Integer(required=True, description='User ID'),
+    'username': fields.String(required=True, description='Username')
+})
+
+panel_version_model = api.model('PanelVersion', {
+    'id': fields.Integer(required=True, description='Version ID'),
+    'version_number': fields.Integer(required=True, description='Version number'),
+    'comment': fields.String(description='Version comment'),
+    'gene_count': fields.Integer(description='Number of genes in this version'),
+    'changes_summary': fields.String(description='Summary of changes'),
+    'storage_path': fields.String(description='Storage path for version data'),
+    'created_at': fields.String(description='Creation timestamp'),
+    'created_by': fields.Nested(panel_version_creator_model, description='Version creator')
+})
+
+panel_version_list_model = api.model('PanelVersionList', {
+    'panel_id': fields.Integer(required=True, description='Panel ID'),
+    'panel_name': fields.String(required=True, description='Panel name'),
+    'versions': fields.List(fields.Nested(panel_version_model)),
+    'total': fields.Integer(description='Total number of versions')
+})
+
+# Panel Share Models
+panel_share_model = api.model('PanelShare', {
+    'id': fields.Integer(required=True, description='Share ID'),
+    'panel_id': fields.Integer(required=True, description='Panel ID'),
+    'shared_with_user_id': fields.Integer(description='Shared with user ID'),
+    'permission_level': fields.String(description='Permission level (VIEW/EDIT/ADMIN)'),
+    'can_reshare': fields.Boolean(description='Whether user can reshare'),
+    'is_active': fields.Boolean(description='Whether share is active'),
+    'expires_at': fields.String(description='Expiration timestamp'),
+    'created_at': fields.String(description='Creation timestamp'),
+    'share_token': fields.String(description='Share token for links')
+})
+
+panel_share_create_model = api.model('PanelShareCreate', {
+    'shared_with_user_id': fields.Integer(description='User ID to share with'),
+    'permission_level': fields.String(description='Permission level (VIEW/EDIT/ADMIN)', default='VIEW'),
+    'can_reshare': fields.Boolean(description='Whether user can reshare', default=False),
+    'expires_in_days': fields.Integer(description='Number of days until expiration'),
+    'create_public_link': fields.Boolean(description='Create public share link', default=False)
+})
+
+# Common Response Models
+error_response_model = api.model('ErrorResponse', {
+    'error': fields.String(required=True, description='Error message'),
+    'details': fields.String(description='Additional error details')
+})
+
+success_response_model = api.model('SuccessResponse', {
+    'success': fields.Boolean(required=True, description='Operation success status'),
+    'message': fields.String(description='Success message')
+})
