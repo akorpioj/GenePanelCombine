@@ -362,7 +362,7 @@ class SavedPanel(db.Model):
     
     # Source information
     source_type = db.Column(db.String(50))  # 'upload', 'panelapp', 'manual', 'template'
-    source_reference = db.Column(db.String(255))  # Original source reference
+    source_reference = db.Column(db.String(1000))  # Increased from 255 to 1000 for longer panel lists
     
     # Version tracking
     current_version_id = db.Column(db.Integer, db.ForeignKey('panel_versions.id'), nullable=True)
@@ -517,18 +517,18 @@ class PanelGene(db.Model):
     # Gene information
     gene_symbol = db.Column(db.String(50), nullable=False, index=True)
     gene_name = db.Column(db.String(255))
-    ensembl_id = db.Column(db.String(50), index=True)
-    hgnc_id = db.Column(db.String(20))
+    ensembl_id = db.Column(db.String(100), index=True)
+    hgnc_id = db.Column(db.String(100))
     
     # Panel-specific gene data
-    confidence_level = db.Column(db.String(20))  # 'high', 'medium', 'low'
-    mode_of_inheritance = db.Column(db.String(100))
-    phenotype = db.Column(db.Text)
-    evidence_level = db.Column(db.String(20))
+    confidence_level = db.Column(db.String(100))  # 'high', 'medium', 'low'
+    mode_of_inheritance = db.Column(db.String(500))  # For example: 'MONOALLELIC, autosomal or pseudoautosomal, imprinted status unknown'
+    phenotype = db.Column(db.Text) # Source data may be a list: ['Dyskeratosis congenita, autosomal recessive 5 615190', '615190 DC type 4 and 5', '616373 Pulmonary fibrosis and/or bone marrow failure, telomere-related', 'Dyskeratosis congenita, autosomal dominant 4, 615190', 'Dyskeratosis congenita, autosomal recessive 5, 615190', '615190 Dyskeratosis congenita', '616373 Pulmonary fibrosis and/or bone marrow failure, telomere-related, 3']
+    evidence_level = db.Column(db.String(200))  # Source data may be a list: ['NHS GMS', 'Expert Review Green']
     
     # Source information
-    source_panel_id = db.Column(db.String(50))  # Original PanelApp panel ID
-    source_list_type = db.Column(db.String(20))  # 'green', 'amber', 'red'
+    source_panel_id = db.Column(db.String(100))  # Original PanelApp panel ID
+    source_list_type = db.Column(db.String(100))  # 'green', 'amber', 'red'
     
     # Status and metadata
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)

@@ -367,7 +367,51 @@ def generate():
     logger.info(f"User panels: {uploaded_panels}")
     logger.info(f"Include original panels: {include_original_panels}")
     
+    # Automatically save downloaded panel to user's saved panels if authenticated
+    if current_user.is_authenticated:
+        try:
+            from .panel_saver import create_saved_panel_from_download
+            saved_panel = create_saved_panel_from_download(
+                final_unique_gene_set=final_unique_gene_set,
+                selected_panel_configs_for_generation=selected_panel_configs_for_generation,
+                panel_names=panel_names,
+                panel_full_gene_data=panel_full_gene_data,
+                search_term_from_post_form=search_term_from_post_form,
+                uploaded_panels=uploaded_panels
+            )
+            if saved_panel:
+                logger.info(f"Automatically saved downloaded panel as '{saved_panel.name}' for user {current_user.username}")
+                # Store panel info in session for frontend notification
+                from flask import session
+                session['last_saved_panel'] = {
+                    'id': saved_panel.id,
+                    'name': saved_panel.name,
+                    'gene_count': saved_panel.gene_count
+                }
+                session.modified = True
+            else:
+                logger.warning(f"Failed to auto-save downloaded panel for user {current_user.username}")
+        except Exception as e:
+            logger.error(f"Error auto-saving downloaded panel for user {current_user.username}: {e}")
+    
     return generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form, uploaded_panels=uploaded_panels, include_original_panels=include_original_panels)
+
+@main_bp.route('/check_saved_panel_notification', methods=['GET'])
+def check_saved_panel_notification():
+    """
+    Check if there's a saved panel notification in the session and return it
+    """
+    from flask import session
+    if current_user.is_authenticated:
+        saved_panel_info = session.pop('last_saved_panel', None)
+        if saved_panel_info:
+            session.modified = True
+            return jsonify({
+                'success': True,
+                'panel': saved_panel_info
+            })
+    
+    return jsonify({'success': False})
 
 @main_bp.route('/upload_user_panel', methods=['POST'])
 @limiter.limit("30 per hour")

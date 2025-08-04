@@ -203,6 +203,80 @@ async function submitFormAndGetBlob(formData) {
 }
 
 /**
+ * Check for saved panel notification from the server
+ * @param {string} downloadedFilename The filename that was downloaded
+ */
+async function checkForSavedPanelNotification(downloadedFilename) {
+    try {
+        const response = await fetch('/check_saved_panel_notification');
+        const data = await response.json();
+        
+        if (data.success && data.panel) {
+            // Show enhanced success message with saved panel info
+            const successMsg = document.createElement('div');
+            successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-sm';
+            successMsg.innerHTML = `
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0">
+                        <div class="w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium">
+                            ✅ File downloaded: ${downloadedFilename}
+                        </p>
+                        <p class="text-sm opacity-90 mt-1">
+                            📊 Panel saved: "${data.panel.name}" (${data.panel.gene_count} genes)
+                        </p>
+                        <a href="/auth/profile" class="text-sm underline opacity-75 hover:opacity-100 mt-1 block">
+                            View in My Panels →
+                        </a>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(successMsg);
+            
+            setTimeout(() => {
+                if (document.body.contains(successMsg)) {
+                    document.body.removeChild(successMsg);
+                }
+            }, 8000); // Longer timeout for the enhanced message
+            
+        } else {
+            // Show regular success message
+            const successMsg = document.createElement('div');
+            successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50';
+            successMsg.textContent = `✅ File downloaded: ${downloadedFilename}`;
+            document.body.appendChild(successMsg);
+            
+            setTimeout(() => {
+                if (document.body.contains(successMsg)) {
+                    document.body.removeChild(successMsg);
+                }
+            }, 3000);
+        }
+        
+    } catch (error) {
+        console.error('Error checking for saved panel notification:', error);
+        
+        // Show regular success message as fallback
+        const successMsg = document.createElement('div');
+        successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50';
+        successMsg.textContent = `✅ File downloaded: ${downloadedFilename}`;
+        document.body.appendChild(successMsg);
+        
+        setTimeout(() => {
+            if (document.body.contains(successMsg)) {
+                document.body.removeChild(successMsg);
+            }
+        }, 3000);
+    }
+}
+
+/**
  * Enhanced download function that handles custom naming and folder selection
  * @param {Event} event Form submit event
  */
@@ -293,16 +367,8 @@ export async function handleEnhancedDownload(event) {
         
         // Show success message if download was successful
         if (downloadSuccess) {
-            const successMsg = document.createElement('div');
-            successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50';
-            successMsg.textContent = `✅ File downloaded: ${selectedFilename}`;
-            document.body.appendChild(successMsg);
-            
-            setTimeout(() => {
-                if (document.body.contains(successMsg)) {
-                    document.body.removeChild(successMsg);
-                }
-            }, 3000);
+            // Check for saved panel notification
+            checkForSavedPanelNotification(selectedFilename);
         }
         
     } catch (error) {

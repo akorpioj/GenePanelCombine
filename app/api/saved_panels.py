@@ -539,6 +539,10 @@ class SavedPanelResource(Resource):
             
             panel_name = panel.name
             
+            # Clear the current_version_id first to avoid foreign key constraint issues
+            panel.current_version_id = None
+            db.session.flush()
+            
             # Delete related records (cascade should handle this, but being explicit)
             PanelChange.query.filter_by(panel_id=panel.id).delete()
             PanelShare.query.filter_by(panel_id=panel.id).delete()
