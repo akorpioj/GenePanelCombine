@@ -38,6 +38,7 @@ from . import users
 from . import admin
 from . import cache
 from . import saved_panels
+from . import version_control
 
 # Add namespaces
 api.add_namespace(panels.ns)
@@ -46,3 +47,4 @@ api.add_namespace(users.ns)
 api.add_namespace(admin.ns)
 api.add_namespace(cache.ns)
 api.add_namespace(saved_panels.ns)
+api.add_namespace(version_control.ns)

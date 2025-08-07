@@ -65,6 +65,36 @@ class Config:
     MAX_PANEL_VERSIONS = int(os.getenv('MAX_PANEL_VERSIONS', '10'))  # Keep last 10 versions
     AUTO_BACKUP_ENABLED = os.getenv('AUTO_BACKUP_ENABLED', 'True').lower() == 'true'
     BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', '90'))  # Keep backups for 90 days
+    
+    # Version Control Configuration
+    VERSION_CONTROL_ENABLED = os.getenv('VERSION_CONTROL_ENABLED', 'True').lower() == 'true'
+    VERSION_CONTROL_BRANCH_ENABLED = os.getenv('VERSION_CONTROL_BRANCH_ENABLED', 'True').lower() == 'true'
+    VERSION_CONTROL_TAG_ENABLED = os.getenv('VERSION_CONTROL_TAG_ENABLED', 'True').lower() == 'true'
+    VERSION_CONTROL_MERGE_ENABLED = os.getenv('VERSION_CONTROL_MERGE_ENABLED', 'True').lower() == 'true'
+    
+    # Retention Policy Configuration
+    DEFAULT_RETENTION_POLICY = {
+        'max_versions': int(os.getenv('DEFAULT_MAX_VERSIONS', '10')),
+        'backup_retention_days': int(os.getenv('DEFAULT_BACKUP_RETENTION_DAYS', '90')),
+        'keep_tagged_versions': os.getenv('DEFAULT_KEEP_TAGGED_VERSIONS', 'True').lower() == 'true',
+        'keep_production_tags': os.getenv('DEFAULT_KEEP_PRODUCTION_TAGS', 'True').lower() == 'true',
+        'auto_cleanup_enabled': os.getenv('DEFAULT_AUTO_CLEANUP_ENABLED', 'True').lower() == 'true',
+        'cleanup_frequency_hours': int(os.getenv('DEFAULT_CLEANUP_FREQUENCY_HOURS', '24'))
+    }
+    
+    # Tag Protection Configuration
+    PROTECTED_TAG_TYPES = os.getenv('PROTECTED_TAG_TYPES', 'PRODUCTION,STAGING').split(',')
+    TAG_NAMING_PATTERN = os.getenv('TAG_NAMING_PATTERN', r'^[a-zA-Z0-9._-]+$')  # Regex pattern for tag names
+    
+    # Branch Configuration
+    DEFAULT_BRANCH_NAME = os.getenv('DEFAULT_BRANCH_NAME', 'main')
+    BRANCH_NAMING_PATTERN = os.getenv('BRANCH_NAMING_PATTERN', r'^[a-zA-Z0-9._/-]+$')  # Regex pattern for branch names
+    MAX_BRANCHES_PER_PANEL = int(os.getenv('MAX_BRANCHES_PER_PANEL', '20'))
+    
+    # Merge Configuration
+    DEFAULT_MERGE_STRATEGY = os.getenv('DEFAULT_MERGE_STRATEGY', 'auto')  # auto, manual, ours, theirs
+    ALLOW_FAST_FORWARD_MERGE = os.getenv('ALLOW_FAST_FORWARD_MERGE', 'True').lower() == 'true'
+    REQUIRE_MERGE_COMMENT = os.getenv('REQUIRE_MERGE_COMMENT', 'True').lower() == 'true'
 
 # Add other application-wide configurations here
 class DevelopmentConfig(Config):

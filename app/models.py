@@ -1,5 +1,6 @@
 import os
 import datetime
+from typing import List
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -478,22 +479,34 @@ class PanelVersion(db.Model):
     # Storage reference for this version
     storage_path = db.Column(db.String(500))  # Path to version data in storage
     
+    # Version control enhancements
+    is_protected = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    retention_priority = db.Column(db.Integer, default=1, nullable=False, index=True)
+    last_accessed_at = db.Column(db.DateTime, index=True)
+    access_count = db.Column(db.Integer, default=0, nullable=False)
+    size_bytes = db.Column(db.BigInteger)
+    
     # Relationships
     changes = db.relationship('PanelChange', backref='version', lazy='dynamic', cascade='all, delete-orphan')
+    tags = db.relationship('PanelVersionTag', backref='version', lazy='dynamic', cascade='all, delete-orphan')
+    version_metadata = db.relationship('PanelVersionMetadata', backref='version', uselist=False, cascade='all, delete-orphan', primaryjoin='PanelVersion.id == PanelVersionMetadata.version_id')
     
     # Constraints
     __table_args__ = (
         db.UniqueConstraint('panel_id', 'version_number', name='uq_panel_version'),
         db.Index('idx_panel_versions_panel_version', 'panel_id', 'version_number'),
         db.Index('idx_panel_versions_created', 'created_at'),
+        db.Index('idx_panel_versions_protected', 'is_protected'),
+        db.Index('idx_panel_versions_priority', 'retention_priority'),
+        db.Index('idx_panel_versions_accessed', 'last_accessed_at'),
     )
     
     def __repr__(self):
         return f'<PanelVersion {self.panel_id}v{self.version_number}>'
     
-    def to_dict(self):
+    def to_dict(self, include_tags=False, include_metadata=False):
         """Convert version to dictionary"""
-        return {
+        result = {
             'id': self.id,
             'version_number': self.version_number,
             'comment': self.comment,
@@ -505,7 +518,66 @@ class PanelVersion(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'gene_count': self.gene_count,
             'changes_summary': self.changes_summary,
+            'is_protected': self.is_protected,
+            'retention_priority': self.retention_priority,
+            'last_accessed_at': self.last_accessed_at.isoformat() if self.last_accessed_at else None,
+            'access_count': self.access_count,
+            'size_bytes': self.size_bytes
         }
+        
+        if include_tags:
+            result['tags'] = [tag.to_dict() for tag in self.tags]
+        
+        if include_metadata and self.version_metadata:
+            result['metadata'] = self.version_metadata.to_dict()
+        
+        return result
+
+    def update_access_stats(self):
+        """Update access statistics for this version"""
+        self.last_accessed_at = datetime.datetime.now()
+        self.access_count += 1
+        db.session.commit()
+
+    def add_tag(self, tag_name: str, tag_type: 'TagType', user_id: int, description: str = None):
+        """Add a tag to this version"""
+        from app.version_control_service import TagType
+        
+        tag = PanelVersionTag(
+            version_id=self.id,
+            tag_name=tag_name,
+            tag_type=tag_type,
+            description=description,
+            created_by_id=user_id,
+            is_protected=(tag_type in [TagType.PRODUCTION, TagType.STAGING])
+        )
+        db.session.add(tag)
+        
+        # Mark version as protected if it has protected tags
+        if tag_type in [TagType.PRODUCTION, TagType.STAGING]:
+            self.is_protected = True
+            self.retention_priority = 10  # High priority
+        
+        return tag
+
+    def get_tags_by_type(self, tag_type: 'TagType' = None) -> List['PanelVersionTag']:
+        """Get tags for this version, optionally filtered by type"""
+        query = self.tags
+        if tag_type:
+            query = query.filter_by(tag_type=tag_type)
+        return query.all()
+
+    def is_deletable(self) -> bool:
+        """Check if this version can be deleted based on protection and tags"""
+        if self.is_protected:
+            return False
+        
+        # Check for protected tags
+        protected_tags = self.tags.filter_by(is_protected=True).first()
+        if protected_tags:
+            return False
+        
+        return True
 
 class PanelGene(db.Model):
     """Individual genes within a saved panel"""
@@ -669,6 +741,271 @@ class ChangeType(Enum):
     METADATA_CHANGED = "METADATA_CHANGED"
     CONFIDENCE_CHANGED = "CONFIDENCE_CHANGED"
     SOURCE_UPDATED = "SOURCE_UPDATED"
+
+
+class TagType(Enum):
+    """Types of version tags"""
+    PRODUCTION = "PRODUCTION"
+    STAGING = "STAGING"
+    RELEASE = "RELEASE"
+    HOTFIX = "HOTFIX"
+    FEATURE = "FEATURE"
+    BACKUP = "BACKUP"
+
+
+class VersionType(Enum):
+    """Types of versions in the version control system"""
+    MAIN = "MAIN"
+    BRANCH = "BRANCH"
+    TAG = "TAG"
+    MERGE = "MERGE"
+
+
+class PanelVersionTag(db.Model):
+    """Tags for panel versions"""
+    __tablename__ = 'panel_version_tags'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    version_id = db.Column(db.Integer, db.ForeignKey('panel_versions.id', ondelete='CASCADE'), nullable=False, index=True)
+    tag_name = db.Column(db.String(100), nullable=False, index=True)
+    tag_type = db.Column(db.Enum(TagType), nullable=False, index=True)
+    description = db.Column(db.Text)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_by = db.relationship('User', lazy=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    is_protected = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    
+    # Constraints
+    __table_args__ = (
+        db.UniqueConstraint('version_id', 'tag_name', name='uq_version_tag_name'),
+        db.Index('idx_panel_tags_version', 'version_id'),
+        db.Index('idx_panel_tags_name', 'tag_name'),
+        db.Index('idx_panel_tags_type', 'tag_type'),
+        db.Index('idx_panel_tags_protected', 'is_protected'),
+    )
+    
+    def __repr__(self):
+        return f'<PanelVersionTag {self.tag_name}:{self.tag_type.value}>'
+    
+    def to_dict(self):
+        """Convert tag to dictionary"""
+        return {
+            'id': self.id,
+            'version_id': self.version_id,
+            'tag_name': self.tag_name,
+            'tag_type': self.tag_type.value,
+            'description': self.description,
+            'created_by': {
+                'id': self.created_by.id,
+                'username': self.created_by.username
+            } if self.created_by else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'is_protected': self.is_protected
+        }
+
+
+class PanelVersionBranch(db.Model):
+    """Branches for panel version control"""
+    __tablename__ = 'panel_version_branches'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    panel_id = db.Column(db.Integer, db.ForeignKey('saved_panels.id', ondelete='CASCADE'), nullable=False, index=True)
+    branch_name = db.Column(db.String(100), nullable=False, index=True)
+    parent_version_id = db.Column(db.Integer, db.ForeignKey('panel_versions.id'), nullable=False)
+    head_version_id = db.Column(db.Integer, db.ForeignKey('panel_versions.id'), nullable=True)
+    description = db.Column(db.Text)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_by = db.relationship('User', foreign_keys=[created_by_id], lazy=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    is_merged = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    merged_at = db.Column(db.DateTime)
+    merged_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    merged_by = db.relationship('User', foreign_keys=[merged_by_id], lazy=True)
+    
+    # Relationships
+    parent_version = db.relationship('PanelVersion', foreign_keys=[parent_version_id], lazy=True)
+    head_version = db.relationship('PanelVersion', foreign_keys=[head_version_id], lazy=True)
+    panel = db.relationship('SavedPanel', lazy=True)
+    
+    # Constraints
+    __table_args__ = (
+        db.UniqueConstraint('panel_id', 'branch_name', name='uq_panel_branch_name'),
+        db.Index('idx_panel_branches_panel', 'panel_id'),
+        db.Index('idx_panel_branches_name', 'branch_name'),
+        db.Index('idx_panel_branches_active', 'is_active'),
+        db.Index('idx_panel_branches_merged', 'is_merged'),
+    )
+    
+    def __repr__(self):
+        return f'<PanelVersionBranch {self.branch_name}>'
+    
+    def to_dict(self):
+        """Convert branch to dictionary"""
+        return {
+            'id': self.id,
+            'panel_id': self.panel_id,
+            'branch_name': self.branch_name,
+            'description': self.description,
+            'parent_version': {
+                'id': self.parent_version.id,
+                'version_number': self.parent_version.version_number
+            } if self.parent_version else None,
+            'head_version': {
+                'id': self.head_version.id,
+                'version_number': self.head_version.version_number
+            } if self.head_version else None,
+            'created_by': {
+                'id': self.created_by.id,
+                'username': self.created_by.username
+            } if self.created_by else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'is_active': self.is_active,
+            'is_merged': self.is_merged,
+            'merged_at': self.merged_at.isoformat() if self.merged_at else None,
+            'merged_by': {
+                'id': self.merged_by.id,
+                'username': self.merged_by.username
+            } if self.merged_by else None
+        }
+
+    def mark_as_merged(self, user_id: int):
+        """Mark this branch as merged"""
+        self.is_merged = True
+        self.merged_at = datetime.datetime.now()
+        self.merged_by_id = user_id
+        self.is_active = False
+
+
+class PanelVersionMetadata(db.Model):
+    """Extended metadata for panel versions"""
+    __tablename__ = 'panel_version_metadata'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    version_id = db.Column(db.Integer, db.ForeignKey('panel_versions.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    version_type = db.Column(db.Enum(VersionType), default=VersionType.MAIN, nullable=False, index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('panel_version_branches.id'), nullable=True, index=True)
+    parent_version_id = db.Column(db.Integer, db.ForeignKey('panel_versions.id'), nullable=True)
+    merge_source_version_id = db.Column(db.Integer, db.ForeignKey('panel_versions.id'), nullable=True)
+    commit_hash = db.Column(db.String(64), nullable=True, index=True)
+    diff_summary = db.Column(db.Text)
+    file_changes_count = db.Column(db.Integer, default=0, nullable=False)
+    lines_added = db.Column(db.Integer, default=0, nullable=False)
+    lines_removed = db.Column(db.Integer, default=0, nullable=False)
+    retention_priority = db.Column(db.Integer, default=1, nullable=False, index=True)
+    
+    # Relationships
+    branch = db.relationship('PanelVersionBranch', lazy=True)
+    parent_version = db.relationship('PanelVersion', foreign_keys=[parent_version_id], lazy=True)
+    merge_source_version = db.relationship('PanelVersion', foreign_keys=[merge_source_version_id], lazy=True)
+    
+    # Constraints
+    __table_args__ = (
+        db.UniqueConstraint('version_id', name='uq_version_metadata'),
+        db.Index('idx_version_metadata_version', 'version_id'),
+        db.Index('idx_version_metadata_type', 'version_type'),
+        db.Index('idx_version_metadata_branch', 'branch_id'),
+        db.Index('idx_version_metadata_priority', 'retention_priority'),
+        db.Index('idx_version_metadata_hash', 'commit_hash'),
+    )
+    
+    def __repr__(self):
+        return f'<PanelVersionMetadata {self.version_id}:{self.version_type.value}>'
+    
+    def to_dict(self):
+        """Convert metadata to dictionary"""
+        return {
+            'id': self.id,
+            'version_id': self.version_id,
+            'version_type': self.version_type.value,
+            'branch': {
+                'id': self.branch.id,
+                'name': self.branch.branch_name
+            } if self.branch else None,
+            'parent_version': {
+                'id': self.parent_version.id,
+                'version_number': self.parent_version.version_number
+            } if self.parent_version else None,
+            'merge_source_version': {
+                'id': self.merge_source_version.id,
+                'version_number': self.merge_source_version.version_number
+            } if self.merge_source_version else None,
+            'commit_hash': self.commit_hash,
+            'diff_summary': self.diff_summary,
+            'file_changes_count': self.file_changes_count,
+            'lines_added': self.lines_added,
+            'lines_removed': self.lines_removed,
+            'retention_priority': self.retention_priority
+        }
+
+
+class PanelRetentionPolicy(db.Model):
+    """Configurable retention policies for panels"""
+    __tablename__ = 'panel_retention_policies'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    panel_id = db.Column(db.Integer, db.ForeignKey('saved_panels.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    max_versions = db.Column(db.Integer, default=10, nullable=False)
+    backup_retention_days = db.Column(db.Integer, default=90, nullable=False)
+    keep_tagged_versions = db.Column(db.Boolean, default=True, nullable=False)
+    keep_production_tags = db.Column(db.Boolean, default=True, nullable=False)
+    auto_cleanup_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    last_cleanup_at = db.Column(db.DateTime)
+    cleanup_frequency_hours = db.Column(db.Integer, default=24, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_by = db.relationship('User', lazy=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now, nullable=False)
+    
+    # Relationships
+    panel = db.relationship('SavedPanel', lazy=True)
+    
+    # Constraints
+    __table_args__ = (
+        db.UniqueConstraint('panel_id', name='uq_panel_retention_policy'),
+        db.Index('idx_retention_policies_panel', 'panel_id'),
+        db.Index('idx_retention_policies_cleanup', 'auto_cleanup_enabled', 'last_cleanup_at'),
+    )
+    
+    def __repr__(self):
+        return f'<PanelRetentionPolicy {self.panel_id}: max={self.max_versions}>'
+    
+    def to_dict(self):
+        """Convert retention policy to dictionary"""
+        return {
+            'id': self.id,
+            'panel_id': self.panel_id,
+            'max_versions': self.max_versions,
+            'backup_retention_days': self.backup_retention_days,
+            'keep_tagged_versions': self.keep_tagged_versions,
+            'keep_production_tags': self.keep_production_tags,
+            'auto_cleanup_enabled': self.auto_cleanup_enabled,
+            'last_cleanup_at': self.last_cleanup_at.isoformat() if self.last_cleanup_at else None,
+            'cleanup_frequency_hours': self.cleanup_frequency_hours,
+            'created_by': {
+                'id': self.created_by.id,
+                'username': self.created_by.username
+            } if self.created_by else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+    def needs_cleanup(self) -> bool:
+        """Check if cleanup is needed based on frequency"""
+        if not self.auto_cleanup_enabled:
+            return False
+        
+        if not self.last_cleanup_at:
+            return True
+        
+        frequency_delta = datetime.timedelta(hours=self.cleanup_frequency_hours)
+        return datetime.datetime.now() - self.last_cleanup_at > frequency_delta
+
+    def update_cleanup_timestamp(self):
+        """Update the last cleanup timestamp"""
+        self.last_cleanup_at = datetime.datetime.now()
+        self.updated_at = datetime.datetime.now()
+
 
 class PanelChange(db.Model):
     """Detailed change tracking for panels"""
