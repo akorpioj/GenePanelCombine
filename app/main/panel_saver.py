@@ -1,12 +1,22 @@
 """
 Helper functions for automatically saving downloaded panels to user's saved panels
+
+Audit Events Logged:
+- PANEL_CREATE: Successful auto-save of panel from download
+- ACCESS_DENIED: Attempt to save panel without authentication  
+- PANEL_UPDATE: Bulk addition of genes to saved panel
+- ERROR: Failed panel creation attempts with detailed error information
+
+All audit events include comprehensive details about source panels, gene counts,
+and the download context for security and compliance tracking.
 """
 import datetime
 from flask_login import current_user
 from app.models import (
     db, SavedPanel, PanelVersion, PanelGene, PanelChange, 
-    PanelStatus, PanelVisibility, ChangeType
+    PanelStatus, PanelVisibility, ChangeType, AuditActionType
 )
+from app.audit_service import AuditService
 from .utils import logger
 
 
@@ -33,6 +43,18 @@ def create_saved_panel_from_download(
         SavedPanel instance or None if user not authenticated or error
     """
     if not current_user.is_authenticated:
+        # Log attempt to save panel without authentication
+        AuditService.log_action(
+            action_type=AuditActionType.ACCESS_DENIED,
+            action_description="Attempted to auto-save panel from download without authentication",
+            resource_type="saved_panel",
+            success=False,
+            details={
+                'creation_method': 'auto_save_from_download',
+                'reason': 'user_not_authenticated',
+                'attempted_gene_count': len(final_unique_gene_set) if final_unique_gene_set else 0
+            }
+        )
         return None
     
     try:
@@ -112,12 +134,57 @@ def create_saved_panel_from_download(
         db.session.add(change)
         
         db.session.commit()
+        
+        # Log successful panel creation in audit trail
+        AuditService.log_action(
+            action_type=AuditActionType.PANEL_CREATE,
+            action_description=f"Auto-saved panel '{panel_name}' from download with {len(final_unique_gene_set)} genes",
+            resource_type="saved_panel",
+            resource_id=str(saved_panel.id),
+            new_values={
+                'panel_id': saved_panel.id,
+                'panel_name': panel_name,
+                'gene_count': len(final_unique_gene_set),
+                'source_type': 'panelapp',
+                'source_reference': source_reference,
+                'visibility': 'PRIVATE'
+            },
+            details={
+                'creation_method': 'auto_save_from_download',
+                'source_panels': [{'id': config['id'], 'api_source': config['api_source'], 'list_type': config['list_type']} 
+                                for config in selected_panel_configs_for_generation],
+                'uploaded_panels': [{'name': name, 'gene_count': len(genes)} for name, genes in (uploaded_panels or [])],
+                'search_term': search_term_from_post_form,
+                'total_source_panels': len(selected_panel_configs_for_generation) + len(uploaded_panels or [])
+            }
+        )
+        
         logger.info(f"Successfully created saved panel '{panel_name}' with {len(final_unique_gene_set)} genes for user {current_user.username}")
         
         return saved_panel
         
     except Exception as e:
         db.session.rollback()
+        
+        # Log failed panel creation in audit trail
+        error_details = {
+            'creation_method': 'auto_save_from_download',
+            'attempted_gene_count': len(final_unique_gene_set),
+            'source_panels_count': len(selected_panel_configs_for_generation),
+            'uploaded_panels_count': len(uploaded_panels or []),
+            'search_term': search_term_from_post_form,
+            'error_type': type(e).__name__
+        }
+        
+        AuditService.log_action(
+            action_type=AuditActionType.ERROR,
+            action_description=f"Failed to auto-save panel from download: {str(e)}",
+            resource_type="saved_panel",
+            success=False,
+            error_message=str(e),
+            details=error_details
+        )
+        
         logger.error(f"Error creating saved panel from download: {e}")
         return None
 
@@ -290,3 +357,20 @@ def add_genes_to_panel(saved_panel, version, final_unique_gene_set, selected_pan
             db.session.add(change)
     
     logger.info(f"Added {genes_added} genes to saved panel {saved_panel.id}")
+    
+    # Log gene addition summary in audit trail
+    if genes_added > 0:
+        AuditService.log_action(
+            action_type=AuditActionType.PANEL_UPDATE,
+            action_description=f"Added {genes_added} genes to auto-saved panel {saved_panel.id}",
+            resource_type="saved_panel",
+            resource_id=str(saved_panel.id),
+            details={
+                'operation': 'bulk_gene_addition',
+                'genes_added_count': genes_added,
+                'source_panels': list(set(source_info.get('source_panel_id', '') for source_info in 
+                                        [gene_source_map.get(gene, {}) for gene in final_unique_gene_set] 
+                                        if source_info.get('source_panel_id'))),
+                'creation_context': 'auto_save_from_download'
+            }
+        )

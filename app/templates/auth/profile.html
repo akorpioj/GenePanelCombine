@@ -1,4 +1,4 @@
-{% extends "auth/base.html" %}
+{% extends "base.html" %}
 
 {% block title %}User Profile{% endblock %}
 
@@ -8,20 +8,30 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-    <!-- Tab Navigation -->
-    <div class="mb-6">
-        <nav class="flex space-x-8" aria-label="Tabs">
-            <button id="profile-tab" class="tab-button active whitespace-nowrap py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600" aria-current="page">
-                Profile Details
-            </button>
-            <button id="panels-tab" class="tab-button whitespace-nowrap py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                My Panels
-            </button>
-        </nav>
+    <!-- Profile Header -->
+    <div class="bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h1 class="text-2xl font-bold text-gray-900">User Profile</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage your account settings and saved panels.</p>
+            
+            <!-- Profile Navigation -->
+            <div class="mt-4">
+                <nav class="flex space-x-4">
+                    <a href="#" id="profile-nav" 
+                       class="bg-sky-100 text-sky-700 px-3 py-2 rounded-md text-sm font-medium">
+                        Profile Details
+                    </a>
+                    <a href="#" id="panels-nav" 
+                       class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
+                        My Panels
+                    </a>
+                </nav>
+            </div>
+        </div>
     </div>
 
     <!-- Profile Details Tab -->
-    <div id="profile-content" class="tab-content">
+    <div id="profile-content" class="tab-content mt-6">
         <div class="bg-white shadow overflow-hidden sm:rounded-lg">
             <div class="px-4 py-5 sm:px-6">
                 <h3 class="text-lg leading-6 font-medium text-gray-900">User Profile</h3>
@@ -224,7 +234,7 @@
     </div>
     
     <!-- My Panels Tab -->
-    <div id="panels-content" class="tab-content hidden">
+    <div id="panels-content" class="tab-content hidden mt-6">
         <div class="space-y-6">
             <!-- Panel Controls -->
             <div class="bg-white shadow sm:rounded-lg">

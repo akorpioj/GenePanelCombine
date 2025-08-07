@@ -16,9 +16,9 @@ export class ProfileManager {
     }
     
     initializeElements() {
-        // Tab elements
-        this.profileTab = document.getElementById('profile-tab');
-        this.panelsTab = document.getElementById('panels-tab');
+        // Navigation elements
+        this.profileNav = document.getElementById('profile-nav');
+        this.panelsNav = document.getElementById('panels-nav');
         this.profileContent = document.getElementById('profile-content');
         this.panelsContent = document.getElementById('panels-content');
         
@@ -43,13 +43,17 @@ export class ProfileManager {
     }
     
     bindEvents() {
-        // Tab switching
-        if (this.profileTab) {
-            this.profileTab.addEventListener('click', () => this.switchTab('profile'));
+        // Navigation switching
+        if (this.profileNav) {
+            this.profileNav.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.switchTab('profile');
+            });
         }
         
-        if (this.panelsTab) {
-            this.panelsTab.addEventListener('click', () => {
+        if (this.panelsNav) {
+            this.panelsNav.addEventListener('click', (e) => {
+                e.preventDefault();
                 this.switchTab('panels');
                 if (!this.isLoading) {
                     this.loadPanels();
@@ -118,19 +122,27 @@ export class ProfileManager {
     
     switchTab(tab) {
         if (tab === 'profile') {
-            this.profileTab?.classList.add('active', 'text-blue-600', 'border-blue-500');
-            this.profileTab?.classList.remove('text-gray-500', 'border-transparent');
-            this.panelsTab?.classList.remove('active', 'text-blue-600', 'border-blue-500');
-            this.panelsTab?.classList.add('text-gray-500', 'border-transparent');
+            // Update profile nav to active state
+            this.profileNav?.classList.remove('text-gray-500', 'hover:text-gray-700');
+            this.profileNav?.classList.add('bg-sky-100', 'text-sky-700');
             
+            // Update panels nav to inactive state
+            this.panelsNav?.classList.remove('bg-sky-100', 'text-sky-700');
+            this.panelsNav?.classList.add('text-gray-500', 'hover:text-gray-700');
+            
+            // Show/hide content
             this.profileContent?.classList.remove('hidden');
             this.panelsContent?.classList.add('hidden');
         } else {
-            this.panelsTab?.classList.add('active', 'text-blue-600', 'border-blue-500');
-            this.panelsTab?.classList.remove('text-gray-500', 'border-transparent');
-            this.profileTab?.classList.remove('active', 'text-blue-600', 'border-blue-500');
-            this.profileTab?.classList.add('text-gray-500', 'border-transparent');
+            // Update panels nav to active state
+            this.panelsNav?.classList.remove('text-gray-500', 'hover:text-gray-700');
+            this.panelsNav?.classList.add('bg-sky-100', 'text-sky-700');
             
+            // Update profile nav to inactive state
+            this.profileNav?.classList.remove('bg-sky-100', 'text-sky-700');
+            this.profileNav?.classList.add('text-gray-500', 'hover:text-gray-700');
+            
+            // Show/hide content
             this.panelsContent?.classList.remove('hidden');
             this.profileContent?.classList.add('hidden');
         }

@@ -10,7 +10,13 @@
 export let allPanels = { uk: [], aus: [] };
 export let currentAPI = 'uk';
 export const maxPanels = window.maxPanels || 10; // Keep for backward compatibility
-export const listTypeOptions = window.listTypeOptions || ['Whole gene panel', 'High evidence (Green only)', 'High + Moderate evidence (Green + Amber)', 'All evidence levels (Green + Amber + Red)']; // Get from global or default
+export const listTypeOptions = window.listTypeOptions || [
+    'Whole gene panel',
+    'Green genes', 
+    'Green and Amber genes',
+    'Amber genes',
+    'Red genes'
+]; // Get from global or use proper defaults
 
 // Dynamic panel management
 let dynamicMaxPanels = 3; // Default starting panels

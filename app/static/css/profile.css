@@ -3,12 +3,7 @@
  * CSS for user profile and panels management interface
  */
 
-/* Tab Navigation */
-.tab-button.active {
-    border-color: #3b82f6;
-    color: #2563eb;
-}
-
+/* Content visibility */
 .tab-content.hidden {
     display: none;
 }
@@ -85,19 +80,9 @@
     .panel-card {
         margin-bottom: 1rem;
     }
-    
-    .tab-button {
-        font-size: 0.875rem;
-        padding: 0.5rem 0.75rem;
-    }
 }
 
 /* Focus states for accessibility */
-.tab-button:focus {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
-}
-
 .panel-card button:focus {
     outline: 2px solid #3b82f6;
     outline-offset: 1px;

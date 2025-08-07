@@ -4,8 +4,8 @@
 
 {% block head_extra %}
   <script>
-    const maxPanels = {{ max_panels }};
-    const listTypeOptions = {{ list_type_options | safe }};
+    window.maxPanels = {{ max_panels }};
+    window.listTypeOptions = {{ list_type_options | safe }};
   </script>
   <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 {% endblock %}
