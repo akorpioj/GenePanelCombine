@@ -55,9 +55,13 @@ export class ProfileManager {
             this.panelsNav.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.switchTab('panels');
-                if (!this.isLoading) {
-                    this.loadPanels();
-                }
+                
+                // Initialize enhanced panel library if not already done
+                setTimeout(() => {
+                    if (!window.panelLibrary) {
+                        this.initializeEnhancedPanelLibrary();
+                    }
+                }, 100);
             });
         }
         
@@ -568,6 +572,262 @@ export class ProfileManager {
             updateUserTime();
             setInterval(updateUserTime, 1000);
         }
+    }
+    
+    /**
+     * Initialize the enhanced panel library with version control features
+     */
+    initializeEnhancedPanelLibrary() {
+        // Check if the enhanced panel library classes are available
+        if (typeof PanelLibraryGrid === 'undefined') {
+            console.warn('Enhanced panel library not loaded, falling back to basic functionality');
+            if (!this.isLoading) {
+                this.loadPanels();
+            }
+            return;
+        }
+        
+        try {
+            // Initialize the enhanced panel library
+            window.panelLibrary = new PanelLibraryGrid();
+            console.log('Enhanced panel library initialized successfully');
+            
+            // Set up integration with existing profile functionality
+            this.setupEnhancedPanelIntegration();
+            
+        } catch (error) {
+            console.error('Error initializing enhanced panel library:', error);
+            // Fall back to basic panel loading
+            if (!this.isLoading) {
+                this.loadPanels();
+            }
+        }
+    }
+    
+    /**
+     * Set up integration between enhanced panel library and existing profile functionality
+     */
+    setupEnhancedPanelIntegration() {
+        // Override the existing create panel button behavior
+        if (this.createPanelBtn) {
+            this.createPanelBtn.removeEventListener('click', this.openPanelModal);
+            this.createPanelBtn.addEventListener('click', () => {
+                if (window.panelLibrary && typeof window.panelLibrary.createNewPanel === 'function') {
+                    window.panelLibrary.createNewPanel();
+                } else {
+                    this.openPanelModal();
+                }
+            });
+        }
+        
+        // Integrate search functionality
+        if (this.searchInput && window.panelLibrary) {
+            // Remove existing event listeners
+            this.searchInput.removeEventListener('input', this.handleSearch);
+            
+            // Add enhanced search
+            let searchTimeout;
+            this.searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    if (window.panelLibrary && typeof window.panelLibrary.handleSearch === 'function') {
+                        window.panelLibrary.handleSearch(e.target.value);
+                    }
+                }, 300);
+            });
+        }
+        
+        // Integrate filter functionality
+        const filters = ['status-filter', 'visibility-filter'];
+        filters.forEach(filterId => {
+            const filter = document.getElementById(filterId);
+            if (filter) {
+                filter.addEventListener('change', () => {
+                    if (window.panelLibrary && typeof window.panelLibrary.handleFilterChange === 'function') {
+                        window.panelLibrary.handleFilterChange();
+                    }
+                });
+            }
+        });
+        
+        // Integrate sort functionality
+        const sortSelect = document.getElementById('sort-select');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                if (window.panelLibrary && typeof window.panelLibrary.handleSortChange === 'function') {
+                    window.panelLibrary.handleSortChange(e.target.value);
+                }
+            });
+        }
+        
+        // Set up enhanced panel actions
+        this.setupEnhancedPanelActions();
+    }
+    
+    /**
+     * Set up enhanced panel action functions
+     */
+    setupEnhancedPanelActions() {
+        // Global functions for enhanced panel operations
+        window.showVersionTimeline = function(panelId) {
+            if (typeof VersionTimeline !== 'undefined') {
+                window.versionTimeline = new VersionTimeline(panelId);
+                const modal = document.getElementById('versionTimelineModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                }
+            } else {
+                console.warn('VersionTimeline not available');
+            }
+        };
+        
+        window.showPanelDetails = function(panelId) {
+            if (window.panelLibrary && typeof window.panelLibrary.showPanelDetails === 'function') {
+                window.panelLibrary.showPanelDetails(panelId);
+                const modal = document.getElementById('panelDetailsModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                }
+            }
+        };
+        
+        window.comparePanels = function(panelIds) {
+            if (panelIds.length !== 2) {
+                alert('Please select exactly 2 panels to compare');
+                return;
+            }
+            
+            if (typeof DiffViewer !== 'undefined') {
+                window.diffViewer = new DiffViewer(panelIds[0], 'latest', 'latest');
+                window.diffViewer.show();
+            } else {
+                console.warn('DiffViewer not available');
+            }
+        };
+        
+        // Enhanced action menu functions
+        window.clearSearch = () => {
+            const searchInput = document.getElementById('panel-search');
+            if (searchInput) {
+                searchInput.value = '';
+                if (window.panelLibrary) {
+                    window.panelLibrary.handleSearch('');
+                }
+            }
+        };
+        
+        window.setViewMode = (mode) => {
+            if (window.panelLibrary) {
+                window.panelLibrary.setViewMode(mode);
+            }
+        };
+        
+        window.compareSelected = () => {
+            if (window.panelLibrary) {
+                window.panelLibrary.compareSelected();
+            }
+        };
+        
+        window.toggleActionsMenu = () => {
+            const menu = document.getElementById('actions-menu');
+            if (menu) {
+                menu.classList.toggle('hidden');
+            }
+        };
+        
+        window.exportSelected = () => {
+            if (window.panelLibrary) {
+                window.panelLibrary.exportSelected();
+            }
+            document.getElementById('actions-menu')?.classList.add('hidden');
+        };
+        
+        window.deleteSelected = () => {
+            if (window.panelLibrary) {
+                window.panelLibrary.deleteSelected();
+            }
+            document.getElementById('actions-menu')?.classList.add('hidden');
+        };
+        
+        window.selectAll = () => {
+            if (window.panelLibrary) {
+                window.panelLibrary.selectAll();
+            }
+            document.getElementById('actions-menu')?.classList.add('hidden');
+        };
+        
+        window.clearSelection = () => {
+            if (window.panelLibrary) {
+                window.panelLibrary.clearSelection();
+            }
+            document.getElementById('actions-menu')?.classList.add('hidden');
+        };
+        
+        // Modal close handlers
+        const setupModalCloseHandlers = () => {
+            document.getElementById('close-timeline-modal')?.addEventListener('click', function() {
+                document.getElementById('versionTimelineModal')?.classList.add('hidden');
+            });
+            
+            document.getElementById('close-details-modal')?.addEventListener('click', function() {
+                document.getElementById('panelDetailsModal')?.classList.add('hidden');
+            });
+            
+            // Close modals on outside click
+            ['versionTimelineModal', 'panelDetailsModal'].forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) {
+                            modal.classList.add('hidden');
+                        }
+                    });
+                }
+            });
+        };
+        
+        // Set up modal handlers
+        setupModalCloseHandlers();
+        
+        // Hide actions menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const actionsButton = e.target.closest('[onclick="toggleActionsMenu()"]');
+            const actionsMenu = document.getElementById('actions-menu');
+            
+            if (!actionsButton && actionsMenu && !actionsMenu.contains(e.target)) {
+                actionsMenu.classList.add('hidden');
+            }
+        });
+        
+        // Enhanced keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Only apply shortcuts when panels tab is active
+            const panelsContent = document.getElementById('panels-content');
+            if (!panelsContent || panelsContent.classList.contains('hidden')) return;
+            
+            // Ctrl/Cmd + A for select all
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.target.matches('input, textarea')) {
+                e.preventDefault();
+                window.selectAll();
+            }
+            
+            // Escape to clear selection or close modals
+            if (e.key === 'Escape') {
+                const openModal = document.querySelector('[id$="Modal"]:not(.hidden)');
+                if (openModal) {
+                    openModal.classList.add('hidden');
+                } else {
+                    window.clearSelection();
+                }
+            }
+            
+            // Ctrl/Cmd + F for search focus
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                const searchInput = document.getElementById('panel-search');
+                searchInput?.focus();
+            }
+        });
     }
 }
 

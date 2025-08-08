@@ -208,7 +208,9 @@ def logout():
 @login_required
 def profile():
     """User profile page"""
-    return render_template('auth/profile.html', user=current_user)
+    import time
+    cache_bust = str(int(time.time()))
+    return render_template('auth/profile.html', user=current_user, cache_bust=cache_bust)
 
 @auth_bp.route('/profile/edit', methods=['GET', 'POST'])
 @login_required

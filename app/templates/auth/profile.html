@@ -2,8 +2,9 @@
 
 {% block title %}User Profile{% endblock %}
 
-{% block css %}
+{% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/panel-library.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -235,29 +236,77 @@
     
     <!-- My Panels Tab -->
     <div id="panels-content" class="tab-content hidden mt-6">
-        <div class="space-y-6">
-            <!-- Panel Controls -->
-            <div class="bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+        <!-- Enhanced Panel Library Interface -->
+        <div class="panel-library-container">
+            <!-- Library Header with Stats -->
+            <div class="bg-white shadow sm:rounded-lg mb-6">
+                <div class="px-4 py-5 sm:px-6">
                     <div class="flex justify-between items-center">
                         <div>
-                            <h3 class="text-lg leading-6 font-medium text-gray-900">My Saved Panels</h3>
-                            <p class="mt-1 max-w-2xl text-sm text-gray-500">Manage your personal panel library.</p>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">My Panel Library</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-gray-500">Manage your genetic panels with version control</p>
                         </div>
-                        <button id="create-panel-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                            Create New Panel
-                        </button>
+                        <div class="flex space-x-6">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-600" id="total-panels">0</div>
+                                <div class="text-xs text-gray-500">Total Panels</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-600" id="total-versions">0</div>
+                                <div class="text-xs text-gray-500">Total Versions</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-600" id="total-genes">0</div>
+                                <div class="text-xs text-gray-500">Total Genes</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <!-- Search and Filter Controls -->
-                <div class="px-4 py-4 border-b border-gray-200">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            </div>
+
+            <!-- Enhanced Search and Filter Section -->
+            <div class="bg-white shadow sm:rounded-lg mb-6">
+                <div class="px-4 py-4">
+                    <!-- Search Controls -->
+                    <div class="flex flex-wrap gap-4 mb-4">
+                        <div class="flex-1 min-w-64">
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                <input type="text" 
+                                       id="panel-search" 
+                                       placeholder="Search panels by name, symbol, or description..." 
+                                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            </div>
+                        </div>
+                        <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="clearSearch()">
+                            <i class="fas fa-times mr-2"></i>Clear
+                        </button>
+                        <button id="create-panel-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <i class="fas fa-plus mr-2"></i>New Panel
+                        </button>
+                    </div>
+                    
+                    <!-- Filter Controls -->
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                         <div>
-                            <input type="text" id="panel-search" placeholder="Search panels..." 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Source Organisation</label>
+                            <select id="source-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">All Sources</option>
+                                <!-- Options populated dynamically -->
+                            </select>
                         </div>
                         <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Gene Count</label>
+                            <select id="gene-count-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">All Sizes</option>
+                                <option value="1-10">1-10 genes</option>
+                                <option value="11-50">11-50 genes</option>
+                                <option value="51-100">51-100 genes</option>
+                                <option value="101+">100+ genes</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                             <select id="status-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                 <option value="">All Status</option>
                                 <option value="ACTIVE">Active</option>
@@ -266,6 +315,7 @@
                             </select>
                         </div>
                         <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
                             <select id="visibility-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                                 <option value="">All Visibility</option>
                                 <option value="PRIVATE">Private</option>
@@ -274,45 +324,106 @@
                             </select>
                         </div>
                         <div>
-                            <select id="sort-select" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                                <option value="updated_at">Last Updated</option>
-                                <option value="created_at">Date Created</option>
-                                <option value="name">Name</option>
-                                <option value="gene_count">Gene Count</option>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Date Created</label>
+                            <select id="date-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                                <option value="year">This Year</option>
                             </select>
+                        </div>
+                    </div>
+                    
+                    <!-- View Controls -->
+                    <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+                        <div class="flex items-center space-x-4">
+                            <label class="text-sm font-medium text-gray-700">Sort by:</label>
+                            <select id="sort-select" class="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="created_at_desc">Newest First</option>
+                                <option value="created_at_asc">Oldest First</option>
+                                <option value="name_asc">Name A-Z</option>
+                                <option value="name_desc">Name Z-A</option>
+                                <option value="gene_count_desc">Most Genes</option>
+                                <option value="gene_count_asc">Fewest Genes</option>
+                                <option value="accessed_desc">Recently Accessed</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <div class="flex rounded-md shadow-sm" role="group">
+                                <button type="button" class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 focus:z-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 active" onclick="setViewMode('grid')">
+                                    <i class="fas fa-th"></i>
+                                </button>
+                                <button type="button" class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 focus:z-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" onclick="setViewMode('list')">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                            </div>
+                            
+                            <button class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" 
+                                    id="compare-btn" 
+                                    disabled 
+                                    onclick="compareSelected()">
+                                <i class="fas fa-code-compare mr-1"></i>Compare
+                            </button>
+                            
+                            <div class="relative">
+                                <button class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" 
+                                        onclick="toggleActionsMenu()">
+                                    <i class="fas fa-cog mr-1"></i>Actions
+                                    <i class="fas fa-chevron-down ml-1"></i>
+                                </button>
+                                <div id="actions-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                                    <div class="py-1">
+                                        <a href="#" onclick="exportSelected()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            <i class="fas fa-download mr-2"></i>Export Selected
+                                        </a>
+                                        <a href="#" onclick="deleteSelected()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            <i class="fas fa-trash mr-2"></i>Delete Selected
+                                        </a>
+                                        <hr class="my-1">
+                                        <a href="#" onclick="selectAll()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            <i class="fas fa-check-square mr-2"></i>Select All
+                                        </a>
+                                        <a href="#" onclick="clearSelection()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            <i class="fas fa-square mr-2"></i>Clear Selection
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Panels Grid -->
-            <div id="panels-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Panel cards will be loaded here -->
-                <div id="panels-loading" class="col-span-full text-center py-8">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p class="mt-4 text-gray-500">Loading your panels...</p>
+            <!-- Enhanced Panels Grid -->
+            <div id="panels-container">
+                <div id="panels-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Panel cards will be loaded here dynamically -->
+                    <div id="panels-loading" class="col-span-full text-center py-8">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                        <p class="mt-4 text-gray-500">Loading your panels...</p>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div id="panels-empty" class="hidden text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No panels found</h3>
+                    <p class="mt-1 text-sm text-gray-500">Get started by creating your first panel.</p>
+                    <div class="mt-6">
+                        <button type="button" onclick="document.getElementById('create-panel-btn').click()" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <i class="fas fa-plus mr-2"></i>
+                            Create your first panel
+                        </button>
+                    </div>
                 </div>
             </div>
             
-            <!-- Empty State -->
-            <div id="panels-empty" class="hidden text-center py-12">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">No panels found</h3>
-                <p class="mt-1 text-sm text-gray-500">Get started by creating your first panel.</p>
-                <div class="mt-6">
-                    <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <svg class="-ml-1 mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                        </svg>
-                        Create your first panel
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Pagination -->
-            <div id="pagination-container" class="hidden bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+            <!-- Enhanced Pagination -->
+            <div id="pagination-container" class="hidden bg-white px-4 py-3 mt-6 border-t border-gray-200 sm:px-6 rounded-lg shadow">
                 <div class="flex items-center justify-between">
                     <div class="flex-1 flex justify-between sm:hidden">
                         <button id="prev-page-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</button>
@@ -321,7 +432,7 @@
                     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                         <div>
                             <p class="text-sm text-gray-700">
-                                Showing <span id="page-start">1</span> to <span id="page-end">10</span> of <span id="total-panels">0</span> panels
+                                Showing <span id="page-start">1</span> to <span id="page-end">10</span> of <span id="total-panels-count">0</span> panels
                             </p>
                         </div>
                         <div>
@@ -408,14 +519,91 @@
         </div>
     </div>
 </div>
+
+<!-- Version Timeline Modal -->
+<div id="versionTimelineModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-10 mx-auto p-5 border w-11/12 md:w-5/6 lg:w-4/5 xl:w-3/4 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center pb-3 border-b">
+            <h3 class="text-lg font-medium text-gray-900">Version Timeline</h3>
+            <button type="button" id="close-timeline-modal" class="text-gray-400 hover:text-gray-600">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="mt-3">
+            <div id="version-timeline-container" class="max-h-96 overflow-y-auto">
+                <!-- Timeline content populated dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Panel Details Modal -->
+<div id="panelDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center pb-3 border-b">
+            <h3 class="text-lg font-medium text-gray-900">Panel Details</h3>
+            <button type="button" id="close-details-modal" class="text-gray-400 hover:text-gray-600">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="mt-3">
+            <div id="panel-details-content">
+                <!-- Panel details populated dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<!-- Load the enhanced panel library components with cache busting -->
+<script src="{{ url_for('static', filename='js/panel-library-grid.js') }}?v={{ cache_bust }}"></script>
+<script src="{{ url_for('static', filename='js/version-timeline.js') }}?v={{ cache_bust }}"></script>
+<script src="{{ url_for('static', filename='js/diff-viewer.js') }}?v={{ cache_bust }}"></script>
+
 <script type="module">
 import { initializeProfileManager } from "{{ url_for('static', filename='js/modules/profileManager.js') }}";
 
 document.addEventListener('DOMContentLoaded', function() {
-    initializeProfileManager();
+    // Initialize existing profile manager (which now includes enhanced panel features)
+    const profileManager = initializeProfileManager();
+    
+    // Initialize the enhanced panel library
+    window.panelLibrary = new PanelLibraryGrid();
+    console.log('Enhanced Panel Library initialized:', window.panelLibrary);
+    
+    // Global notification function
+    window.showNotification = function(message, type = 'info') {
+        const colors = {
+            info: 'bg-blue-500',
+            success: 'bg-green-500',
+            error: 'bg-red-500',
+            warning: 'bg-yellow-500'
+        };
+        
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-md text-white ${colors[type] || colors.info} shadow-lg transform transition-all duration-300 translate-x-full`;
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        // Slide in
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full');
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            toast.classList.add('translate-x-full');
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
+    };
+    
+    console.log('Profile page with enhanced panel library initialized');
 });
 </script>
 {% endblock %}

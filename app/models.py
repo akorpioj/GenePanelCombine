@@ -401,6 +401,14 @@ class SavedPanel(db.Model):
         """Get the latest version of this panel"""
         return self.versions.order_by(PanelVersion.version_number.desc()).first()
     
+    @property
+    def current_version_number(self):
+        """Get the current version number"""
+        if self.current_version:
+            return self.current_version.version_number
+        latest = self.get_latest_version()
+        return latest.version_number if latest else 1
+    
     def create_new_version(self, user_id, comment=None):
         """Create a new version of this panel"""
         latest = self.get_latest_version()
