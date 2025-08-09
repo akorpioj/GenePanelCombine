@@ -35,14 +35,7 @@ export class ProfileManager {
         if (this.panelsNav) {
             this.panelsNav.addEventListener('click', (e) => {
                 e.preventDefault();
-                this.switchTab('panels');
-                
-                // Initialize enhanced panel library if not already done
-                setTimeout(() => {
-                    if (!window.panelLibrary) {
-                        this.initializeEnhancedPanelLibrary();
-                    }
-                }, 100);
+                this.switchTab('panels');                
             });
         }                
     }

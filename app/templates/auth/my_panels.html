@@ -23,7 +23,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/panel-library-grid.js') }}?v={{ cache_bust }}"></script>
 <script src="{{ url_for('static', filename='js/version-timeline.js') }}?v={{ cache_bust }}"></script>
 <script src="{{ url_for('static', filename='js/diff-viewer.js') }}?v={{ cache_bust }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/pages/profilePage.js') }}?v={{ cache_bust }}"></script>
