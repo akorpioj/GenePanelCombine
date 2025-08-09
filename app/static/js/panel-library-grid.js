@@ -7,7 +7,7 @@ class PanelLibraryGrid {
     constructor() {
         this.panels = [];
         this.filteredPanels = [];
-        this.currentSort = { field: 'updated_at', direction: 'desc' };
+        this.currentSort = { field: 'created_at', direction: 'desc' };
         this.currentFilters = {
             search: '',
             dateRange: { start: null, end: null },
@@ -21,6 +21,8 @@ class PanelLibraryGrid {
         this.viewMode = 'grid'; // grid or list
         this.pageSize = 20;
         this.currentPage = 1;
+        this.serverPagination = null; // Store server pagination data
+        this.useServerPagination = true; // Toggle between server and client pagination
         
         this.init();
     }
@@ -37,14 +39,41 @@ class PanelLibraryGrid {
         if (typeof this.handleFilterChange === 'function') {
             this.handleFilterChange();
         }
+        // Initialize sort dropdown
+        this.updateSortDropdown();
     }
 
-    async loadPanels() {
+    async loadPanels(page = 1, preserveFilters = false) {
+        console.log("loadPanels");
         try {
+            // Prepare query parameters
             const params = new URLSearchParams({
-                page: 1,
-                per_page: 100 // Load all panels for enhanced library
+                page: page,
+                per_page: this.pageSize
             });
+            
+            // Add current filters if preserving them
+            if (preserveFilters || page > 1) {
+                if (this.currentFilters.search) {
+                    params.set('search', this.currentFilters.search);
+                }
+                if (this.currentFilters.status && this.currentFilters.status !== 'all') {
+                    params.set('status', this.currentFilters.status);
+                }
+                if (this.currentFilters.visibility && this.currentFilters.visibility !== 'all') {
+                    params.set('visibility', this.currentFilters.visibility);
+                }
+                // Add gene count range filter
+                if (this.currentFilters.geneCountRange.min > 0) {
+                    params.set('gene_count_min', this.currentFilters.geneCountRange.min);
+                }
+                if (this.currentFilters.geneCountRange.max < 10000) {
+                    params.set('gene_count_max', this.currentFilters.geneCountRange.max);
+                }
+                // Add sorting parameters
+                params.set('sort_by', this.currentSort.field);
+                params.set('sort_order', this.currentSort.direction);
+            }
             
             const response = await fetch(`/api/user/panels?${params}`, {
                 headers: {
@@ -56,32 +85,137 @@ class PanelLibraryGrid {
             if (response.status === 401) {
                 // User not authenticated - show message and use demo data
                 this.showError('Please log in to view your panels. Showing demo data.');
-                this.panels = this.generateDemoData();
+                this.panels = []; //this.generateDemoData();
+                this.useServerPagination = false;
                 this.applyFilters();
                 return;
             }
             
             if (response.ok) {
                 const data = await response.json();
-                this.panels = data.panels || [];                
-                this.applyFilters();
+                this.panels = data.panels || [];
+                this.serverPagination = data.pagination || null;
+                console.log(this.serverPagination)
+                this.currentPage = this.serverPagination ? this.serverPagination.page : 1;
+                
+                // If no panels and it's the first page, show demo data for testing
+                if (this.panels.length === 0 && page === 1) {
+                    console.log('No panels found');
+                    this.panels = []; //this.generateDemoData();
+                    this.useServerPagination = false;
+                    this.applyFilters();
+                } else {
+                    // Use server pagination data
+                    this.useServerPagination = true;
+                    this.filteredPanels = this.panels; // With server pagination, panels are already filtered
+                    this.updateFilterInfo();
+                    this.render();
+                }
             } else {
                 throw new Error('Failed to load panels');
             }
         } catch (error) {
             console.error('Error loading panels:', error);
+            this.showError('Failed to load panels.');
+            this.panels = []; //this.generateDemoData();
+            this.useServerPagination = false;
             this.applyFilters();
         }
     }
 
+    generateDemoData() {
+        const now = new Date();
+        return [
+            {
+                id: 1,
+                name: "Solid tumours",
+                description: "Comprehensive panel for solid tumor analysis including oncogenes and tumor suppressor genes",
+                gene_count: 127,
+                status: "ACTIVE",
+                visibility: "PRIVATE",
+                version_count: 3,
+                tags: ["cancer", "solid-tumor", "oncogenes"],
+                owner: { id: 1, username: "admin", full_name: "Admin User" },
+                created_at: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+                updated_at: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+                accessed: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
+            },
+            {
+                id: 2,
+                name: "Combined: 2 panels (2025-08-07 17:08)",
+                description: "Combined panel created from multiple sources for comprehensive genetic analysis",
+                gene_count: 95,
+                status: "ACTIVE",
+                visibility: "PRIVATE",
+                version_count: 1,
+                tags: ["combined", "multi-source"],
+                owner: { id: 1, username: "admin", full_name: "Admin User" },
+                created_at: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+                updated_at: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+                accessed: new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString() // 5 hours ago
+            },
+            {
+                id: 3,
+                name: "Combined: 2 panels (2025-08-07 14:53)",
+                description: "Earlier combined panel version for testing and validation purposes",
+                gene_count: 4,
+                status: "DRAFT",
+                visibility: "PRIVATE",
+                version_count: 1,
+                tags: ["test", "validation"],
+                owner: { id: 1, username: "admin", full_name: "Admin User" },
+                created_at: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+                updated_at: new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString(), // 12 hours ago
+                accessed: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString() // 24 hours ago
+            },
+            {
+                id: 4,
+                name: "Breast Cancer Panel",
+                description: "Targeted panel for breast cancer genetic analysis",
+                gene_count: 85,
+                status: "ACTIVE",
+                visibility: "SHARED",
+                version_count: 2,
+                tags: ["breast-cancer", "oncology"],
+                owner: { id: 1, username: "admin", full_name: "Admin User" },
+                created_at: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days ago
+                updated_at: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+                accessed: new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString() // 1 hour ago
+            }
+        ];
+    }
+
     setupEventListeners() {
 
-        // Create new panel button
-        const createPanelBtn = document.getElementById('create-panel-btn');
-        if (createPanelBtn) {
-            createPanelBtn.addEventListener('click', () => {
-                this.createNewPanel();
-           });
+        // Panel management elements
+        this.createPanelBtn = document.getElementById('create-panel-btn');
+        this.panelModal = document.getElementById('panel-modal');
+        this.closeModal = document.getElementById('close-modal');
+        this.cancelPanel = document.getElementById('cancel-panel');
+        this.panelForm = document.getElementById('panel-form');
+
+        // Modal events
+        if (this.createPanelBtn) {
+            this.createPanelBtn.addEventListener('click', () => this.openPanelModal());
+        }
+        if (this.closeModal) {
+            this.closeModal.addEventListener('click', () => this.closePanelModal());
+        }
+        this.cancelPanel = document.getElementById('cancel-panel');
+        if (this.cancelPanel) {
+            this.cancelPanel.addEventListener('click', () => this.closePanelModal());
+        }
+        if (this.savePanel) {
+            this.savePanel.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.savePanelData();
+            });
+        }
+        if (this.panelForm) {
+            this.panelForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.savePanelData();
+            });
         }
 
         // Search input
@@ -110,22 +244,11 @@ class PanelLibraryGrid {
             });
         }
 
-        /*
+        // Sort dropdown
         const sortSelect = document.getElementById('sort-select');
         if (sortSelect) {
             sortSelect.addEventListener('change', (e) => {
-                handleSortChange(e.target.value);
-            });
-        }
-        */
-
-        // Sort dropdown
-        const sortSelect = document.getElementById('panel-sort');
-        if (sortSelect) {
-            sortSelect.addEventListener('change', (e) => {
-                const [field, direction] = e.target.value.split('-');
-                this.currentSort = { field, direction };
-                this.sortAndRender();
+                this.handleSortChange(e.target.value);
             });
         }
 
@@ -250,6 +373,15 @@ class PanelLibraryGrid {
     }
 
     applyFilters() {
+        console.log("applyFilters");
+        // If using server pagination, reload from server with filters
+        if (this.useServerPagination) {
+            this.currentPage = 1; // Reset to first page when filters change
+            this.loadPanels(1, true);
+            return;
+        }
+        
+        // Client-side filtering for demo data
         let filtered = [...this.panels];
 
         // Text search
@@ -332,10 +464,32 @@ class PanelLibraryGrid {
     }
 
     sortAndRender() {
-        // Sort filtered panels
+        // If using server pagination, reload from server with new sort
+        if (this.useServerPagination) {
+            this.currentPage = 1; // Reset to first page when sort changes
+            this.loadPanels(1, true);
+            return;
+        }
+        
+        // Client-side sorting for demo data
         this.filteredPanels.sort((a, b) => {
-            const aVal = a[this.currentSort.field];
-            const bVal = b[this.currentSort.field];
+            let aVal = a[this.currentSort.field];
+            let bVal = b[this.currentSort.field];
+            
+            // Handle different data types
+            if (this.currentSort.field === 'gene_count' || this.currentSort.field === 'version_count') {
+                // Numeric fields
+                aVal = parseInt(aVal) || 0;
+                bVal = parseInt(bVal) || 0;
+            } else if (this.currentSort.field === 'created_at' || this.currentSort.field === 'updated_at' || this.currentSort.field === 'accessed') {
+                // Date fields
+                aVal = new Date(aVal || 0);
+                bVal = new Date(bVal || 0);
+            } else if (typeof aVal === 'string' && typeof bVal === 'string') {
+                // String fields (case insensitive)
+                aVal = aVal.toLowerCase();
+                bVal = bVal.toLowerCase();
+            }
             
             let comparison = 0;
             if (aVal < bVal) comparison = -1;
@@ -679,7 +833,18 @@ class PanelLibraryGrid {
         
         if (!paginationContainer) return;
 
-        const totalPages = Math.ceil(this.filteredPanels.length / this.pageSize);
+        let totalPages, currentPage;
+        
+        if (this.useServerPagination && this.serverPagination) {
+            // Use server pagination data
+            totalPages = this.serverPagination.pages;
+            currentPage = this.serverPagination.page;
+        } else {
+            // Use client-side pagination
+            totalPages = Math.ceil(this.filteredPanels.length / this.pageSize);
+            currentPage = this.currentPage;
+        }
+        
         if (totalPages <= 1) {
             paginationContainer.innerHTML = '';
             return;
@@ -689,28 +854,28 @@ class PanelLibraryGrid {
         
         // Previous button
         pagination += `
-            <li class="page-item ${this.currentPage === 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" onclick="panelLibrary.goToPage(${this.currentPage - 1})">Previous</a>
+            <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="panelLibrary.goToPage(${currentPage - 1})">Previous</a>
             </li>
         `;
         
         // Page numbers
         for (let i = 1; i <= totalPages; i++) {
-            if (i === 1 || i === totalPages || (i >= this.currentPage - 2 && i <= this.currentPage + 2)) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
                 pagination += `
-                    <li class="page-item ${i === this.currentPage ? 'active' : ''}">
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
                         <a class="page-link" href="#" onclick="panelLibrary.goToPage(${i})">${i}</a>
                     </li>
                 `;
-            } else if (i === this.currentPage - 3 || i === this.currentPage + 3) {
+            } else if (i === currentPage - 3 || i === currentPage + 3) {
                 pagination += '<li class="page-item disabled"><span class="page-link">...</span></li>';
             }
         }
         
         // Next button
         pagination += `
-            <li class="page-item ${this.currentPage === totalPages ? 'disabled' : ''}">
-                <a class="page-link" href="#" onclick="panelLibrary.goToPage(${this.currentPage + 1})">Next</a>
+            <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="panelLibrary.goToPage(${currentPage + 1})">Next</a>
             </li>
         `;
         
@@ -719,14 +884,25 @@ class PanelLibraryGrid {
     }
 
     goToPage(page) {
-        const totalPages = Math.ceil(this.filteredPanels.length / this.pageSize);
-        if (page < 1 || page > totalPages) return;
-        
-        this.currentPage = page;
-        this.render();
+        if (this.useServerPagination && this.serverPagination) {
+            // Server-side pagination
+            const totalPages = this.serverPagination.pages;
+            if (page < 1 || page > totalPages) return;
+            
+            this.currentPage = page;
+            this.loadPanels(page, true);
+        } else {
+            // Client-side pagination
+            const totalPages = Math.ceil(this.filteredPanels.length / this.pageSize);
+            if (page < 1 || page > totalPages) return;
+            
+            this.currentPage = page;
+            this.render();
+        }
     }
 
     updateFilterInfo() {
+        console.log("updateFilterInfo");
         // Check for different possible filter info container IDs
         let filterInfo = document.getElementById('filter-info');
         if (!filterInfo) {
@@ -737,27 +913,38 @@ class PanelLibraryGrid {
         }
         
         if (filterInfo) {
-            const totalCount = this.panels.length;
-            const filteredCount = this.filteredPanels.length;
-            
-            // Update total panels (reflect current filtered view)
-            filterInfo.textContent = `${filteredCount}`;
+            if (this.useServerPagination && this.serverPagination) {
+                // Use server pagination total count
+                filterInfo.textContent = `${this.serverPagination.total}`;
+            } else {
+                // Use client-side counts
+                const totalCount = this.panels.length;
+                const filteredCount = this.filteredPanels.length;
+                filterInfo.textContent = `${filteredCount}`;
+            }
         }
 
         // Also update total versions and total genes if present
         const versionsEl = document.getElementById('total-versions');
         const genesEl = document.getElementById('total-genes');
         if (versionsEl || genesEl) {
-            const panelsForStats = this.filteredPanels && this.filteredPanels.length >= 0 ? this.filteredPanels : this.panels;
-            const totals = panelsForStats.reduce((acc, p) => {
-                const v = typeof p.version_count === 'number' ? p.version_count : parseInt(p.version_count) || 0;
-                const g = typeof p.gene_count === 'number' ? p.gene_count : parseInt(p.gene_count) || 0;
-                acc.versions += v;
-                acc.genes += g;
-                return acc;
-            }, { versions: 0, genes: 0 });
-            if (versionsEl) versionsEl.textContent = `${totals.versions}`;
-            if (genesEl) genesEl.textContent = `${totals.genes}`;
+            if (this.useServerPagination && this.serverPagination) {
+                // Use server-provided totals for filtered results
+                if (versionsEl) versionsEl.textContent = `${this.serverPagination.total_versions || 0}`;
+                if (genesEl) genesEl.textContent = `${this.serverPagination.total_genes || 0}`;
+            } else {
+                // Use client-side calculation for demo data
+                const panelsForStats = this.filteredPanels && this.filteredPanels.length >= 0 ? this.filteredPanels : this.panels;
+                const totals = panelsForStats.reduce((acc, p) => {
+                    const v = typeof p.version_count === 'number' ? p.version_count : parseInt(p.version_count) || 0;
+                    const g = typeof p.gene_count === 'number' ? p.gene_count : parseInt(p.gene_count) || 0;
+                    acc.versions += v;
+                    acc.genes += g;
+                    return acc;
+                }, { versions: 0, genes: 0 });
+                if (versionsEl) versionsEl.textContent = `${totals.versions}`;
+                if (genesEl) genesEl.textContent = `${totals.genes}`;
+            }
         }
     }
 
@@ -911,6 +1098,124 @@ class PanelLibraryGrid {
         }, 3000);
     }
 
+    async loadPanelGenes(panelId) {
+        try {
+            const response = await fetch(`/api/user/panels/${panelId}`);
+            if (!response.ok) throw new Error('Failed to load panel genes');
+            
+            const panel = await response.json();
+            if (panel.genes) {
+                const genesText = panel.genes.map(gene => gene.gene_symbol).join('\n');
+                const panelGenes = document.getElementById('panel-genes');
+                if (panelGenes) panelGenes.value = genesText;
+            }
+        } catch (error) {
+            console.error('Error loading panel genes:', error);
+        }
+    }
+
+    openPanelModal(panelData = null) {
+        console.log("openPanelModal");
+        const modalTitle = document.getElementById('modal-title');
+        const panelId = document.getElementById('panel-id');
+        
+        if (panelData) {
+            if (modalTitle) modalTitle.textContent = 'Edit Panel';
+            if (panelId) panelId.value = panelData.id;
+            this.populateForm(panelData);
+        } else {
+            if (modalTitle) modalTitle.textContent = 'Create New Panel';
+            if (panelId) panelId.value = '';
+            this.clearForm();
+        }
+        
+        this.panelModal?.classList.remove('hidden');
+    }
+    
+    closePanelModal() {
+        this.panelModal?.classList.add('hidden');
+        this.clearForm();
+    }
+    
+    populateForm(panelData) {
+        const panelName = document.getElementById('panel-name');
+        const panelDescription = document.getElementById('panel-description');
+        const panelTags = document.getElementById('panel-tags');
+        const panelStatus = document.getElementById('panel-status');
+        const panelVisibility = document.getElementById('panel-visibility');
+        
+        if (panelName) panelName.value = panelData.name || '';
+        if (panelDescription) panelDescription.value = panelData.description || '';
+        if (panelTags) {
+            if (Array.isArray(panelData.tags)) {
+                panelTags.value = panelData.tags.join(', ');
+            } else if (typeof panelData.tags === 'string') {
+                panelTags.value = panelData.tags;
+            } else {
+                panelTags.value = '';
+            }
+        }
+        if (panelStatus) panelStatus.value = panelData.status || 'ACTIVE';
+        if (panelVisibility) panelVisibility.value = panelData.visibility || 'PRIVATE';
+        
+        // Load genes if editing
+        if (panelData.id) {
+            this.loadPanelGenes(panelData.id);
+        }
+    }
+    
+    clearForm() {
+        console.log("clearForm");
+        const fields = ['panel-name', 'panel-description', 'panel-tags', 'panel-genes'];
+        fields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) field.value = '';
+        });
+        
+        const panelStatus = document.getElementById('panel-status');
+        const panelVisibility = document.getElementById('panel-visibility');
+        
+        if (panelStatus) panelStatus.value = 'ACTIVE';
+        if (panelVisibility) panelVisibility.value = 'PRIVATE';
+    }
+    
+    async savePanelData() {
+        const panelId = document.getElementById('panel-id')?.value;
+        const isEdit = panelId !== '';
+        
+        const data = {
+            id: panelId || null,
+            name: document.getElementById('panel-name')?.value || '',
+            description: document.getElementById('panel-description')?.value || '',
+            tags: this.parseTags(document.getElementById('panel-tags')?.value || ''),
+            status: document.getElementById('panel-status')?.value || 'ACTIVE',
+            visibility: document.getElementById('panel-visibility')?.value || 'PRIVATE',
+            genes: this.parseGenes(document.getElementById('panel-genes')?.value || '')
+        };
+        
+        try {           
+            const response = await fetch('/api/user/panels', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to save panel');
+            }
+            
+            this.showSuccess(isEdit ? 'Panel updated successfully!' : 'Panel created successfully!');
+            this.closePanelModal();
+            this.loadPanels();
+        } catch (error) {
+            console.error('Error saving panel:', error);
+            this.showError(error.message || 'Failed to save panel. Please try again.');
+        }
+    }
+
     // Panel action methods (to be implemented)
     async openPanel(panelId) {
         // Open panel details modal
@@ -921,8 +1226,17 @@ class PanelLibraryGrid {
     async editPanel(panelId) {
         // Open panel editor
         console.log('Editing panel:', panelId);
-        // For now, just show an alert
-        alert('Edit panel functionality coming soon!');
+        // Find the right panel data
+        if (!this.panels || this.panels.length === 0) {
+            this.showError('No panels available to edit.');
+            return;
+        }
+        const panel = this.panels.find(p => p.id === panelId);
+        if (!panel) {
+            this.showError('Panel not found.');
+            return;
+        }
+        this.openPanelModal(panel);
     }
 
     async duplicatePanel(panelId) {
@@ -975,9 +1289,23 @@ class PanelLibraryGrid {
     }
 
     handleSortChange(sortValue) {
-        const [field, direction] = sortValue.split('_');
-        this.currentSort = { field, direction };
-        this.sortAndRender();
+        // Parse field_direction format (e.g., "name_asc", "created_at_desc")
+        const parts = sortValue.split('_');
+        if (parts.length >= 2) {
+            const direction = parts.pop(); // Last part is direction
+            const field = parts.join('_'); // Rejoin remaining parts for field name
+            this.currentSort = { field, direction };
+            this.updateSortDropdown();
+            this.sortAndRender();
+        }
+    }
+
+    updateSortDropdown() {
+        const sortSelect = document.getElementById('sort-select');
+        if (sortSelect) {
+            const currentValue = `${this.currentSort.field}_${this.currentSort.direction}`;
+            sortSelect.value = currentValue;
+        }
     }
 
     parseGeneCountRange(value) {
@@ -1060,14 +1388,6 @@ class PanelLibraryGrid {
         
         console.log('Deleting panels:', selectedIds);
         alert('Delete functionality coming soon!');
-    }
-
-    createNewPanel() {
-        // Show create panel modal
-        const modal = document.getElementById('createPanelModal');
-        if (modal) {
-            modal.classList.remove('hidden');
-        }
     }
 
     submitNewPanel() {
@@ -1186,6 +1506,33 @@ class PanelLibraryGrid {
         // Implementation for export
         console.log('Exporting panels:', selectedIds);
     }
+
+    parseTags(tagsText) {
+        if (!tagsText.trim()) return [];
+        
+        // Split by comma and clean up
+        return tagsText
+            .split(',')
+            .map(tag => tag.trim())
+            .filter(tag => tag.length > 0);
+    }
+    
+    parseGenes(genesText) {
+        if (!genesText.trim()) return [];
+        
+        // Split by comma or newline and clean up
+        return genesText
+            .split(/[,\n]+/)
+            .map(gene => gene.trim().toUpperCase())
+            .filter(gene => gene.length > 0)
+            .map(gene => ({
+                gene_symbol: gene,
+                confidence_level: '3',  // Default to high confidence
+                phenotype: '',
+                mode_of_inheritance: '',
+                user_notes: ''
+            }));
+    }
 }
 
 // Initialize when document is ready
@@ -1204,3 +1551,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
