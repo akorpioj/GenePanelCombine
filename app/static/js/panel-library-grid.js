@@ -13,7 +13,8 @@ class PanelLibraryGrid {
             dateRange: { start: null, end: null },
             source: 'all',
             geneCountRange: { min: 0, max: 10000 },
-            sharingStatus: 'all',
+            status: 'all',
+            visibility: 'all',
             tags: []
         };
         this.selectedPanels = new Set();
@@ -28,6 +29,14 @@ class PanelLibraryGrid {
         await this.loadPanels();
         this.setupEventListeners();
         this.render();
+        // Initialize active filters indicator after first render
+        if (typeof this.updateActiveFiltersIndicator === 'function') {
+            this.updateActiveFiltersIndicator();
+        }
+        // Capture any pre-selected filter values once DOM is ready
+        if (typeof this.handleFilterChange === 'function') {
+            this.handleFilterChange();
+        }
     }
 
     async loadPanels() {
@@ -54,71 +63,27 @@ class PanelLibraryGrid {
             
             if (response.ok) {
                 const data = await response.json();
-                this.panels = data.panels || [];
-                
-                // If no panels, show demo data for testing
-                if (this.panels.length === 0) {
-                    console.log('No panels found, showing demo data');
-                    this.panels = this.generateDemoData();
-                }
-                
+                this.panels = data.panels || [];                
                 this.applyFilters();
             } else {
                 throw new Error('Failed to load panels');
             }
         } catch (error) {
             console.error('Error loading panels:', error);
-            this.showError('Failed to load panels. Showing demo data.');
-            this.panels = this.generateDemoData();
             this.applyFilters();
         }
     }
 
-    generateDemoData() {
-        return [
-            {
-                id: 1,
-                name: "Solid tumours",
-                description: "Comprehensive panel for solid tumor analysis including oncogenes and tumor suppressor genes",
-                gene_count: 127,
-                status: "ACTIVE",
-                visibility: "PRIVATE",
-                version_count: 3,
-                tags: ["cancer", "solid-tumor", "oncogenes"],
-                owner: { id: 1, username: "admin", full_name: "Admin User" },
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            },
-            {
-                id: 2,
-                name: "Combined: 2 panels (2025-08-07 17:08)",
-                description: "Combined panel created from multiple sources for comprehensive genetic analysis",
-                gene_count: 95,
-                status: "ACTIVE",
-                visibility: "PRIVATE",
-                version_count: 1,
-                tags: ["combined", "multi-source"],
-                owner: { id: 1, username: "admin", full_name: "Admin User" },
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            },
-            {
-                id: 3,
-                name: "Combined: 2 panels (2025-08-07 14:53)",
-                description: "Earlier combined panel version for testing and validation purposes",
-                gene_count: 4,
-                status: "DRAFT",
-                visibility: "PRIVATE",
-                version_count: 1,
-                tags: ["test", "validation"],
-                owner: { id: 1, username: "admin", full_name: "Admin User" },
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }
-        ];
-    }
-
     setupEventListeners() {
+
+        // Create new panel button
+        const createPanelBtn = document.getElementById('create-panel-btn');
+        if (createPanelBtn) {
+            createPanelBtn.addEventListener('click', () => {
+                this.createNewPanel();
+           });
+        }
+
         // Search input
         const searchInput = document.getElementById('panel-search');
         if (searchInput) {
@@ -126,7 +91,33 @@ class PanelLibraryGrid {
                 this.currentFilters.search = e.target.value;
                 this.applyFilters();
             }, 300));
+            // Initial visibility check (fallback)
+            setTimeout(() => {
+                const clearBtn = document.getElementById('clear-search-btn');
+                if (clearBtn) {
+                    if (searchInput.value && searchInput.value.length > 0) {
+                        clearBtn.classList.remove('hidden');
+                    }
+                }
+            }, 0);
         }
+
+        // Clear search button
+        const clearBtn = document.getElementById('clear-search-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                this.clearSearch();
+            });
+        }
+
+        /*
+        const sortSelect = document.getElementById('sort-select');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                handleSortChange(e.target.value);
+            });
+        }
+        */
 
         // Sort dropdown
         const sortSelect = document.getElementById('panel-sort');
@@ -157,65 +148,63 @@ class PanelLibraryGrid {
     }
 
     setupFilterListeners() {
-        // Date range filter
-        const startDate = document.getElementById('filter-start-date');
-        const endDate = document.getElementById('filter-end-date');
-        
-        if (startDate) {
-            startDate.addEventListener('change', (e) => {
-                this.currentFilters.dateRange.start = e.target.value;
-                this.applyFilters();
-            });
-        }
-        
-        if (endDate) {
-            endDate.addEventListener('change', (e) => {
-                this.currentFilters.dateRange.end = e.target.value;
-                this.applyFilters();
-            });
-        }
-
         // Source filter
         const sourceSelect = document.getElementById('filter-source');
         if (sourceSelect) {
             sourceSelect.addEventListener('change', (e) => {
                 this.currentFilters.source = e.target.value;
-                this.applyFilters();
             });
         }
 
-        // Gene count range
-        const geneCountMin = document.getElementById('filter-gene-count-min');
-        const geneCountMax = document.getElementById('filter-gene-count-max');
-        
-        if (geneCountMin) {
-            geneCountMin.addEventListener('input', (e) => {
-                this.currentFilters.geneCountRange.min = parseInt(e.target.value) || 0;
-                this.applyFilters();
-            });
-        }
-        
-        if (geneCountMax) {
-            geneCountMax.addEventListener('input', (e) => {
-                this.currentFilters.geneCountRange.max = parseInt(e.target.value) || 10000;
-                this.applyFilters();
+        // Gene count range filter
+        const geneCountSelect = document.getElementById('gene-count-filter');
+        if (geneCountSelect) {
+            geneCountSelect.addEventListener('change', (e) => {
+                this.currentFilters.geneCountRange = this.parseGeneCountRange(e.target.value);
             });
         }
 
-        // Sharing status filter
-        const sharingSelect = document.getElementById('filter-sharing');
-        if (sharingSelect) {
-            sharingSelect.addEventListener('change', (e) => {
-                this.currentFilters.sharingStatus = e.target.value;
-                this.applyFilters();
+        // Status filter
+        const statusSelect = document.getElementById('filter-status');
+        if (statusSelect) {
+            statusSelect.addEventListener('change', (e) => {
+                this.currentFilters.status = e.target.value;
             });
         }
+
+        // Visibility filter
+        const visibilitySelect = document.getElementById('visibility-filter');
+        if (visibilitySelect) {
+            visibilitySelect.addEventListener('change', (e) => {
+                this.currentFilters.visibility = e.target.value;
+            });
+        }
+
+        // Date range filter
+        const dateRangeSelect = document.getElementById('date-filter');
+        if (dateRangeSelect) {
+            dateRangeSelect.addEventListener('change', (e) => {
+                this.currentFilters.dateRange = this.parseDateRange(e.target.value);
+            });
+        }
+        this.applyFilters();
+
+        // Unified select-based filters (current template)
+        ['source-filter','gene-count-filter','visibility-filter','date-filter','status-filter'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => {
+                    this.handleFilterChange();
+                });
+            }
+        });
 
         // Clear filters button
         const clearFiltersBtn = document.getElementById('clear-filters');
         if (clearFiltersBtn) {
             clearFiltersBtn.addEventListener('click', () => {
                 this.clearFilters();
+                if (typeof this.updateActiveFiltersIndicator === 'function') this.updateActiveFiltersIndicator();
             });
         }
     }
@@ -265,52 +254,81 @@ class PanelLibraryGrid {
 
         // Text search
         if (this.currentFilters.search) {
+            const clearBtn = document.getElementById('clear-search-btn');
+            if (clearBtn) {
+                clearBtn.classList.remove('hidden');
+            }
             const searchTerm = this.currentFilters.search.toLowerCase();
             filtered = filtered.filter(panel => 
                 panel.name.toLowerCase().includes(searchTerm) ||
                 panel.description?.toLowerCase().includes(searchTerm) ||
                 panel.tags?.some(tag => tag.toLowerCase().includes(searchTerm))
             );
+        } else {
+            const clearBtn = document.getElementById('clear-search-btn');
+            if (clearBtn) {
+                clearBtn.classList.add('hidden');
+            }
         }
 
-        // Date range filter
-        if (this.currentFilters.dateRange.start) {
-            const startDate = new Date(this.currentFilters.dateRange.start);
-            filtered = filtered.filter(panel => new Date(panel.created_at) >= startDate);
-        }
-        
-        if (this.currentFilters.dateRange.end) {
-            const endDate = new Date(this.currentFilters.dateRange.end);
-            endDate.setHours(23, 59, 59, 999); // End of day
-            filtered = filtered.filter(panel => new Date(panel.created_at) <= endDate);
-        }
-
-        // Source filter
-        if (this.currentFilters.source !== 'all') {
-            filtered = filtered.filter(panel => panel.source_type === this.currentFilters.source);
-        }
-
-        // Gene count range filter
-        filtered = filtered.filter(panel => 
-            panel.gene_count >= this.currentFilters.geneCountRange.min &&
-            panel.gene_count <= this.currentFilters.geneCountRange.max
-        );
-
-        // Sharing status filter
-        if (this.currentFilters.sharingStatus !== 'all') {
+        // Date bucket / range filter
+        if (this.currentFilters.dateRange && (this.currentFilters.dateRange.start || this.currentFilters.dateRange.end)) {
+            const startDate = this.currentFilters.dateRange.start ? new Date(this.currentFilters.dateRange.start) : null;
+            const endDate = this.currentFilters.dateRange.end ? new Date(this.currentFilters.dateRange.end) : null;
+            if (endDate) endDate.setHours(23,59,59,999);
             filtered = filtered.filter(panel => {
-                switch (this.currentFilters.sharingStatus) {
-                    case 'private': return panel.visibility === 'PRIVATE';
-                    case 'shared': return panel.visibility === 'SHARED';
-                    case 'public': return panel.visibility === 'PUBLIC';
-                    default: return true;
-                }
+                if (!panel.created_at) return true; // If missing, don't exclude
+                const created = new Date(panel.created_at);
+                if (startDate && created < startDate) return false;
+                if (endDate && created > endDate) return false;
+                return true;
             });
         }
 
-        this.filteredPanels = filtered;
-        this.sortAndRender();
-        this.updateFilterInfo();
+        // Source filter (tolerant of multiple possible property names, case-insensitive)
+        if (this.currentFilters.source && this.currentFilters.source !== 'all') {
+            const desired = String(this.currentFilters.source).toLowerCase();
+            filtered = filtered.filter(panel => {
+                const panelSource = panel.source_type || panel.source || panel.source_name || panel.sourceOrganisation || panel.source_organization || panel.source_org;
+                if (!panelSource) return false;
+                return String(panelSource).toLowerCase() === desired;
+            });
+        }
+
+        // Gene count range filter (only if user narrowed it via bucket select)
+        const geneBucketSelect = document.getElementById('gene-count-filter');
+        if (geneBucketSelect && geneBucketSelect.value) {
+            filtered = filtered.filter(panel => {
+                const gc = typeof panel.gene_count === 'number' ? panel.gene_count : parseInt(panel.gene_count) || 0;
+                return gc >= this.currentFilters.geneCountRange.min && gc <= this.currentFilters.geneCountRange.max;
+            });
+        }
+
+        // Visibility status filter
+        if (this.currentFilters.visibility && this.currentFilters.visibility !== 'all') {
+            const desiredVis = this.currentFilters.visibility.toLowerCase();
+            filtered = filtered.filter(panel => {
+                const visRaw = panel.visibility.includes('.') ? panel.visibility.split('.').pop().toLowerCase() : panel.visibility.toLowerCase();
+                if (!visRaw) return false; // if filter active and no visibility info, exclude
+                const vis = visRaw.toLowerCase();
+                if (['private','shared','public'].includes(desiredVis)) return vis === desiredVis;
+                return true;
+            });
+        }
+
+        // Status filter
+        if (this.currentFilters.status) {
+            const desiredStatus = this.currentFilters.status.toUpperCase();
+            filtered = filtered.filter(panel => {
+                const status = panel.status.includes('.') ? panel.status.split('.').pop().toUpperCase() : panel.status.toUpperCase();
+                return !status || status === desiredStatus;
+            });
+        }
+
+    this.filteredPanels = filtered;
+    this.sortAndRender();
+    this.updateFilterInfo();
+    this.updateActiveFiltersIndicator();
     }
 
     sortAndRender() {
@@ -404,7 +422,7 @@ class PanelLibraryGrid {
                     <div class="list-column list-genes">Genes</div>
                     <div class="list-column list-source">Source</div>
                     <div class="list-column list-updated">Updated</div>
-                    <div class="list-column list-sharing">Sharing</div>
+                    <div class="list-column list-sharing">Visiblity</div>
                     <div class="list-column list-actions">Actions</div>
                 </div>
                 ${panels.map(panel => this.renderPanelRow(panel)).join('')}
@@ -722,47 +740,92 @@ class PanelLibraryGrid {
             const totalCount = this.panels.length;
             const filteredCount = this.filteredPanels.length;
             
-            if (filteredCount === totalCount) {
-                filterInfo.textContent = `${totalCount}`;
-            } else {
-                filterInfo.textContent = `${filteredCount}`;
-            }
+            // Update total panels (reflect current filtered view)
+            filterInfo.textContent = `${filteredCount}`;
+        }
+
+        // Also update total versions and total genes if present
+        const versionsEl = document.getElementById('total-versions');
+        const genesEl = document.getElementById('total-genes');
+        if (versionsEl || genesEl) {
+            const panelsForStats = this.filteredPanels && this.filteredPanels.length >= 0 ? this.filteredPanels : this.panels;
+            const totals = panelsForStats.reduce((acc, p) => {
+                const v = typeof p.version_count === 'number' ? p.version_count : parseInt(p.version_count) || 0;
+                const g = typeof p.gene_count === 'number' ? p.gene_count : parseInt(p.gene_count) || 0;
+                acc.versions += v;
+                acc.genes += g;
+                return acc;
+            }, { versions: 0, genes: 0 });
+            if (versionsEl) versionsEl.textContent = `${totals.versions}`;
+            if (genesEl) genesEl.textContent = `${totals.genes}`;
         }
     }
 
+    updateActiveFiltersIndicator() {
+        const indicatorWrapper = document.getElementById('active-filters-indicator');
+        const countEl = document.getElementById('active-filters-count');
+        if (!indicatorWrapper || !countEl) return;
+
+        const flags = new Set();
+        // DOM-based filters
+        const sourceVal = document.getElementById('source-filter')?.value;
+        if (sourceVal) flags.add('source');
+        const statusVal = document.getElementById('status-filter')?.value;
+        if (statusVal) flags.add('status');
+        const visibilityVal = document.getElementById('visibility-filter')?.value;
+        if (visibilityVal) flags.add('visibility');
+        const geneBucket = document.getElementById('gene-count-filter')?.value;
+        if (geneBucket) flags.add('geneBucket');
+        const dateBucket = document.getElementById('date-filter')?.value;
+        if (dateBucket) flags.add('dateBucket');
+        if (Array.isArray(this.currentFilters?.tags) && this.currentFilters.tags.length) flags.add('tags');
+
+        const count = flags.size;
+        if (count > 0) {
+            countEl.textContent = count + "\x20filter";
+            countEl.textContent += (count === 1 ? '' : 's');
+            indicatorWrapper.classList.remove('hidden');
+        } else {
+            indicatorWrapper.classList.add('hidden');
+        }
+    }
+
+    forceActiveFilterRefresh() {
+        this.handleFilterChange();
+        this.updateActiveFiltersIndicator();
+    }
+
     clearFilters() {
+        // Preserve existing search; only reset non-search filters
+        const existingSearch = this.currentFilters?.search || '';
         this.currentFilters = {
-            search: '',
+            search: existingSearch,
             dateRange: { start: null, end: null },
             source: 'all',
             geneCountRange: { min: 0, max: 10000 },
             sharingStatus: 'all',
+            status: null,
             tags: []
         };
         
-        // Reset UI elements
-        const searchInput = document.getElementById('panel-search');
-        if (searchInput) searchInput.value = '';
+        // Do NOT reset the search input (separate clear button handles that)
         
-        const startDate = document.getElementById('filter-start-date');
-        if (startDate) startDate.value = '';
-        
-        const endDate = document.getElementById('filter-end-date');
-        if (endDate) endDate.value = '';
-        
-        const sourceSelect = document.getElementById('filter-source');
-        if (sourceSelect) sourceSelect.value = 'all';
-        
-        const geneCountMin = document.getElementById('filter-gene-count-min');
-        if (geneCountMin) geneCountMin.value = '';
-        
-        const geneCountMax = document.getElementById('filter-gene-count-max');
-        if (geneCountMax) geneCountMax.value = '';
-        
-        const sharingSelect = document.getElementById('filter-sharing');
-        if (sharingSelect) sharingSelect.value = 'all';
+        // Current select-based filters in template
+        const dateSelect = document.getElementById('date-filter');
+        if (dateSelect) dateSelect.value = '';
+        const sourceSelect = document.getElementById('source-filter') || document.getElementById('filter-source');
+        if (sourceSelect) sourceSelect.value = '';
+        const geneCountBucket = document.getElementById('gene-count-filter');
+        if (geneCountBucket) geneCountBucket.value = '';
+        const visibilitySelect = document.getElementById('visibility-filter');
+        if (visibilitySelect) visibilitySelect.value = '';
+        const statusSelect = document.getElementById('status-filter');
+        if (statusSelect) statusSelect.value = '';
         
         this.applyFilters();
+        if (typeof this.updateActiveFiltersIndicator === 'function') {
+            this.updateActiveFiltersIndicator();
+        }
     }
 
     // Utility methods
@@ -911,21 +974,6 @@ class PanelLibraryGrid {
         this.applyFilters();
     }
 
-    handleFilterChange() {
-        // Update filters based on UI elements
-        const sourceFilter = document.getElementById('source-filter');
-        const geneCountFilter = document.getElementById('gene-count-filter');
-        const sharingFilter = document.getElementById('sharing-filter');
-        const dateFilter = document.getElementById('date-filter');
-
-        if (sourceFilter) this.currentFilters.source = sourceFilter.value;
-        if (geneCountFilter) this.currentFilters.geneCountRange = this.parseGeneCountRange(geneCountFilter.value);
-        if (sharingFilter) this.currentFilters.sharingStatus = sharingFilter.value;
-        if (dateFilter) this.currentFilters.dateRange = this.parseDateRange(dateFilter.value);
-
-        this.applyFilters();
-    }
-
     handleSortChange(sortValue) {
         const [field, direction] = sortValue.split('_');
         this.currentSort = { field, direction };
@@ -995,28 +1043,8 @@ class PanelLibraryGrid {
             searchInput.value = '';
             this.handleSearch('');
         }
-    }
-
-    compareSelected() {
-        const selectedIds = Array.from(this.selectedPanels);
-        if (selectedIds.length !== 2) {
-            alert('Please select exactly 2 panels to compare');
-            return;
-        }
-        
-        if (typeof comparePanels === 'function') {
-            comparePanels(selectedIds);
-        }
-    }
-
-    exportSelected() {
-        const selectedIds = Array.from(this.selectedPanels);
-        if (selectedIds.length === 0) {
-            alert('Please select panels to export');
-            return;
-        }
-        console.log('Exporting panels:', selectedIds);
-        alert('Export functionality coming soon!');
+        const clearBtn = document.getElementById('clear-search-btn');
+        if (clearBtn) clearBtn.classList.add('hidden');
     }
 
     deleteSelected() {
@@ -1105,71 +1133,38 @@ class PanelLibraryGrid {
         }
     }
 
-    // Additional utility methods
-    clearSearch() {
-        const searchInput = document.getElementById('panel-search');
-        if (searchInput) {
-            searchInput.value = '';
-            this.handleSearch('');
-        }
-    }
-
-    createNewPanel() {
-        const modal = document.getElementById('createPanelModal');
-        if (modal) {
-            modal.classList.remove('hidden');
-        }
-    }
-
-    submitNewPanel() {
-        // Implementation for creating new panel
-        console.log('Creating new panel...');
-        // Add form validation and submission logic here
-    }
-
-    handleSearch(searchTerm) {
-        this.currentFilters.search = searchTerm;
-        this.applyFilters();
-    }
-
     handleFilterChange() {
         // Update filters based on UI elements
-        this.currentFilters.source = document.getElementById('source-filter')?.value || '';
-        this.currentFilters.sharingStatus = document.getElementById('sharing-filter')?.value || '';
-        this.applyFilters();
-    }
-
-    handleSortChange(sortValue) {
-        const [field, direction] = sortValue.split('_');
-        this.currentSort = { field, direction };
-        this.sortAndRender();
-    }
-
-    setViewMode(mode) {
-        this.viewMode = mode;
-        
-        // Update button states
-        const gridBtn = document.querySelector('[onclick="panelLibrary.setViewMode(\'grid\')"]');
-        const listBtn = document.querySelector('[onclick="panelLibrary.setViewMode(\'list\')"]');
-        
-        if (gridBtn && listBtn) {
-            gridBtn.classList.toggle('bg-gray-100', mode === 'grid');
-            listBtn.classList.toggle('bg-gray-100', mode === 'list');
+        // Source
+        this.currentFilters.source = document.getElementById('source-filter')?.value || 'all';
+        // Sharing / visibility (support multiple possible IDs and take first non-empty value)
+        const visEl = document.getElementById('visibility-filter');
+        if (visEl && visEl.value) {
+            this.currentFilters.sharingStatus = visEl.value;
         }
-        
-        this.render();
-    }
 
-    selectAll() {
-        this.filteredPanels.forEach(panel => this.selectedPanels.add(panel.id));
-        this.updateBulkActions();
-        this.render();
-    }
-
-    clearSelection() {
-        this.selectedPanels.clear();
-        this.updateBulkActions();
-        this.render();
+        // Status
+        const statusVal = document.getElementById('status-filter')?.value || '';
+        this.currentFilters.status = statusVal ? statusVal : null;
+        // Date bucket
+        const dateBucket = document.getElementById('date-filter')?.value || '';
+        if (dateBucket) {
+            this.currentFilters.dateRange = this.parseDateRange(dateBucket);
+        } else {
+            this.currentFilters.dateRange = { start: null, end: null };
+        }
+        // Gene count bucket -> range
+        const geneBucket = document.getElementById('gene-count-filter')?.value || '';
+        if (geneBucket) {
+            this.currentFilters.geneCountRange = this.parseGeneCountRange(geneBucket);
+        } else {
+            // Reset to full range unless user provided manual min/max inputs already
+            if (this.currentFilters.geneCountRange.min === undefined || this.currentFilters.geneCountRange.max === undefined) {
+                this.currentFilters.geneCountRange = { min: 0, max: 10000 };
+            }
+        }
+        this.applyFilters();
+        if (typeof this.updateActiveFiltersIndicator === 'function') this.updateActiveFiltersIndicator();
     }
 
     compareSelected() {
@@ -1191,31 +1186,6 @@ class PanelLibraryGrid {
         // Implementation for export
         console.log('Exporting panels:', selectedIds);
     }
-
-    deleteSelected() {
-        const selectedIds = Array.from(this.selectedPanels);
-        if (selectedIds.length === 0) {
-            alert('Please select panels to delete');
-            return;
-        }
-        if (confirm(`Are you sure you want to delete ${selectedIds.length} panel(s)?`)) {
-            // Implementation for deletion
-            console.log('Deleting panels:', selectedIds);
-        }
-    }
-
-    showPanelDetails(panelId) {
-        // Implementation for showing panel details
-        console.log('Showing details for panel:', panelId);
-    }
-
-    // Actions menu toggle (for main actions menu)
-    toggleActionsMenu() {
-        const menu = document.getElementById('actions-menu');
-        if (menu) {
-            menu.classList.toggle('hidden');
-        }
-    }
 }
 
 // Initialize when document is ready
@@ -1228,5 +1198,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hasContainer) {
         console.log('Enhanced panel library initialized successfully');
         panelLibrary = new PanelLibraryGrid();
+        // Expose globally for inline onclick handlers and other modules
+        if (typeof window !== 'undefined') {
+            window.panelLibrary = panelLibrary;
+        }
     }
 });
