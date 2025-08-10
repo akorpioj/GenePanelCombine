@@ -81,6 +81,7 @@
                         <option value="ACTIVE">Active</option>
                         <option value="DRAFT">Draft</option>
                         <option value="ARCHIVED">Archived</option>
+                        <option value="DELETED">Deleted</option>
                     </select>
                 </div>
                 <div>
@@ -288,6 +289,7 @@
                                 <option value="ACTIVE">Active</option>
                                 <option value="DRAFT">Draft</option>
                                 <option value="ARCHIVED">Archived</option>
+                                <option value="DELETED">Deleted</option>
                             </select>
                         </div>
                         
@@ -414,14 +416,6 @@
         </div>
     </div>
 </div>
-
-<!-- Load modular JavaScript components -->
-<script src="{{ url_for('static', filename='js/modules/PanelUtilities.js') }}"></script>
-<script src="{{ url_for('static', filename='js/modules/PanelRenderer.js') }}"></script>
-<script src="{{ url_for('static', filename='js/modules/PanelFilterManager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/modules/PanelActionsManager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/modules/PanelPaginationManager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/panel-library-grid.js') }}"></script>
 
 <script>
     // Initialize the panel library when DOM is ready

@@ -57,8 +57,10 @@ class PanelRenderer {
     renderPanelCard(panel) {
         const isSelected = this.panelLibrary.selectedPanels.has(panel.id);
         const thumbnail = this.generatePanelThumbnail(panel);
-        const statusColor = this.getStatusColor(panel.status);
-        const sharingIcon = this.getSharingIcon(panel.visibility);
+        const status = this.panelLibrary.backendToFrontend(panel.status);
+        const visibility = this.panelLibrary.backendToFrontend(panel.visibility);
+        const statusColor = this.getStatusColor(status);
+        const sharingIcon = this.getSharingIcon(visibility);
 
         return `
             <div class="panel-card ${isSelected ? 'selected' : ''}" data-panel-id="${panel.id}">
@@ -71,7 +73,7 @@ class PanelRenderer {
                         <span class="status-dot" style="background-color: ${statusColor}"></span>
                     </div>
                     <div class="panel-sharing">
-                        <i class="fas ${sharingIcon}" title="${panel.visibility}"></i>
+                        <i class="fas ${sharingIcon}" title="${visibility}"></i>
                     </div>
                 </div>
                 
@@ -147,8 +149,10 @@ class PanelRenderer {
 
     renderPanelRow(panel) {
         const isSelected = this.panelLibrary.selectedPanels.has(panel.id);
-        const statusColor = this.getStatusColor(panel.status);
-        const sharingIcon = this.getSharingIcon(panel.visibility);
+        const status = this.panelLibrary.backendToFrontend(panel.status);
+        const visibility = this.panelLibrary.backendToFrontend(panel.visibility);
+        const statusColor = this.getStatusColor(status);
+        const sharingIcon = this.getSharingIcon(visibility);
 
         return `
             <div class="panel-row ${isSelected ? 'selected' : ''}" data-panel-id="${panel.id}">

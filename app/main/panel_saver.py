@@ -26,7 +26,8 @@ def create_saved_panel_from_download(
     panel_names, 
     panel_full_gene_data, 
     search_term_from_post_form=None,
-    uploaded_panels=None
+    uploaded_panels=None,
+    selected_filename=None
 ):
     """
     Create a SavedPanel entry from download data
@@ -38,6 +39,7 @@ def create_saved_panel_from_download(
         panel_full_gene_data: List of full panel gene data
         search_term_from_post_form: Optional search term used
         uploaded_panels: Optional list of user uploaded panels
+        selected_filename: Optional filename selected by user (used for panel naming)
     
     Returns:
         SavedPanel instance or None if user not authenticated or error
@@ -64,7 +66,8 @@ def create_saved_panel_from_download(
             selected_panel_configs_for_generation, 
             panel_names, 
             search_term_from_post_form,
-            uploaded_panels
+            uploaded_panels,
+            selected_filename
         )
         logger.info(f"Generated panel name: {panel_name}")        
         # Generate description
@@ -190,8 +193,22 @@ def create_saved_panel_from_download(
         return None
 
 
-def generate_panel_name(selected_panel_configs, panel_names, search_term, uploaded_panels):
+def generate_panel_name(selected_panel_configs, panel_names, search_term, uploaded_panels, selected_filename=None):
     """Generate a descriptive name for the saved panel"""
+    
+    # If we have a selected filename from the user, use it as the base name
+    if selected_filename:
+        # Remove .xlsx extension and clean up the filename
+        base_name = selected_filename.split('.')[0] if '.' in selected_filename else selected_filename
+        # Clean up common filename patterns
+        base_name = base_name.replace('filtered_gene_list', 'Gene List')
+        base_name = base_name.replace('gene_list', 'Gene List')
+        base_name = base_name.replace('_', ' ').replace('-', ' ')
+        # Title case for better presentation
+        base_name = ' '.join(word.capitalize() for word in base_name.split())
+        return base_name
+    
+    # Fallback to original logic if no selected filename
     if search_term:
         # Use search term as primary name component
         clean_search = search_term.strip().replace(',', ' ').replace(';', ' ')
@@ -348,9 +365,6 @@ def add_genes_to_panel(saved_panel, version, final_unique_gene_set, selected_pan
         gene_data = gene_info.get('primary_gene_data', {})
         all_sources = gene_info.get('sources', [])
         all_source_ids = gene_info.get('all_source_panel_ids', [])
-
-        logger.info(f"Adding gene {gene_symbol} to panel {saved_panel.id} from {len(all_sources)} source(s): {', '.join(all_source_ids)}")
-        logger.info(f"Primary gene data: {gene_data}")
         
         # Combine source information for storage
         primary_source_id = all_source_ids[0] if all_source_ids else 'unknown'

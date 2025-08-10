@@ -15,6 +15,10 @@ class PanelUtilities {
         };
     }
 
+    static backendToFrontend(value) {
+        return value.split('.').pop().toUpperCase();
+    }
+
     static truncateText(text, maxLength) {
         if (text.length <= maxLength) return text;
         return text.substring(0, maxLength) + '...';

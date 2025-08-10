@@ -1,0 +1,434 @@
+/* Diff Viewer Styles */
+.diff-viewer-modal .modal-dialog {
+    max-width: 95vw;
+}
+
+.modal-title-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.version-labels {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.version-label {
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+
+.version-label.version-old {
+    background: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.version-label.version-new {
+    background: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.version-label small {
+    display: block;
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+
+.diff-header {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+}
+
+.diff-controls {
+    margin-bottom: 20px;
+}
+
+.view-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.diff-statistics {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+}
+
+.stat-card {
+    text-align: center;
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.diff-nav {
+    margin-bottom: 20px;
+}
+
+.no-changes {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Metadata Diff */
+.metadata-diff {
+    padding: 20px;
+}
+
+.diff-side-by-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.diff-side h6 {
+    padding: 10px;
+    margin-bottom: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.metadata-item {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 6px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+}
+
+.metadata-item label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.metadata-value {
+    padding: 8px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+.old-value {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.new-value {
+    background: #d4edda;
+    color: #155724;
+}
+
+.diff-unified .unified-change {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.change-line {
+    padding: 8px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    margin: 5px 0;
+}
+
+.old-line {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.new-line {
+    background: #d4edda;
+    color: #155724;
+}
+
+/* Genes Diff */
+.genes-diff {
+    padding: 20px;
+}
+
+.gene-section {
+    margin-bottom: 30px;
+}
+
+.section-title {
+    padding: 10px 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.gene-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.gene-item {
+    padding: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    background: white;
+}
+
+.gene-item.added {
+    border-left: 4px solid #28a745;
+    background: #f8fff9;
+}
+
+.gene-item.removed {
+    border-left: 4px solid #dc3545;
+    background: #fff8f8;
+}
+
+.gene-item.modified {
+    border-left: 4px solid #ffc107;
+    background: #fffef8;
+}
+
+.gene-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.gene-symbol {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #343a40;
+}
+
+.gene-confidence {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.confidence-GREEN {
+    background: #d4edda;
+    color: #155724;
+}
+
+.confidence-AMBER {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.confidence-RED {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.gene-details {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.gene-detail {
+    margin-bottom: 5px;
+}
+
+.gene-modifications {
+    margin-top: 10px;
+}
+
+.modification-item {
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.modification-item label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.value-comparison {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+.modification-count {
+    background: #fff3cd;
+    color: #856404;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+.show-more-genes {
+    padding: 15px;
+    text-align: center;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #007bff;
+    transition: background-color 0.2s;
+}
+
+.show-more-genes:hover {
+    background: #e9ecef;
+}
+
+/* Summary Diff */
+.summary-diff {
+    padding: 20px;
+}
+
+.summary-overview,
+.change-breakdown,
+.version-info {
+    margin-bottom: 30px;
+}
+
+.summary-stats {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+.summary-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.summary-value {
+    font-weight: bold;
+    color: #343a40;
+}
+
+.chart-container {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.chart-bar {
+    height: 30px;
+    border-radius: 15px;
+    overflow: hidden;
+    display: flex;
+    margin-bottom: 15px;
+}
+
+.chart-segment {
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.chart-segment.added { background: #28a745; }
+.chart-segment.removed { background: #dc3545; }
+.chart-segment.modified { background: #ffc107; }
+.chart-segment.unchanged { background: #6c757d; }
+
+.chart-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+.legend-color.added { background: #28a745; }
+.legend-color.removed { background: #dc3545; }
+.legend-color.modified { background: #ffc107; }
+.legend-color.unchanged { background: #6c757d; }
+
+.version-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.version-card {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.version-card h6 {
+    margin-bottom: 15px;
+    color: #343a40;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.version-meta div {
+    margin-bottom: 5px;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.footer-actions {
+    display: flex;
+    gap: 10px;
+}

@@ -6,7 +6,7 @@ from .utils import filter_genes_from_panel_data
 from .utils import MAX_PANELS
 from .utils import logger
 
-def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form, uploaded_panels=None, include_original_panels=True):
+def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_generation, panel_names, panel_full_gene_data, search_term_from_post_form, uploaded_panels=None, include_original_panels=True, selected_filename='filtered_gene_list.xlsx'):
     # Create DataFrame and Excel file
     excel_output = io.BytesIO()
     try:
@@ -162,6 +162,6 @@ def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_genera
     return send_file(
         excel_output,
         as_attachment=True,
-        download_name='filtered_gene_list.xlsx',
+        download_name=selected_filename,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )

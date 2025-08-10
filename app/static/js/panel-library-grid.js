@@ -436,6 +436,7 @@ class PanelLibraryGrid {
     toggleActionsMenu() { return this.actionsManager.toggleActionsMenu(); }
     
     // Utility method delegations
+    backendToFrontend(status) { return PanelUtilities.backendToFrontend(status); }
     truncateText(text, maxLength) { return PanelUtilities.truncateText(text, maxLength); }
     formatDate(dateString) { return PanelUtilities.formatDate(dateString); }
     showError(message) { return PanelUtilities.showError(message); }

@@ -15,17 +15,24 @@ class PanelActionsManager {
 
     async editPanel(panelId) {
         console.log('Editing panel:', panelId);
-        // Find the right panel data
-        if (!this.panelLibrary.panels || this.panelLibrary.panels.length === 0) {
-            this.panelLibrary.showError('No panels available to edit.');
-            return;
+        
+        try {
+            // Fetch fresh panel data from API to ensure we have complete information
+            const response = await fetch(`/api/user/panels/${panelId}`);
+            if (!response.ok) throw new Error('Failed to load panel data');
+            
+            const data = await response.json();
+            
+            // Extract panel data from the API response wrapper
+            const panel = data.panel || data;
+            
+            // Open the edit modal with complete panel data
+            await this.openPanelModal(panel);
+            
+        } catch (error) {
+            console.error('Error loading panel data for editing:', error);
+            this.panelLibrary.showError('Error loading panel data');
         }
-        const panel = this.panelLibrary.panels.find(p => p.id === panelId);
-        if (!panel) {
-            this.panelLibrary.showError('Panel not found.');
-            return;
-        }
-        this.openPanelModal(panel);
     }
 
     async duplicatePanel(panelId) {
@@ -48,8 +55,40 @@ class PanelActionsManager {
         if (!confirm('Are you sure you want to delete this panel? This action cannot be undone.')) {
             return;
         }
+        
         console.log('Deleting panel:', panelId);
-        alert('Delete panel functionality coming soon!');
+        
+        try {
+            // Send DELETE request to API
+            const response = await fetch(`/api/user/panels/${panelId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to delete panel');
+            }
+            
+            // Success - show message and refresh panel list
+            this.panelLibrary.showSuccess('Panel deleted successfully!');
+            
+            // Remove from selected panels if it was selected
+            this.panelLibrary.selectedPanels.delete(panelId);
+            
+            // Refresh the panel list to reflect the deletion
+            await this.panelLibrary.loadPanels();
+            
+            // Close any open modals that might be showing this panel
+            this.closePanelModal();
+            this.closePanelDetailsModal();
+            
+        } catch (error) {
+            console.error('Error deleting panel:', error);
+            this.panelLibrary.showError(error.message || 'Failed to delete panel. Please try again.');
+        }
     }
 
     async showVersionTimeline(panelId) {
@@ -77,7 +116,7 @@ class PanelActionsManager {
             
         } catch (error) {
             console.error('Error loading panel details:', error);
-            this.panelLibrary.showMessage('Error loading panel details', 'error');
+            this.panelLibrary.showError('Error loading panel details');
         }
     }
 
@@ -143,7 +182,7 @@ class PanelActionsManager {
                             <dt class="text-sm font-medium text-gray-500">Status</dt>
                             <dd class="mt-1">
                                 <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full ${this.getStatusBadgeClass(panel.status)}">
-                                    ${panel.status || 'ACTIVE'}
+                                    ${this.panelLibrary.backendToFrontend(panel.status || 'ACTIVE')}
                                 </span>
                             </dd>
                         </div>
@@ -151,7 +190,7 @@ class PanelActionsManager {
                             <dt class="text-sm font-medium text-gray-500">Visibility</dt>
                             <dd class="mt-1">
                                 <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full ${this.getVisibilityBadgeClass(panel.visibility)}">
-                                    ${panel.visibility || 'PRIVATE'}
+                                    ${this.panelLibrary.backendToFrontend(panel.visibility || 'PRIVATE')}
                                 </span>
                             </dd>
                         </div>
@@ -327,10 +366,10 @@ class PanelActionsManager {
         const editButton = document.getElementById('edit-panel-from-details');
         if (editButton) {
             editButton.replaceWith(editButton.cloneNode(true));
-            document.getElementById('edit-panel-from-details').addEventListener('click', () => {
+            document.getElementById('edit-panel-from-details').addEventListener('click', async () => {
                 closeModal(); // Close details modal first
-                setTimeout(() => {
-                    this.openPanelModal(panel); // Open edit modal with panel data
+                setTimeout(async () => {
+                    await this.openPanelModal(panel); // Open edit modal with panel data
                 }, 150); // Small delay for smooth transition
             });
         }
@@ -383,18 +422,32 @@ class PanelActionsManager {
             const response = await fetch(`/api/user/panels/${panelId}`);
             if (!response.ok) throw new Error('Failed to load panel genes');
             
-            const panel = await response.json();
-            if (panel.genes) {
-                const genesText = panel.genes.map(gene => gene.gene_symbol).join('\n');
+            const data = await response.json();
+            const panel = data.panel || data;
+            
+            console.log('Panel data for genes:', panel); // Debug log
+            
+            if (panel.genes && Array.isArray(panel.genes)) {
+                const genesText = panel.genes.map(gene => gene.gene_symbol || gene.symbol || gene).join('\n');
                 const panelGenes = document.getElementById('panel-genes');
-                if (panelGenes) panelGenes.value = genesText;
+                if (panelGenes) {
+                    panelGenes.value = genesText;
+                    console.log(`Loaded ${panel.genes.length} genes for panel ${panelId}`);
+                }
+            } else {
+                console.log('No genes found in panel data:', panel);
+                const panelGenes = document.getElementById('panel-genes');
+                if (panelGenes) panelGenes.value = '';
             }
         } catch (error) {
             console.error('Error loading panel genes:', error);
+            // Don't fail silently - show a message to the user
+            const panelGenes = document.getElementById('panel-genes');
+            if (panelGenes) panelGenes.value = '# Error loading genes\n# Please try again or contact support';
         }
     }
 
-    openPanelModal(panelData = null) {
+    async openPanelModal(panelData = null) {
         console.log("openPanelModal");
         const modalTitle = document.getElementById('modal-title');
         const panelId = document.getElementById('panel-id');
@@ -402,7 +455,7 @@ class PanelActionsManager {
         if (panelData) {
             if (modalTitle) modalTitle.textContent = 'Edit Panel';
             if (panelId) panelId.value = panelData.id;
-            this.populateForm(panelData);
+            await this.populateForm(panelData); // Wait for form population to complete
         } else {
             if (modalTitle) modalTitle.textContent = 'Create New Panel';
             if (panelId) panelId.value = '';
@@ -422,12 +475,14 @@ class PanelActionsManager {
         this.panelLibrary.panelId = null; // Reset panel ID
     }
     
-    populateForm(panelData) {
+    async populateForm(panelData) {
         const panelName = document.getElementById('panel-name');
         const panelDescription = document.getElementById('panel-description');
         const panelTags = document.getElementById('panel-tags');
         const panelStatus = document.getElementById('panel-status');
         const panelVisibility = document.getElementById('panel-visibility');
+        
+        console.log('Populating form with panel data:', panelData); // Debug log
         
         if (panelName) panelName.value = panelData.name || '';
         if (panelDescription) panelDescription.value = panelData.description || '';
@@ -440,12 +495,29 @@ class PanelActionsManager {
                 panelTags.value = '';
             }
         }
-        if (panelStatus) panelStatus.value = panelData.status || 'ACTIVE';
-        if (panelVisibility) panelVisibility.value = panelData.visibility || 'PRIVATE';
+        if (panelStatus) {
+            panelStatus.value = this.panelLibrary.backendToFrontend(panelData.status || 'ACTIVE');
+            console.log('Set status to:', panelData.status || 'ACTIVE');
+        }
+        if (panelVisibility) {
+            panelVisibility.value = this.panelLibrary.backendToFrontend(panelData.visibility || 'PRIVATE');
+            console.log('Set visibility to:', panelData.visibility || 'PRIVATE');
+        }
         
-        // Load genes if editing
+        // Load genes if editing - if genes are already in panelData, use them directly
         if (panelData.id) {
-            this.loadPanelGenes(panelData.id);
+            if (panelData.genes && Array.isArray(panelData.genes)) {
+                // Use genes from the already-fetched panel data
+                const genesText = panelData.genes.map(gene => gene.gene_symbol || gene.symbol || gene).join('\n');
+                const panelGenes = document.getElementById('panel-genes');
+                if (panelGenes) {
+                    panelGenes.value = genesText;
+                    console.log(`Populated ${panelData.genes.length} genes for panel ${panelData.id} from existing data`);
+                }
+            } else {
+                // Fallback to fetching genes separately if not included in panel data
+                await this.loadPanelGenes(panelData.id);
+            }
         }
     }
     
@@ -504,7 +576,46 @@ class PanelActionsManager {
     // Bulk actions
     async bulkDeletePanels() {
         if (this.panelLibrary.selectedPanels.size === 0) return;
-        console.log('Bulk deleting panels:', Array.from(this.panelLibrary.selectedPanels));
+        
+        const selectedIds = Array.from(this.panelLibrary.selectedPanels);
+        console.log('Bulk deleting panels:', selectedIds);
+        
+        try {
+            let deletePromises = selectedIds.map(async (panelId) => {
+                const response = await fetch(`/api/user/panels/${panelId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Failed to delete panel ${panelId}: ${errorData.message || 'Unknown error'}`);
+                }
+                
+                return panelId;
+            });
+            
+            // Wait for all deletions to complete
+            const deletedIds = await Promise.all(deletePromises);
+            
+            // Clear selected panels
+            this.panelLibrary.selectedPanels.clear();
+            
+            // Success - show message and refresh panel list
+            this.panelLibrary.showSuccess(`Successfully deleted ${deletedIds.length} panels!`);
+            
+            // Refresh the panel list to reflect the deletions
+            await this.panelLibrary.loadPanels();
+            
+        } catch (error) {
+            console.error('Error bulk deleting panels:', error);
+            this.panelLibrary.showError(error.message || 'Failed to delete some panels. Please try again.');
+            
+            // Refresh the panel list in case some deletions succeeded
+            await this.panelLibrary.loadPanels();
+        }
     }
 
     async bulkExportPanels() {
@@ -529,7 +640,9 @@ class PanelActionsManager {
         }
         
         console.log('Deleting panels:', selectedIds);
-        alert('Delete functionality coming soon!');
+        
+        // Delete panels one by one
+        this.bulkDeletePanels();
     }
 
     compareSelected() {
@@ -595,6 +708,8 @@ class PanelActionsManager {
                 return 'bg-yellow-100 text-yellow-800';
             case 'ARCHIVED':
                 return 'bg-gray-100 text-gray-800';
+            case 'DELETED':
+                return 'bg-red-100 text-red-800';
             default:
                 return 'bg-gray-100 text-gray-800';
         }

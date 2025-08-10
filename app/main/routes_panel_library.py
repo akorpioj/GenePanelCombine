@@ -50,11 +50,13 @@ def api_user_panel_detail(panel_id):
             panel.updated_at = datetime.datetime.now()
             
             # Create audit entry
-            AuditService.log_panel_action(
-                panel_id=panel.id,
-                action=AuditActionType.PANEL_DELETE,
+            AuditService.log_action(
+                action_type=AuditActionType.PANEL_DELETE,
+                action_description=f"Deleted panel {panel.name} (ID: {panel.id})",
                 user_id=current_user.id,
-                details={"name": panel.name}
+                resource_id=panel.id,
+                resource_type='panel',
+                details={"panel_id": panel_id, "name": panel.name}
             )
             
             db.session.commit()

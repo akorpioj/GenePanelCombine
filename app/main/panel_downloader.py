@@ -25,6 +25,7 @@ class PanelDownloader:
         self.form = request.form
         self.uploaded_panels = []
         self.ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        self.selected_filename = request.form.get('selected_filename', 'filtered_gene_list.xlsx') # Get filename from frontend
 
     def _get_maximum_panel_index(self):
         """Determine the maximum panel index from form data."""
@@ -166,7 +167,8 @@ class PanelDownloader:
                                    self.panel_names, self.panel_full_gene_data, 
                                    self.search_term_from_post_form, 
                                    uploaded_panels=self.uploaded_panels, 
-                                   include_original_panels=self.include_original_panels)
+                                   include_original_panels=self.include_original_panels,
+                                   selected_filename=self.selected_filename)
 
     def _auto_save_panel(self):
         """Auto-save the panel data to the database."""
@@ -182,7 +184,8 @@ class PanelDownloader:
                     panel_names=self.panel_names,
                     panel_full_gene_data=self.panel_full_gene_data,
                     search_term_from_post_form=self.search_term_from_post_form,
-                    uploaded_panels=self.uploaded_panels
+                    uploaded_panels=self.uploaded_panels,
+                    selected_filename=self.selected_filename
                 )
                 if saved_panel:
                     logger.info(f"Automatically saved downloaded panel as '{saved_panel.name}' for user {current_user.username}")

@@ -35,6 +35,10 @@
     @apply bg-gray-100 text-gray-800;
 }
 
+.status-deleted {
+    @apply bg-red-100 text-red-800;
+}
+
 .visibility-private {
     @apply bg-blue-100 text-blue-800;
 }
