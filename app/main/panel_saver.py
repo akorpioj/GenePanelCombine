@@ -56,7 +56,8 @@ def create_saved_panel_from_download(
             }
         )
         return None
-    
+
+    logger.info(f"Creating saved panel from download for user {current_user.username}")    
     try:
         # Generate panel name
         panel_name = generate_panel_name(
@@ -65,7 +66,7 @@ def create_saved_panel_from_download(
             search_term_from_post_form,
             uploaded_panels
         )
-        
+        logger.info(f"Generated panel name: {panel_name}")        
         # Generate description
         description = generate_panel_description(
             selected_panel_configs_for_generation,
@@ -74,13 +75,13 @@ def create_saved_panel_from_download(
             uploaded_panels,
             len(final_unique_gene_set)
         )
-        
+        logger.info(f"Generated panel description: {description}")
         # Generate source reference
         source_reference = generate_source_reference(
             selected_panel_configs_for_generation,
             uploaded_panels
         )
-        
+        logger.info(f"Generated source reference: {source_reference}")        
         # Create SavedPanel
         saved_panel = SavedPanel(
             name=panel_name,
@@ -263,9 +264,9 @@ def generate_source_reference(selected_panel_configs, uploaded_panels):
 def add_genes_to_panel(saved_panel, version, final_unique_gene_set, selected_panel_configs, panel_full_gene_data, uploaded_panels):
     """Add genes to the saved panel with source information"""
     
-    # Create mapping from gene symbol to source panel info
+    # Create mapping from gene symbol to source panel info (supporting multiple sources per gene)
     gene_source_map = {}
-    
+    logger.info(f"Adding {len(final_unique_gene_set)} unique genes to panel {saved_panel.id}")    
     # Process PanelApp source panels
     for config, panel_genes in zip(selected_panel_configs, panel_full_gene_data):
         if not panel_genes:
@@ -280,57 +281,126 @@ def add_genes_to_panel(saved_panel, version, final_unique_gene_set, selected_pan
                 # Find the full gene data for this symbol
                 gene_data = next((g for g in panel_genes if g.get('entity_name') == gene_symbol), {})
                 
-                gene_source_map[gene_symbol] = {
+                # Initialize gene entry if not exists
+                if gene_symbol not in gene_source_map:
+                    gene_source_map[gene_symbol] = {
+                        'sources': [],
+                        'primary_gene_data': gene_data,  # Use first source as primary
+                        'all_source_panel_ids': []
+                    }
+                
+                # Add this source to the gene's source list
+                source_info = {
                     'source_panel_id': f"{config['api_source']}-{config['id']}",
                     'source_list_type': config['list_type'],
-                    'gene_data': gene_data
+                    'gene_data': gene_data,
+                    'confidence_level': gene_data.get('confidence_level', ''),
+                    'mode_of_inheritance': gene_data.get('mode_of_inheritance', ''),
+                    'phenotype': gene_data.get('phenotypes', []),
+                    'evidence_level': gene_data.get('evidence', [])
                 }
+                gene_source_map[gene_symbol]['sources'].append(source_info)
+                gene_source_map[gene_symbol]['all_source_panel_ids'].append(source_info['source_panel_id'])
+                
+                # Use gene data with highest confidence level as primary
+                current_confidence = gene_source_map[gene_symbol]['primary_gene_data'].get('confidence_level', 0)
+                new_confidence = gene_data.get('confidence_level', 0)
+                
+                try:
+                    current_confidence = int(current_confidence) if current_confidence else 0
+                    new_confidence = int(new_confidence) if new_confidence else 0
+                    
+                    # Use gene data with higher confidence as primary
+                    if new_confidence > current_confidence:
+                        gene_source_map[gene_symbol]['primary_gene_data'] = gene_data
+                except (ValueError, TypeError):
+                    pass  # Keep existing primary if conversion fails
     
     # Process user uploaded panels
     for sheet_name, genes in uploaded_panels or []:
         for gene_symbol in genes:
-            if gene_symbol in final_unique_gene_set and gene_symbol not in gene_source_map:
-                gene_source_map[gene_symbol] = {
+            if gene_symbol in final_unique_gene_set:
+                # Initialize gene entry if not exists
+                if gene_symbol not in gene_source_map:
+                    gene_source_map[gene_symbol] = {
+                        'sources': [],
+                        'primary_gene_data': {},
+                        'all_source_panel_ids': []
+                    }
+                
+                # Add user upload source
+                source_info = {
                     'source_panel_id': f"user-{sheet_name}",
                     'source_list_type': 'user_upload',
-                    'gene_data': {}
+                    'gene_data': {},
+                    'confidence_level': '',
+                    'mode_of_inheritance': '',
+                    'phenotype': [],
+                    'evidence_level': []
                 }
+                gene_source_map[gene_symbol]['sources'].append(source_info)
+                gene_source_map[gene_symbol]['all_source_panel_ids'].append(source_info['source_panel_id'])
     
     # Create PanelGene entries
     genes_added = 0
     for gene_symbol in final_unique_gene_set:
-        source_info = gene_source_map.get(gene_symbol, {})
-        gene_data = source_info.get('gene_data', {})
+        gene_info = gene_source_map.get(gene_symbol, {})
+        gene_data = gene_info.get('primary_gene_data', {})
+        all_sources = gene_info.get('sources', [])
+        all_source_ids = gene_info.get('all_source_panel_ids', [])
+
+        logger.info(f"Adding gene {gene_symbol} to panel {saved_panel.id} from {len(all_sources)} source(s): {', '.join(all_source_ids)}")
+        logger.info(f"Primary gene data: {gene_data}")
         
-        # Process evidence field - convert list to pipe-separated string
-        evidence = gene_data.get('evidence', [])
-        if isinstance(evidence, list):
-            evidence_str = '|'.join(str(e) for e in evidence)
-        else:
-            evidence_str = str(evidence) if evidence else ''
+        # Combine source information for storage
+        primary_source_id = all_source_ids[0] if all_source_ids else 'unknown'
+        all_sources_str = '; '.join(all_source_ids)  # Store all sources
         
-        # Process phenotypes field - convert list to string
-        phenotypes = gene_data.get('phenotypes', [])
-        if isinstance(phenotypes, list):
-            phenotypes_str = '; '.join(str(p) for p in phenotypes)
-        else:
-            phenotypes_str = str(phenotypes) if phenotypes else ''
+        # Collect all source list types
+        all_list_types = [source.get('source_list_type', '') for source in all_sources]
+        all_list_types_str = '; '.join(filter(None, all_list_types))
         
-        # Ensure all string fields are properly handled
+        # Collect all confidence levels
+        all_confidence_levels = [str(source.get('confidence_level', '')) for source in all_sources]
+        all_confidence_levels_str = '; '.join(filter(None, all_confidence_levels))
+        
+        # Collect all modes of inheritance
+        all_inheritance_modes = [str(source.get('mode_of_inheritance', '')) for source in all_sources]
+        all_inheritance_modes_str = '; '.join(filter(None, all_inheritance_modes))
+        
+        # Collect all phenotypes
+        all_phenotypes = []
+        for source in all_sources:
+            phenotypes = source.get('phenotype', [])
+            if isinstance(phenotypes, list):
+                all_phenotypes.extend(phenotypes)
+            elif phenotypes:
+                all_phenotypes.append(str(phenotypes))
+        all_phenotypes_str = '; '.join(all_phenotypes)
+        
+        # Collect all evidence levels
+        all_evidence = []
+        for source in all_sources:
+            evidence = source.get('evidence_level', [])
+            if isinstance(evidence, list):
+                all_evidence.extend(evidence)
+            elif evidence:
+                all_evidence.append(str(evidence))
+        all_evidence_str = '; '.join(all_evidence)
+        
+        # Use primary gene data for basic info (name), but combined data for annotations
         gene_name = gene_data.get('gene_name', '') or gene_data.get('entity_name', '')
-        confidence_level = str(gene_data.get('confidence_level', '')) if gene_data.get('confidence_level') else ''
-        mode_of_inheritance = str(gene_data.get('mode_of_inheritance', '')) if gene_data.get('mode_of_inheritance') else ''
         
         panel_gene = PanelGene(
             panel_id=saved_panel.id,
             gene_symbol=gene_symbol,
             gene_name=gene_name,
-            confidence_level=confidence_level,
-            mode_of_inheritance=mode_of_inheritance,
-            phenotype=phenotypes_str,
-            evidence_level=evidence_str,
-            source_panel_id=source_info.get('source_panel_id', ''),
-            source_list_type=source_info.get('source_list_type', ''),
+            confidence_level=all_confidence_levels_str,  # Combined from all sources
+            mode_of_inheritance=all_inheritance_modes_str,  # Combined from all sources
+            phenotype=all_phenotypes_str,  # Combined from all sources
+            evidence_level=all_evidence_str,  # Combined from all sources
+            source_panel_id=all_sources_str,  # All source panel IDs
+            source_list_type=all_list_types_str,  # All list types
             added_by_id=current_user.id,
             added_at=datetime.datetime.now()
         )
@@ -348,8 +418,13 @@ def add_genes_to_panel(saved_panel, version, final_unique_gene_set, selected_pan
                 target_id=gene_symbol,
                 new_value={
                     'gene_symbol': gene_symbol,
-                    'source': source_info.get('source_panel_id', ''),
-                    'list_type': source_info.get('source_list_type', '')
+                    'sources': all_source_ids,  # Include all sources
+                    'primary_source': primary_source_id,
+                    'all_list_types': all_list_types_str,
+                    'all_confidence_levels': all_confidence_levels_str,
+                    'all_inheritance_modes': all_inheritance_modes_str,
+                    'all_phenotypes': all_phenotypes_str,
+                    'all_evidence': all_evidence_str
                 },
                 changed_by_id=current_user.id,
                 change_reason="Gene added from download"
@@ -360,17 +435,22 @@ def add_genes_to_panel(saved_panel, version, final_unique_gene_set, selected_pan
     
     # Log gene addition summary in audit trail
     if genes_added > 0:
+        # Collect all unique source panel IDs from the gene source map
+        all_source_panels = set()
+        for gene_symbol in final_unique_gene_set:
+            gene_info = gene_source_map.get(gene_symbol, {})
+            all_source_panels.update(gene_info.get('all_source_panel_ids', []))
+        
         AuditService.log_action(
             action_type=AuditActionType.PANEL_UPDATE,
-            action_description=f"Added {genes_added} genes to auto-saved panel {saved_panel.id}",
+            action_description=f"Added {genes_added} genes to auto-saved panel {saved_panel.id} from {len(all_source_panels)} source panel(s)",
             resource_type="saved_panel",
             resource_id=str(saved_panel.id),
             details={
                 'operation': 'bulk_gene_addition',
                 'genes_added_count': genes_added,
-                'source_panels': list(set(source_info.get('source_panel_id', '') for source_info in 
-                                        [gene_source_map.get(gene, {}) for gene in final_unique_gene_set] 
-                                        if source_info.get('source_panel_id'))),
+                'source_panels': list(all_source_panels),
+                'source_panel_count': len(all_source_panels),
                 'creation_context': 'auto_save_from_download'
             }
         )

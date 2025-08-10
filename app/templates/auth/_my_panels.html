@@ -366,15 +366,15 @@
 </div>
 
 <!-- Panel Details Modal -->
-<div id="panelDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+<div id="panel-details-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative top-10 mx-auto p-0 w-11/12 md:w-3/4 lg:w-1/2 max-w-2xl">
         <div class="bg-white shadow-lg sm:rounded-lg">
             <!-- Modal Header -->
             <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">Panel Details</h3>
-                        <p class="mt-1 max-w-2xl text-sm text-gray-500">View comprehensive panel information and gene list</p>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="panel-details-title">Panel Details</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500" id="panel-details-subtitle">View comprehensive panel information and gene list</p>
                     </div>
                     <button type="button" id="close-details-modal" class="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md p-1">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -388,8 +388,44 @@
             <div class="px-4 py-5 sm:px-6">
                 <div id="panel-details-content">
                     <!-- Panel details populated dynamically -->
+                    <div class="animate-pulse">
+                        <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+                        <div class="h-20 bg-gray-200 rounded mb-4"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="px-4 py-4 sm:px-6 bg-gray-50 border-t border-gray-200 sm:rounded-b-lg">
+                <div class="flex justify-end space-x-3">
+                    <button type="button" 
+                            id="cancel-details" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Close
+                    </button>
+                    <button type="button" 
+                            id="edit-panel-from-details" 
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-edit mr-2"></i>Edit Panel
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Load modular JavaScript components -->
+<script src="{{ url_for('static', filename='js/modules/PanelUtilities.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules/PanelRenderer.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules/PanelFilterManager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules/PanelActionsManager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules/PanelPaginationManager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/panel-library-grid.js') }}"></script>
+
+<script>
+    // Initialize the panel library when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        window.panelLibrary = new PanelLibraryGrid();
+    });
+</script>

@@ -196,8 +196,10 @@ class PanelLibraryGrid {
         this.createPanelBtn = document.getElementById('create-panel-btn');
         this.panelModal = document.getElementById('panel-modal');
         this.closeModal = document.getElementById('close-modal');
+        this.closePanelDetailsModal = document.getElementById('close-details-modal'); 
         this.cancelPanel = document.getElementById('cancel-panel');
         this.panelForm = document.getElementById('panel-form');
+        this.panelDetailsModal = document.getElementById('panel-details-modal');
 
         // Modal events
         if (this.createPanelBtn) {
@@ -205,6 +207,9 @@ class PanelLibraryGrid {
         }
         if (this.closeModal) {
             this.closeModal.addEventListener('click', () => this.actionsManager.closePanelModal());
+        }
+        if (this.closePanelDetailsModal) {
+            this.closePanelDetailsModal.addEventListener('click', () => this.actionsManager.closePanelDetailsModal());
         }
         if (this.cancelPanel) {
             this.cancelPanel.addEventListener('click', () => this.actionsManager.closePanelModal());

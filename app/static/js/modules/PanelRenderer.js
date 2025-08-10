@@ -111,14 +111,14 @@ class PanelRenderer {
                 </div>
                 
                 <div class="panel-actions">
-                    <button class="btn btn-outline-primary" onclick="panelLibrary.openPanel(${panel.id})">
-                        <i class="fas fa-eye"></i> View
+                    <button class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="panelLibrary.showPanelDetails(${panel.id})">
+                        <i class="fas fa-info-circle"></i> Details
                     </button>
-                    <button class="btn btn-outline-secondary" onclick="panelLibrary.showVersionTimeline(${panel.id})">
+                    <button class="px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="panelLibrary.showVersionTimeline(${panel.id})">
                         <i class="fas fa-history"></i> History
                     </button>
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary dropdown-toggle" onclick="panelLibrary.toggleDropdown(this)">
+                        <button class="px-2 py-1 border border-gray-300 text-gray-700 text-xs font-medium rounded bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500" onclick="panelLibrary.toggleDropdown(this)">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <ul class="dropdown-menu hidden">
@@ -179,14 +179,14 @@ class PanelRenderer {
                     <i class="fas ${sharingIcon}" title="${panel.visibility}"></i>
                 </div>
                 <div class="list-column list-actions">
-                    <button class="btn btn-sm btn-outline-primary" onclick="panelLibrary.openPanel(${panel.id})">
-                        View
+                    <button class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded focus:outline-none focus:ring-1 focus:ring-blue-500" onclick="panelLibrary.showPanelDetails(${panel.id})">
+                        Details
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="panelLibrary.showVersionTimeline(${panel.id})">
+                    <button class="px-2 py-1 border border-gray-300 text-gray-700 text-xs font-medium rounded bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 ml-1" onclick="panelLibrary.showVersionTimeline(${panel.id})">
                         History
                     </button>
                     <div class="dropdown relative">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" onclick="panelLibrary.toggleDropdown(this)">
+                        <button class="px-2 py-1 border border-gray-300 text-gray-700 text-xs font-medium rounded bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500" onclick="panelLibrary.toggleDropdown(this)">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <ul class="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 hidden z-50">
