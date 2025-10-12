@@ -268,7 +268,7 @@
 
 /* Panel Thumbnail */
 .panel-thumbnail {
-    height: 120px !important;
+    height: 60px !important;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
     position: relative !important;
     display: flex !important;
@@ -281,7 +281,7 @@
 
 .panel-thumbnail img {
     width: 100% !important;
-    height: 100% !important;
+    height: 90% !important;
     object-fit: cover !important;
 }
 
@@ -551,10 +551,10 @@
 /* Panel Thumbnail Grid */
 .panel-card .panel-thumbnail-grid {
     display: grid !important;
-    grid-template-columns: repeat(5, 1fr) !important;
+    grid-template-columns: repeat(100, 1fr) !important;
     gap: 2px !important;
-    width: 60px !important;
-    height: 60px !important;
+    width: 240px !important;
+    height: 45px !important;
     margin: 0 auto !important;
 }
 

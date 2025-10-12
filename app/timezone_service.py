@@ -254,6 +254,7 @@ class TimezoneService:
 def format_datetime_filter(dt: datetime, format_string: str = '%Y-%m-%d %H:%M:%S') -> str:
     """
     Jinja2 filter for formatting datetime in user's timezone.
+    Automatically adjusts format string based on user's time format preference.
     
     Args:
         dt: datetime object
@@ -262,6 +263,27 @@ def format_datetime_filter(dt: datetime, format_string: str = '%Y-%m-%d %H:%M:%S
     Returns:
         Formatted datetime string
     """
+    # Get user's time format preference
+    try:
+        from flask_login import current_user
+        if current_user.is_authenticated and hasattr(current_user, 'time_format_preference'):
+            time_format = current_user.time_format_preference or '24h'
+            
+            # Convert 12h format codes to 24h if user prefers 24h
+            if time_format == '24h':
+                # Replace 12-hour format codes with 24-hour equivalents
+                format_string = format_string.replace('%I', '%H')  # Hour 01-12 -> 00-23
+                format_string = re.sub(r'\s*%p\s*', '', format_string)  # Remove AM/PM
+            elif time_format == '12h':
+                # Replace 24-hour format codes with 12-hour equivalents
+                format_string = format_string.replace('%H', '%I')  # Hour 00-23 -> 01-12
+                if '%p' not in format_string:
+                    # Add AM/PM if not present
+                    format_string = format_string.replace('%M', '%M %p')
+    except (ImportError, AttributeError):
+        # Flask-Login not available or user doesn't have the attribute
+        pass
+    
     return TimezoneService.format_datetime(dt, format_string)
 
 

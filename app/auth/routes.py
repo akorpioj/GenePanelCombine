@@ -243,6 +243,7 @@ def edit_profile():
         last_name = request.form.get('last_name', '').strip()
         organization = request.form.get('organization', '').strip()
         timezone_preference = request.form.get('timezone_preference', '').strip()
+        time_format_preference = request.form.get('time_format_preference', '24h').strip()
         
         # Update user profile
         try:
@@ -251,7 +252,8 @@ def edit_profile():
                 'first_name': current_user.first_name,
                 'last_name': current_user.last_name,
                 'organization': current_user.organization,
-                'timezone_preference': current_user.timezone_preference or 'Browser default'
+                'timezone_preference': current_user.timezone_preference or 'Browser default',
+                'time_format_preference': current_user.time_format_preference or '24h'
             }
             
             # Update user fields
@@ -269,6 +271,13 @@ def edit_profile():
                 # Empty string means use browser timezone (no user preference)
                 current_user.timezone_preference = None
             
+            # Handle time format preference
+            if time_format_preference in ['12h', '24h']:
+                current_user.time_format_preference = time_format_preference
+                current_app.logger.info(f"Updated time format preference for user {current_user.id} to {time_format_preference}")
+            else:
+                current_user.time_format_preference = '24h'  # Default to 24h if invalid
+            
             db.session.commit()
             
             # Prepare new values for audit
@@ -276,7 +285,8 @@ def edit_profile():
                 'first_name': first_name,
                 'last_name': last_name,
                 'organization': organization,
-                'timezone_preference': timezone_preference or 'Browser default'
+                'timezone_preference': timezone_preference or 'Browser default',
+                'time_format_preference': time_format_preference
             }
             
             # Log profile update

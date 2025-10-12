@@ -7,13 +7,17 @@ class TimezoneManager {
     constructor() {
         this.detectedTimezone = null;
         this.currentTimezone = null;
+        this.timeFormatPreference = '24h';  // Default to 24h
         this.init();
     }
 
     /**
      * Initialize timezone detection and management
      */
-    init() {
+    async init() {
+        // Load user preferences first
+        await this.loadUserPreferences();
+        
         this.detectTimezone();
         this.setupEventListeners();
         this.updateTimestampsOnPage();
@@ -22,6 +26,27 @@ class TimezoneManager {
         setInterval(() => {
             this.updateTimestampsOnPage();
         }, 60000);
+    }
+    
+    /**
+     * Load user's timezone and time format preferences
+     */
+    async loadUserPreferences() {
+        try {
+            const response = await fetch('/api/timezone/preferences');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    this.timeFormatPreference = data.time_format || '24h';
+                    console.log('Loaded user preferences:', {
+                        timezone: data.timezone,
+                        timeFormat: this.timeFormatPreference
+                    });
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to load user preferences, using defaults:', error);
+        }
     }
 
     /**
@@ -174,6 +199,9 @@ class TimezoneManager {
             timeZone: this.currentTimezone || this.detectedTimezone || 'UTC'
         };
 
+        // Get user's time format preference (12h or 24h)
+        const use24Hour = !this.timeFormatPreference || this.timeFormatPreference === '24h';
+
         switch (format) {
             case 'date':
                 return date.toLocaleDateString(undefined, {
@@ -187,7 +215,8 @@ class TimezoneManager {
                 return date.toLocaleTimeString(undefined, {
                     ...options,
                     hour: '2-digit',
-                    minute: '2-digit'
+                    minute: '2-digit',
+                    hour12: !use24Hour
                 });
             
             case 'datetime':
@@ -197,7 +226,8 @@ class TimezoneManager {
                     month: 'short',
                     day: 'numeric',
                     hour: '2-digit',
-                    minute: '2-digit'
+                    minute: '2-digit',
+                    hour12: !use24Hour
                 });
             
             case 'relative':

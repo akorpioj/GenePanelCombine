@@ -69,6 +69,7 @@ class User(UserMixin, db.Model):
     
     # User preferences
     timezone_preference = db.Column(db.String(50), default='UTC')  # IANA timezone name
+    time_format_preference = db.Column(db.String(10), default='24h')  # '12h' or '24h'
     
     # Relationship to track user downloads
     downloads = db.relationship('PanelDownload', backref='user', lazy=True)

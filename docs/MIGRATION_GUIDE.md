@@ -81,6 +81,9 @@ This guide provides step-by-step instructions for migrating between different ve
 - New audit action types for panel operations (PANEL_CREATE, PANEL_UPDATE, PANEL_SHARE, PANEL_LIST)
 - Enhanced change tracking with PANEL_CREATED type
 - Database enum migrations using Flask-Migrate
+- User time format preference (12h/24h clock display)
+- Enhanced timezone and time display system with user preferences
+- JavaScript-based dynamic time format rendering
 
 **Migration Steps**:
 
@@ -111,10 +114,10 @@ This guide provides step-by-step instructions for migrating between different ve
 
 3. **Run Database Migration**
    ```bash
-   # Generate migration for new enum values
+   # Generate migration for new enum values and time format preference
    flask db migrate -m "Add new PANEL_* to AuditActionType and PANEL_CREATED to ChangeType enum"
    
-   # Apply migration to database
+   # Apply migration to database (includes time_format_preference column)
    flask db upgrade
    
    # Verify migration status
@@ -122,6 +125,20 @@ This guide provides step-by-step instructions for migrating between different ve
    
    # Check enum values in database
    python scripts/check_enum_types.py
+   
+   # Verify time format preference column
+   python -c "
+   from app import create_app, db
+   from sqlalchemy import inspect
+   app = create_app()
+   with app.app_context():
+       inspector = inspect(db.engine)
+       columns = [col['name'] for col in inspector.get_columns('user')]
+       if 'time_format_preference' in columns:
+           print('✅ time_format_preference column added successfully')
+       else:
+           print('❌ time_format_preference column missing')
+   "
    ```
 
 4. **Restart Services**
@@ -132,7 +149,7 @@ This guide provides step-by-step instructions for migrating between different ve
    # No Redis restart needed (no session changes)
    ```
 
-5. **Verify New Audit Types**
+5. **Verify New Features**
    ```bash
    # Test new audit action types
    python -c "
@@ -143,7 +160,57 @@ This guide provides step-by-step instructions for migrating between different ve
    print('✅ New ChangeType:')
    print(f'  - PANEL_CREATED: {ChangeType.PANEL_CREATED}')
    "
+   
+   # Test time format preference functionality
+   python -c "
+   from app import create_app
+   from app.models import User
+   app = create_app()
+   with app.app_context():
+       user = User.query.first()
+       if user:
+           print(f'✅ User time format preference: {user.time_format_preference or \"24h (default)\"}')
+           print('✅ Time format preference API endpoint: /api/timezone/preferences')
+       else:
+           print('ℹ️  No users found to test time format preference')
+   "
+   
+   # Verify JavaScript timezone manager loads preferences
+   echo "✅ JavaScript components updated to respect user preferences:"
+   echo "  - timezone.js: loadUserPreferences() method"
+   echo "  - profileManager.js: async time format detection"
+   echo "  - API endpoint: /api/timezone/preferences"
    ```
+
+### Time Format Preference Feature (v1.5.0)
+
+The v1.5.0 release includes user-configurable time format preference (12-hour vs 24-hour clock):
+
+**New Features**:
+- User profile setting for 12h/24h time display preference
+- Backend filter automatically adjusts format strings based on user preference
+- JavaScript components dynamically load and apply user preferences
+- New API endpoint: `GET /api/timezone/preferences` returns timezone and time format settings
+- Profile edit page includes dropdown selector for time format preference
+- All timestamps throughout the application respect user's preference
+
+**Database Changes**:
+- Added `time_format_preference` column to `user` table (VARCHAR(10), default: '24h')
+- Migration: `3d43d3ddbfa5_add_time_format_preference_to_users.py`
+
+**Implementation Details**:
+- Backend: `timezone_service.py` - `format_datetime_filter()` converts format strings
+- Frontend: `timezone.js` - loads preferences via API and applies to all timestamps
+- Profile: `profileManager.js` - updates current time display with user preference
+- Template updates: Profile view displays time format preference, edit page includes selector
+
+**User Experience**:
+- Users can select preference in Edit Profile page under "Time Format"
+- Default for new/existing users: 24-hour format
+- Choice between:
+  - 24-hour format: "18:53"
+  - 12-hour format: "6:53 PM"
+- Preference applies immediately across all timestamps in the application
 
 ### Migrating to v1.4.1 (Timezone Support)
 
@@ -372,6 +439,31 @@ This guide provides step-by-step instructions for migrating between different ve
    - Performance-optimized indexes for common query patterns
    - Support for version control and collaborative editing
    - Integration with existing user authentication system
+
+2. **Time Format Preference Migration** - IMPLEMENTED 10/12/2025
+   ```bash
+   # Create migration for time format preference
+   flask db revision -m "Add time format preference to users"
+   
+   # Apply migration to database
+   flask db upgrade
+   
+   # Verify migration status
+   flask db current
+   ```
+
+   **Migration adds:**
+   - `time_format_preference` column to `user` table (VARCHAR(10), default: '24h')
+   - Sets default value '24h' for existing users
+   - Supports values: '12h' or '24h'
+   
+   **Migration file:** `3d43d3ddbfa5_add_time_format_preference_to_users.py`
+   
+   **SQL equivalent:**
+   ```sql
+   ALTER TABLE "user" ADD COLUMN time_format_preference VARCHAR(10);
+   UPDATE "user" SET time_format_preference = '24h' WHERE time_format_preference IS NULL;
+   ```
 
 #### Manual Database Migration
 
@@ -952,6 +1044,10 @@ if __name__ == "__main__":
    - [ ] Timezone preference settings
    - [ ] Timezone-aware timestamp display
    - [ ] Automatic timezone detection
+   - [ ] Time format preference selection (12h/24h)
+   - [ ] Time format persistence across sessions
+   - [ ] Dynamic time format updates in profile page
+   - [ ] API endpoint `/api/timezone/preferences` returns correct format
 
 ---
 

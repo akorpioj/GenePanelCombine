@@ -155,3 +155,33 @@ def get_available_timezones():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@timezone_bp.route('/preferences', methods=['GET'])
+def get_user_preferences():
+    """
+    Get user's timezone and time format preferences.
+    Returns both authenticated user preferences and session-based settings.
+    """
+    try:
+        from flask_login import current_user
+        
+        preferences = {
+            'success': True,
+            'timezone': TimezoneService.get_user_timezone().zone,
+            'time_format': '24h'  # Default
+        }
+        
+        # If user is authenticated, get their saved preferences
+        if current_user.is_authenticated:
+            preferences['time_format'] = current_user.time_format_preference or '24h'
+            if current_user.timezone_preference:
+                preferences['timezone'] = current_user.timezone_preference
+        
+        return jsonify(preferences)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

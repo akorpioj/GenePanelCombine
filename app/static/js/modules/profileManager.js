@@ -104,13 +104,32 @@ export class ProfileManager {
         alert('Error: ' + message);
     }
     
-    initializeTimezone() {
+    async initializeTimezone() {
         // Initialize timezone display for profile tab
         const userTimeElement = document.getElementById('current-user-time');
         if (userTimeElement) {
+            // Get user's time format preference
+            let timeFormatPreference = '24h';
+            try {
+                const response = await fetch('/api/timezone/preferences');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        timeFormatPreference = data.time_format || '24h';
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to load time format preference:', error);
+            }
+            
             const updateUserTime = () => {
                 const now = new Date();
-                const timeString = now.toLocaleTimeString();
+                const use24Hour = timeFormatPreference === '24h';
+                const timeString = now.toLocaleTimeString(undefined, { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: !use24Hour
+                });
                 userTimeElement.textContent = timeString;
             };
             updateUserTime();

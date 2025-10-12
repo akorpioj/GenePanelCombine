@@ -59,13 +59,21 @@ CREATE TABLE audit_log (
 
 The system tracks the following action types:
 
+#### Core Application Actions
+
 | Action Type | Description |
 |-------------|-------------|
-| `LOGIN` | User login attempts |
+| `LOGIN` | User login attempts (successful and failed) |
 | `LOGOUT` | User logout events |
 | `REGISTER` | New user registrations |
 | `PROFILE_UPDATE` | User profile modifications |
 | `PASSWORD_CHANGE` | Password change events |
+| `PASSWORD_RESET` | Password reset requests and completions |
+
+#### Panel Operations
+
+| Action Type | Description |
+|-------------|-------------|
 | `PANEL_DOWNLOAD` | Gene panel downloads |
 | `PANEL_UPLOAD` | Panel file uploads |
 | `PANEL_DELETE` | Panel deletions |
@@ -75,15 +83,45 @@ The system tracks the following action types:
 | `PANEL_LIST` | Panel listing/browsing |
 | `SEARCH` | Search operations |
 | `VIEW` | Panel view operations |
-| `ADMIN_ACTION` | Administrative actions |
-| `USER_CREATE` | New user account creation |
-| `USER_UPDATE` | User account modifications |
-| `USER_DELETE` | User account deletions |
+
+#### Administrative Actions
+
+| Action Type | Description |
+|-------------|-------------|
+| `ADMIN_ACTION` | General administrative actions |
+| `USER_CREATE` | New user account creation by admin |
+| `USER_UPDATE` | User account modifications by admin |
+| `USER_DELETE` | User account deletions by admin |
 | `ROLE_CHANGE` | User role modifications |
-| `CACHE_CLEAR` | Cache operations |
-| `CONFIG_CHANGE` | Configuration modifications |
-| `DATA_EXPORT` | Data export operations |
+| `SESSION_MANAGEMENT` | Session creation, termination, and management |
+
+#### System Operations
+
+| Action Type | Description |
+|-------------|-------------|
+| `CACHE_CLEAR` | Cache operations and clearing |
+| `CONFIG_CHANGE` | System configuration modifications |
+| `DATA_EXPORT` | Data export operations (CSV, reports, etc.) |
+| `FILE_ACCESS` | File system access operations |
+| `API_ACCESS` | API endpoint access and usage |
 | `ERROR` | System errors and exceptions |
+
+#### Security & Compliance Events
+
+| Action Type | Description |
+|-------------|-------------|
+| `SECURITY_VIOLATION` | Security policy violations detected |
+| `ACCESS_DENIED` | Unauthorized access attempts |
+| `PRIVILEGE_ESCALATION` | Privilege escalation attempts |
+| `SUSPICIOUS_ACTIVITY` | Suspicious user behavior detected |
+| `BRUTE_FORCE_ATTEMPT` | Brute force attack attempts |
+| `ACCOUNT_LOCKOUT` | Account lockout due to failed attempts |
+| `MFA_EVENT` | Multi-factor authentication events |
+| `DATA_BREACH_ATTEMPT` | Potential data breach attempts |
+| `COMPLIANCE_EVENT` | GDPR and compliance-related events |
+| `SYSTEM_SECURITY` | System-level security events |
+
+**Total Action Types**: 37 comprehensive audit categories covering all application activities
 
 ## Implementation
 
@@ -369,6 +407,13 @@ logging.getLogger('app.audit_service').setLevel(logging.DEBUG)
 
 The audit trail system provides comprehensive tracking of all application activities, ensuring security, compliance, and operational visibility. The system is designed to be robust, performant, and easy to use while maintaining the highest standards for data integrity and security.
 
-**Current Status**: The audit system is fully implemented with 100% test coverage across all 19 AuditActionType implementations. All core functionality including user authentication, panel operations, administrative actions, and system events are comprehensively logged and tracked.
+**Current Status**: The audit system is fully implemented with comprehensive coverage across all **37 AuditActionType** implementations, including:
+- 6 core application actions (authentication, profile management)
+- 9 panel operations (CRUD, sharing, searching)
+- 6 administrative actions (user management, session control)
+- 6 system operations (cache, config, API access)
+- 10 security & compliance events (threat detection, GDPR compliance)
+
+All core functionality including user authentication, panel operations, administrative actions, security monitoring, and compliance events are comprehensively logged and tracked with full encryption support for sensitive data.
 
 For questions or issues with the audit system, refer to the application logs or contact the development team.
