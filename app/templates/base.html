@@ -108,7 +108,11 @@
 
   <footer class="w-full max-w-6xl mt-8 pt-6 border-t border-gray-300 text-center text-sm text-gray-500">
     <p>&copy; 2025 PanelMerge. Enhanced security and user management.</p>
-    <p class="mt-1">
+    <p class="mt-2 space-x-4">
+      <a href="{{ url_for('main.privacy') }}" class="text-sky-600 hover:text-sky-800 transition">Privacy Policy</a>
+      <span class="text-gray-300">|</span>
+      <a href="mailto:anita.korpioja@gmail.com" class="text-sky-600 hover:text-sky-800 transition">Contact</a>
+      <span class="text-gray-300">|</span>
       <span id="footer-current-time"></span>
     </p>
   </footer>

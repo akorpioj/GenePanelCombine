@@ -47,9 +47,18 @@ def register():
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
         organization = request.form.get('organization', '').strip()
+        privacy_consent = request.form.get('privacy_consent') == 'on'
+        terms_consent = request.form.get('terms_consent') == 'on'
         
         # Validation
         errors = []
+        
+        # GDPR Consent Validation
+        if not privacy_consent:
+            errors.append("You must agree to the Privacy Policy to create an account")
+        
+        if not terms_consent:
+            errors.append("You must agree to the Terms of Use to create an account")
         
         if not username or len(username) < 3:
             errors.append("Username must be at least 3 characters long")
@@ -94,8 +103,20 @@ def register():
             db.session.add(user)
             db.session.commit()
             
-            # Log successful registration
+            # Log successful registration with GDPR consent information
             AuditService.log_registration(username, email, success=True)
+            AuditService.log_action(
+                action_type=AuditActionType.COMPLIANCE_EVENT,
+                action_description=f"User '{username}' provided GDPR consent during registration",
+                resource_type="user",
+                resource_id=username,
+                details={
+                    "privacy_consent": privacy_consent,
+                    "terms_consent": terms_consent,
+                    "consent_timestamp": datetime.datetime.now().isoformat(),
+                    "ip_address": request.remote_addr
+                }
+            )
             
             flash('Registration successful! You can now log in.', 'success')
             return redirect(url_for('auth.login'))

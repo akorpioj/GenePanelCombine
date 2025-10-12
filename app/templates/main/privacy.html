@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-6xl">
+  <div class="bg-white rounded-lg shadow-lg p-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-4xl font-bold text-sky-700 mb-2">Privacy Policy & GDPR Compliance</h1>
+      <p class="text-gray-600">
+        <strong>Last Updated:</strong> 12/10/2025 &nbsp;|&nbsp; 
+        <strong>Version:</strong> 1.0 &nbsp;|&nbsp; 
+        <strong>Controller:</strong> Anita Korpioja
+      </p>
+      <p class="text-gray-600 mt-1">
+        <strong>Contact:</strong> <a href="mailto:anita.korpioja@gmail.com" class="text-sky-600 hover:text-sky-800">anita.korpioja@gmail.com</a>
+      </p>
+    </div>
+
+    <!-- Navigation -->
+    <div class="mb-8 p-4 bg-sky-50 rounded-lg border border-sky-200">
+      <h2 class="text-lg font-semibold text-sky-800 mb-3">Quick Navigation</h2>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+        <a href="#introduction" class="text-sky-600 hover:text-sky-800">• Introduction</a>
+        <a href="#data-controller" class="text-sky-600 hover:text-sky-800">• Data Controller</a>
+        <a href="#data-categories" class="text-sky-600 hover:text-sky-800">• Data Categories</a>
+        <a href="#legal-basis" class="text-sky-600 hover:text-sky-800">• Legal Basis</a>
+        <a href="#data-retention" class="text-sky-600 hover:text-sky-800">• Data Retention</a>
+        <a href="#your-rights" class="text-sky-600 hover:text-sky-800">• Your Rights</a>
+        <a href="#security" class="text-sky-600 hover:text-sky-800">• Security Measures</a>
+        <a href="#data-sharing" class="text-sky-600 hover:text-sky-800">• Data Sharing</a>
+        <a href="#cookies" class="text-sky-600 hover:text-sky-800">• Cookies</a>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="prose prose-sky max-w-none">
+      <!-- Introduction -->
+      <section id="introduction" class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">1. Introduction</h2>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          This document outlines the data protection and privacy practices of <strong>PanelMerge</strong> (the "Application"), 
+          in accordance with the <strong>General Data Protection Regulation (EU) 2016/679 (GDPR)</strong> and relevant national legislation.
+        </p>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          PanelMerge is a web-based tool designed to combine and compare gene panels from multiple public databases and 
+          user-provided lists. The Application emphasizes data minimization and privacy by design: it does <strong>not</strong> 
+          require personal identifiers, patient information, or other sensitive personal data to function.
+        </p>
+        <p class="text-gray-700 leading-relaxed">
+          This policy explains what data may be processed, how it is handled, and which measures are implemented to ensure 
+          compliance with GDPR principles.
+        </p>
+      </section>
+
+      <!-- Data Controller -->
+      <section id="data-controller" class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">2. Data Controller and Contact</h2>
+        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+          <p class="text-gray-700 mb-2"><strong>Data Controller:</strong> Anita Korpioja</p>
+          <p class="text-gray-700 mb-4">
+            <strong>Email:</strong> 
+            <a href="mailto:anita.korpioja@gmail.com" class="text-sky-600 hover:text-sky-800">anita.korpioja@gmail.com</a>
+          </p>
+          <p class="text-gray-600 text-sm">
+            If you have questions regarding this policy or your rights under GDPR, please contact the Controller using the email above.
+          </p>
+        </div>
+      </section>
+
+      <!-- Categories of Data -->
+      <section id="data-categories" class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">3. Categories of Data Processed</h2>
+        
+        <h3 class="text-xl font-semibold text-gray-700 mb-3 mt-6">3.1 Non-Personal Data</h3>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          The core function of PanelMerge involves processing <strong>non-personal</strong> scientific data such as:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-2 ml-4">
+          <li>Gene names and identifiers (e.g., HGNC symbols)</li>
+          <li>Gene panel lists from public repositories (e.g., Genomics England PanelApp, PanelApp Australia)</li>
+          <li>Anonymous file uploads (Excel, CSV, TSV) containing gene symbols</li>
+        </ul>
+        <p class="text-gray-700 leading-relaxed mb-6">
+          These datasets <strong>do not contain personal data</strong> and therefore are not subject to GDPR obligations 
+          beyond standard information security.
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-700 mb-3">3.2 Personal Data (Minimal)</h3>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          In limited circumstances, PanelMerge may process minimal personal data, such as:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-2 ml-4">
+          <li><strong>IP address</strong> and browser metadata (for session management and security logging)</li>
+          <li><strong>User account data</strong> (if an authenticated version is deployed) including:
+            <ul class="list-circle list-inside ml-6 mt-2 space-y-1">
+              <li>Name or alias</li>
+              <li>Email address</li>
+              <li>Role (admin, user, developer)</li>
+              <li>Password hash (never stored in plaintext)</li>
+            </ul>
+          </li>
+        </ul>
+        <p class="text-gray-700 leading-relaxed">
+          Such data is only collected to support core technical or administrative functions and is <strong>never used for 
+          marketing or profiling</strong>.
+        </p>
+      </section>
+
+      <!-- Legal Basis -->
+      <section id="legal-basis" class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">4. Purpose and Legal Basis for Processing</h2>
+        <div class="overflow-x-auto">
+          <table class="min-w-full bg-white border border-gray-300 rounded-lg">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Data Type</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Purpose of Processing</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Legal Basis under GDPR</th>
+              </tr>
+            </thead>
+            <tbody class="text-sm text-gray-700">
+              <tr class="border-b hover:bg-gray-50">
+                <td class="px-4 py-3">Session data (IP, user agent, cookies)</td>
+                <td class="px-4 py-3">Technical operation, security, error handling</td>
+                <td class="px-4 py-3">Legitimate interest (Art. 6(1)(f))</td>
+              </tr>
+              <tr class="border-b hover:bg-gray-50">
+                <td class="px-4 py-3">Uploaded gene panel files</td>
+                <td class="px-4 py-3">Combine and analyze gene lists</td>
+                <td class="px-4 py-3">Not personal data (outside GDPR scope)</td>
+              </tr>
+              <tr class="border-b hover:bg-gray-50">
+                <td class="px-4 py-3">User account data (email, password hash)</td>
+                <td class="px-4 py-3">Authentication, access control, app administration</td>
+                <td class="px-4 py-3">Consent or performance of a contract (Art. 6(1)(a) or (b))</td>
+              </tr>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">Logs and analytics (if enabled)</td>
+                <td class="px-4 py-3">Performance monitoring and troubleshooting</td>
+                <td class="px-4 py-3">Legitimate interest (Art. 6(1)(f))</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Data Retention -->
+      <section id="data-retention" class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">5. Data Minimization and Retention</h2>
+        <ul class="list-disc list-inside text-gray-700 space-y-3 ml-4">
+          <li>Only the minimum data required for functionality is collected.</li>
+          <li>Uploaded files are processed <strong>in-memory or temporarily on the server</strong> and deleted automatically after the session ends or within 1 hour.</li>
+          <li>User account data is stored only as long as the account remains active.</li>
+          <li>Logs are retained for a maximum of <strong>90 days</strong>, after which they are automatically deleted or anonymized.</li>
+          <li>Backups are encrypted and follow the same retention limits as the primary data.</li>
+        </ul>
+      </section>
+
+      <!-- Your Rights -->
+      <section id="your-rights" class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">6. Data Subject Rights</h2>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          Where applicable, users (data subjects) have the following rights under GDPR:
+        </p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 class="font-semibold text-blue-900 mb-2">Right of Access</h4>
+            <p class="text-sm text-gray-700">To obtain confirmation and a copy of personal data</p>
+          </div>
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 class="font-semibold text-blue-900 mb-2">Right to Rectification</h4>
+            <p class="text-sm text-gray-700">To correct inaccurate or incomplete data</p>
+          </div>
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 class="font-semibold text-blue-900 mb-2">Right to Erasure</h4>
+            <p class="text-sm text-gray-700">"Right to be forgotten" - deletion of personal data</p>
+          </div>
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 class="font-semibold text-blue-900 mb-2">Right to Restriction</h4>
+            <p class="text-sm text-gray-700">To restrict processing of personal data</p>
+          </div>
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 class="font-semibold text-blue-900 mb-2">Right to Data Portability</h4>
+            <p class="text-sm text-gray-700">To receive personal data in a structured format</p>
+          </div>
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 class="font-semibold text-blue-900 mb-2">Right to Object</h4>
+            <p class="text-sm text-gray-700">To object to processing based on legitimate interest</p>
+          </div>
+        </div>
+        <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p class="text-gray-700 mb-2">
+            <strong>Right to lodge a complaint</strong> with a supervisory authority (in Finland: <em>Tietosuojavaltuutetun toimisto</em>).
+          </p>
+          <p class="text-gray-700">
+            Requests can be made by email to 
+            <a href="mailto:anita.korpioja@gmail.com" class="text-sky-600 hover:text-sky-800">anita.korpioja@gmail.com</a>. 
+            All requests are handled within the statutory timeframe (one month).
+          </p>
+        </div>
+      </section>
+
+      <!-- Security -->
+      <section id="security" class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">7. Security Measures</h2>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          PanelMerge implements a range of technical and organizational measures to ensure confidentiality, 
+          integrity, and availability of data:
+        </p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">HTTPS / TLS Encryption</h4>
+              <p class="text-sm text-gray-600">All data in transit is encrypted</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">Encrypted Database Storage</h4>
+              <p class="text-sm text-gray-600">Data at rest is encrypted using AES-256</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">Strong Authentication</h4>
+              <p class="text-sm text-gray-600">Hashed and salted passwords</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">CSRF Protection</h4>
+              <p class="text-sm text-gray-600">Session security mechanisms</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">Role-Based Access Control</h4>
+              <p class="text-sm text-gray-600">For admin features</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">Automated Log Rotation</h4>
+              <p class="text-sm text-gray-600">Restricted access to logs</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">Regular Security Audits</h4>
+              <p class="text-sm text-gray-600">Code review and vulnerability scanning</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">Automatic File Deletion</h4>
+              <p class="text-sm text-gray-600">Temporary uploads deleted after processing</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">Isolated Execution</h4>
+              <p class="text-sm text-gray-600">Sandboxing for file uploads</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-gray-800">Secure Backups</h4>
+              <p class="text-sm text-gray-600">Encryption and limited access</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Data Sharing -->
+      <section id="data-sharing" class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">8. Data Sharing and Third Parties</h2>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          PanelMerge interacts with external, publicly available APIs (e.g., PanelApp). 
+          <strong>No personal data is transmitted to these services.</strong>
+        </p>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          If future integrations involve data transfers outside the EEA, such transfers will comply with Chapter V 
+          of the GDPR through appropriate safeguards such as Standard Contractual Clauses (SCCs).
+        </p>
+        <p class="text-gray-700 leading-relaxed">
+          <strong>No data is sold or shared for commercial purposes.</strong>
+        </p>
+      </section>
+
+      <!-- Cookies -->
+      <section id="cookies" class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">9. Cookies and Tracking</h2>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          The application uses only <strong>essential cookies</strong> required for:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-2 ml-4">
+          <li>Maintaining user sessions</li>
+          <li>Securing authenticated requests</li>
+        </ul>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          <strong>No analytics or tracking cookies are used by default.</strong>
+        </p>
+        <p class="text-gray-700 leading-relaxed">
+          If non-essential cookies (e.g., for analytics) are introduced, a consent banner will be provided to obtain 
+          explicit opt-in consent in compliance with GDPR and ePrivacy Directive requirements.
+        </p>
+      </section>
+
+      <!-- Additional Sections -->
+      <section class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">10. Data Breach Notification</h2>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          In the unlikely event of a personal data breach, the following procedures will apply:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4">
+          <li>The Controller will assess the impact within 72 hours</li>
+          <li>The relevant supervisory authority will be notified if the breach is likely to result in a risk to the rights and freedoms of natural persons</li>
+          <li>Affected users will be informed if the breach poses a high risk</li>
+          <li>Incident details and corrective actions will be documented</li>
+        </ul>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">11. Privacy by Design and Default</h2>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          All development follows principles of <strong>Privacy by Design and by Default</strong>, including:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4">
+          <li>Minimizing data collection</li>
+          <li>Default anonymization of data where feasible</li>
+          <li>Clear separation of personal and non-personal datasets</li>
+          <li>Secure coding practices</li>
+          <li>Regular internal privacy reviews</li>
+        </ul>
+      </section>
+
+      <!-- Contact -->
+      <section class="mb-8 bg-sky-50 p-6 rounded-lg border border-sky-200">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Contact and Complaints</h2>
+        <p class="text-gray-700 mb-4">
+          If you have concerns or wish to exercise your data protection rights, please contact:
+        </p>
+        <p class="text-gray-700 mb-4">
+          <strong>Email:</strong> 
+          <a href="mailto:anita.korpioja@gmail.com" class="text-sky-600 hover:text-sky-800">anita.korpioja@gmail.com</a>
+        </p>
+        <p class="text-gray-700">
+          <strong>Supervisory Authority:</strong><br>
+          Tietosuojavaltuutetun toimisto (Office of the Data Protection Ombudsman, Finland)<br>
+          <a href="https://tietosuoja.fi/en/home" target="_blank" class="text-sky-600 hover:text-sky-800">https://tietosuoja.fi/en/home</a>
+        </p>
+      </section>
+
+    </div>
+
+    <!-- Back to Top -->
+    <div class="mt-8 text-center">
+      <a href="#" class="inline-block px-6 py-3 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition">
+        Back to Top
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

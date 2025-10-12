@@ -645,3 +645,10 @@ def version():
     from app.version import get_version_info
     version_info = get_version_info()
     return render_template('main/version.html', version_info=version_info)
+
+
+@main_bp.route('/privacy')
+@limiter.limit("30 per minute")
+def privacy():
+    """Display the privacy policy page"""
+    return render_template('main/privacy.html')

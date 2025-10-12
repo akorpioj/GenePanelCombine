@@ -1,5 +1,5 @@
-# PowerShell script to create an admin user for PanelMerge
-# This script sets up the environment and runs the Python admin user creation script
+# PowerShell script to create or manage admin users for PanelMerge
+# This script sets up the environment and runs the Python admin user management script
 
 param(
     [string]$Username,
@@ -8,6 +8,7 @@ param(
     [string]$FirstName,
     [string]$LastName,
     [string]$Organization,
+    [switch]$ChangePassword,
     [switch]$NonInteractive
 )
 
@@ -16,7 +17,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 $PythonScript = Join-Path $ScriptDir "db\create_admin_user.py"
 
-Write-Host "PanelMerge - Admin User Creation Script" -ForegroundColor Green
+Write-Host "PanelMerge - Admin User Management Script" -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor Green
 Write-Host ""
 
@@ -31,6 +32,14 @@ Set-Location $ProjectRoot
 
 # Build Python command arguments
 $PythonArgs = @()
+
+if ($ChangePassword) { 
+    $PythonArgs += @("--change-password") 
+    Write-Host "Mode: Change Password" -ForegroundColor Cyan
+} else {
+    Write-Host "Mode: Create New Admin User" -ForegroundColor Cyan
+}
+Write-Host ""
 
 if ($Username) { $PythonArgs += @("-u", $Username) }
 if ($Email) { $PythonArgs += @("-e", $Email) }
@@ -63,7 +72,7 @@ if (-not $PythonExecutable) {
 }
 
 # Run the Python script
-Write-Host "Running admin user creation script..." -ForegroundColor Yellow
+Write-Host "Running admin user management script..." -ForegroundColor Yellow
 Write-Host ""
 
 try {
