@@ -23,17 +23,25 @@ def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_genera
             
             # Add user panel file names to gene_to_panels
             if uploaded_panels:
+                logger.info(f"Processing uploaded panels for Excel: {len(uploaded_panels)} panels")
                 for sheet_name, gene_list in uploaded_panels:
+                    logger.info(f"Adding genes from uploaded panel '{sheet_name}': {len(gene_list)} genes")
                     for gene_symbol in gene_list:
                         if gene_symbol not in gene_to_panels:
                             gene_to_panels[gene_symbol] = []
                         # Use the user panel file name as the panel name, and 'User upload' as the list type
                         gene_to_panels[gene_symbol].append((sheet_name, 'User upload'))
+            else:
+                logger.info("No uploaded panels found for Excel generation")
             
+            logger.info(f"Building combined sheet with {len(final_unique_gene_set)} unique genes")
             combined_rows = []
+            genes_without_panel_info = []
             for gene_symbol in sorted(list(final_unique_gene_set)):
                 # Join all panel names and list types for this gene
                 panels = gene_to_panels.get(gene_symbol, [])
+                if not panels:
+                    genes_without_panel_info.append(gene_symbol)
                 panel_names_str = ", ".join([p[0] for p in panels])
                 list_types_str = ", ".join([p[1] for p in panels])
                 combined_rows.append({
@@ -41,6 +49,9 @@ def generate_excel_file(final_unique_gene_set, selected_panel_configs_for_genera
                     'Panel(s)': panel_names_str,
                     'List type(s)': list_types_str
                 })
+            
+            if genes_without_panel_info:
+                logger.warning(f"Found {len(genes_without_panel_info)} genes without panel info: {genes_without_panel_info[:10]}...")  # Show first 10
             
             df_combined = pd.DataFrame(combined_rows, columns=['GeneSymbol', 'Panel(s)', 'List type(s)'])
             df_combined.to_excel(writer, index=False, sheet_name='Combined list')

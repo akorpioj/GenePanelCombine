@@ -104,14 +104,17 @@ class PanelLibraryGrid {
                 console.log(this.serverPagination)
                 this.currentPage = this.serverPagination ? this.serverPagination.page : 1;
                 
-                // If no panels and it's the first page, show demo data for testing
-                if (this.panels.length === 0 && page === 1) {
-                    console.log('No panels found');
+                // Check if this is truly an empty state (no filters applied) or just filtered results
+                const hasActiveFilters = this.filterManager.hasActiveFilters();
+                
+                // If no panels and it's the first page with no active filters, show demo data for testing
+                if (this.panels.length === 0 && page === 1 && !hasActiveFilters) {
+                    console.log('No panels found - truly empty state');
                     this.panels = []; //this.generateDemoData();
                     this.useServerPagination = false;
                     this.filterManager.applyFilters();
                 } else {
-                    // Use server pagination data
+                    // Use server pagination data (even if result is empty due to filters)
                     this.useServerPagination = true;
                     this.filteredPanels = this.panels; // With server pagination, panels are already filtered
                     this.filterManager.updateFilterInfo();
@@ -215,10 +218,22 @@ class PanelLibraryGrid {
             this.cancelPanel.addEventListener('click', () => this.actionsManager.closePanelModal());
         }
         if (this.panelForm) {
-            this.panelForm.addEventListener('submit', (e) => {
+            // Remove any existing listeners to prevent duplicates
+            const existingHandler = this.panelForm._submitHandler;
+            if (existingHandler) {
+                this.panelForm.removeEventListener('submit', existingHandler);
+            }
+            
+            // Create new handler and store reference
+            const submitHandler = (e) => {
+                console.log('Form submit event triggered');
                 e.preventDefault();
+                e.stopPropagation();
                 this.actionsManager.savePanelData();
-            });
+            };
+            
+            this.panelForm._submitHandler = submitHandler;
+            this.panelForm.addEventListener('submit', submitHandler);
         }
 
         // Search input

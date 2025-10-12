@@ -29,8 +29,8 @@ def api_user_panels():
 def api_user_panel_detail(panel_id):
     """Handle individual panel operations - GET to retrieve, PUT to update, DELETE to remove"""
     
-    # Find the panel and verify ownership
-    panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+    # Find the panel and verify ownership (exclude deleted panels from normal operations)
+    panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).filter(SavedPanel.status != PanelStatus.DELETED).first()
     if not panel:
         return jsonify({'error': 'Panel not found or access denied'}), 404
     
@@ -44,19 +44,29 @@ def api_user_panel_detail(panel_id):
     
     elif request.method == 'DELETE':
         """Delete (soft delete) a panel"""
+        # For DELETE operations, we need to find the panel even if it's already deleted
+        # to provide appropriate feedback
+        panel_for_delete = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+        if not panel_for_delete:
+            return jsonify({'error': 'Panel not found or access denied'}), 404
+        
+        # Check if panel is already deleted
+        if panel_for_delete.status == PanelStatus.DELETED:
+            return jsonify({'message': 'Panel is already deleted'}), 200
+        
         try:
             # Soft delete by setting status to DELETED
-            panel.status = PanelStatus.DELETED
-            panel.updated_at = datetime.datetime.now()
+            panel_for_delete.status = PanelStatus.DELETED
+            panel_for_delete.updated_at = datetime.datetime.now()
             
             # Create audit entry
             AuditService.log_action(
                 action_type=AuditActionType.PANEL_DELETE,
-                action_description=f"Deleted panel {panel.name} (ID: {panel.id})",
+                action_description=f"Deleted panel {panel_for_delete.name} (ID: {panel_for_delete.id})",
                 user_id=current_user.id,
-                resource_id=panel.id,
+                resource_id=panel_for_delete.id,
                 resource_type='panel',
-                details={"panel_id": panel_id, "name": panel.name}
+                details={"panel_id": panel_id, "name": panel_for_delete.name}
             )
             
             db.session.commit()
@@ -74,8 +84,8 @@ def api_user_panel_detail(panel_id):
 def api_user_panel_versions(panel_id):
     """Get version history for a user's saved panel"""
     try:
-        # Check panel ownership
-        panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+        # Check panel ownership (exclude deleted panels)
+        panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).filter(SavedPanel.status != PanelStatus.DELETED).first()
         if not panel:
             return jsonify({'error': 'Panel not found'}), 404
         
@@ -113,8 +123,8 @@ def api_user_panel_versions(panel_id):
 def api_user_panel_version_details(panel_id, version_number):
     """Get details for a specific version of a user's saved panel"""
     try:
-        # Check panel ownership
-        panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+        # Check panel ownership (exclude deleted panels)
+        panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).filter(SavedPanel.status != PanelStatus.DELETED).first()
         if not panel:
             return jsonify({'error': 'Panel not found'}), 404
         

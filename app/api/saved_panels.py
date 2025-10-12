@@ -320,7 +320,7 @@ class SavedPanelResource(Resource):
             
             # Update last accessed time if owner
             if panel.owner_id == current_user.id:
-                panel.last_accessed_at = datetime.utcnow()
+                panel.last_accessed_at = datetime.datetime.now()
                 db.session.commit()
             
             # Get genes
@@ -446,27 +446,16 @@ class SavedPanelResource(Resource):
                     ns.abort(400, f"Invalid visibility: {data['visibility']}")
             
             # Update timestamp
-            panel.updated_at = datetime.utcnow()
+            panel.updated_at = datetime.datetime.now()
             
             # Create new version if significant changes
             if old_values:
-                version_number = panel.version_count + 1
-                version = PanelVersion(
-                    panel_id=panel.id,
-                    version_number=version_number,
-                    comment=data.get('version_comment', 'Panel metadata updated'),
-                    created_by_id=current_user.id,
-                    gene_count=panel.gene_count,
+                version = panel.create_new_version(
+                    current_user.id,
+                    comment=data.get('version_comment'),
                     changes_summary=f"Updated: {', '.join(old_values.keys())}"
                 )
-                
-                db.session.add(version)
-                db.session.flush()
-                
-                # Update panel version info
-                panel.version_count = version_number
-                panel.current_version_id = version.id
-                
+                                
                 # Record change
                 change = PanelChange(
                     panel_id=panel.id,
@@ -595,7 +584,7 @@ class SavedPanelResource(Resource):
             ns.abort(404, "Panel not found or access denied")
         
         # Check if share has expired
-        if share.expires_at and share.expires_at < datetime.utcnow():
+        if share.expires_at and share.expires_at < datetime.datetime.now():
             ns.abort(403, "Access to this panel has expired")
         
         # Check permission level
@@ -691,7 +680,7 @@ class PanelShareResource(Resource):
             
             # Set expiration if provided
             if data.get('expires_in_days'):
-                share.expires_at = datetime.utcnow() + timedelta(days=data['expires_in_days'])
+                share.expires_at = datetime.datetime.now() + timedelta(days=data['expires_in_days'])
             
             # Handle specific user sharing
             if data.get('shared_with_user_id'):
@@ -768,7 +757,7 @@ class SharedPanelList(Resource):
                 PanelShare.is_active == True,
                 db.or_(
                     PanelShare.expires_at.is_(None),
-                    PanelShare.expires_at > datetime.utcnow()
+                    PanelShare.expires_at > datetime.datetime.now()
                 )
             ).all()
             

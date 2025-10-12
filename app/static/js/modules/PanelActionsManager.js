@@ -487,6 +487,7 @@ class PanelActionsManager {
         if (panelName) panelName.value = panelData.name || '';
         if (panelDescription) panelDescription.value = panelData.description || '';
         if (panelTags) {
+            console.log(panelTags);
             if (Array.isArray(panelData.tags)) {
                 panelTags.value = panelData.tags.join(', ');
             } else if (typeof panelData.tags === 'string') {
@@ -537,6 +538,15 @@ class PanelActionsManager {
     }
     
     async savePanelData() {
+        // Prevent double submission
+        if (this._saving) {
+            console.log('Save already in progress, ignoring duplicate call');
+            return;
+        }
+        
+        this._saving = true;
+        console.log('Starting savePanelData()');
+        
         const panelId = document.getElementById('panel-id')?.value;
         const isEdit = panelId !== '';
         
@@ -550,7 +560,8 @@ class PanelActionsManager {
             genes: this.panelLibrary.parseGenes(document.getElementById('panel-genes')?.value || '')
         };
         
-        try {           
+        try {
+            console.log('Saving panel data:', data);
             const response = await fetch('/api/user/panels', {
                 method: 'POST',
                 headers: {
@@ -561,6 +572,7 @@ class PanelActionsManager {
             
             if (!response.ok) {
                 const errorData = await response.json();
+                console.log(errorData);
                 throw new Error(errorData.message || 'Failed to save panel');
             }
             
@@ -570,6 +582,9 @@ class PanelActionsManager {
         } catch (error) {
             console.error('Error saving panel:', error);
             this.panelLibrary.showError(error.message || 'Failed to save panel. Please try again.');
+        } finally {
+            this._saving = false;
+            console.log('Finished savePanelData()');
         }
     }
 
@@ -669,26 +684,62 @@ class PanelActionsManager {
     toggleDropdown(button) {
         const dropdown = button.parentElement;
         const menu = dropdown.querySelector('.dropdown-menu');
+        const panelCard = button.closest('.panel-card');
         
-        // Close all other dropdowns first
+        // Close all other dropdowns first and remove dropdown-open class
         document.querySelectorAll('.dropdown-menu').forEach(otherMenu => {
             if (otherMenu !== menu) {
                 otherMenu.classList.add('hidden');
+                const otherPanelCard = otherMenu.closest('.panel-card');
+                if (otherPanelCard) {
+                    otherPanelCard.classList.remove('dropdown-open');
+                }
             }
         });
         
         // Toggle this dropdown
+        const isHidden = menu.classList.contains('hidden');
         menu.classList.toggle('hidden');
+        
+        // Manage panel card z-index for dropdown visibility
+        if (panelCard) {
+            if (isHidden) {
+                // Dropdown is being opened
+                panelCard.classList.add('dropdown-open');
+            } else {
+                // Dropdown is being closed
+                panelCard.classList.remove('dropdown-open');
+            }
+        }
         
         // Close dropdown when clicking outside
         if (!menu.classList.contains('hidden')) {
             const closeDropdown = (e) => {
                 if (!dropdown.contains(e.target)) {
                     menu.classList.add('hidden');
+                    if (panelCard) {
+                        panelCard.classList.remove('dropdown-open');
+                    }
                     document.removeEventListener('click', closeDropdown);
+                    document.removeEventListener('keydown', handleEscape);
                 }
             };
-            setTimeout(() => document.addEventListener('click', closeDropdown), 0);
+            
+            const handleEscape = (e) => {
+                if (e.key === 'Escape') {
+                    menu.classList.add('hidden');
+                    if (panelCard) {
+                        panelCard.classList.remove('dropdown-open');
+                    }
+                    document.removeEventListener('click', closeDropdown);
+                    document.removeEventListener('keydown', handleEscape);
+                }
+            };
+            
+            setTimeout(() => {
+                document.addEventListener('click', closeDropdown);
+                document.addEventListener('keydown', handleEscape);
+            }, 0);
         }
     }
 

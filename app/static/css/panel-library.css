@@ -165,6 +165,13 @@
     min-height: 300px !important;
     width: 100% !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    z-index: 1 !important;
+}
+
+/* When dropdown is open, elevate the panel card */
+.panel-card:has(.dropdown-menu:not(.hidden)),
+.panel-card.dropdown-open {
+    z-index: 1001 !important;
 }
 
 .panel-card:hover {
@@ -404,7 +411,7 @@
     border: 1px solid #dee2e6 !important;
     border-radius: 6px !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-    z-index: 1000 !important;
+    z-index: 1010 !important;
     overflow: hidden !important;
 }
 
@@ -419,6 +426,7 @@
 .panel-card .panel-actions .dropdown {
     position: relative !important;
     margin-left: auto !important;
+    z-index: 1000 !important;
 }
 
 .panel-card .panel-actions .dropdown-toggle {

@@ -96,7 +96,7 @@ def list_protected_versions():
     print("🔒 Protected versions:")
     
     protected_versions = PanelVersion.query.filter_by(is_protected=True)\
-        .join(SavedPanel).order_by(SavedPanel.name, PanelVersion.version_number).all()
+        .join(SavedPanel, PanelVersion.panel_id == SavedPanel.id).order_by(SavedPanel.name, PanelVersion.version_number).all()
     
     if not protected_versions:
         print("  No protected versions found.")
@@ -133,7 +133,7 @@ def generate_version_control_report(output_file: str = None):
         SavedPanel.id,
         SavedPanel.name,
         db.func.count(PanelVersion.id).label('version_count')
-    ).join(PanelVersion).group_by(SavedPanel.id, SavedPanel.name)\
+    ).join(PanelVersion, SavedPanel.id == PanelVersion.panel_id).group_by(SavedPanel.id, SavedPanel.name)\
      .order_by(db.func.count(PanelVersion.id).desc()).all()
     
     # Tag type distribution

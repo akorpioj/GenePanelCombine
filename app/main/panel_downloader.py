@@ -78,13 +78,20 @@ class PanelDownloader:
         # Handle user-uploaded panels stored in session (from /upload_user_panel)
         from flask import session
 
-        user_panels = session.get('uploaded_panels', set())
+        user_panels = session.get('uploaded_panels', [])
+        logger.info(f"Found {len(user_panels)} panels in session: {[p.get('sheet_name', 'Unknown') for p in user_panels]}")
+        
         for panel in user_panels:
             sheet_name = panel.get('sheet_name', 'UserPanel')[:31]
             genes = panel.get('genes', [])
             if genes:
                 self.uploaded_panels.append((sheet_name, genes))
-                logger.info(f"session panel '{sheet_name}' with {len(genes)} genes.")
+                logger.info(f"Added session panel '{sheet_name}' with {len(genes)} genes.")
+            else:
+                logger.warning(f"Session panel '{sheet_name}' has no genes")
+        
+        if not user_panels:
+            logger.info("No uploaded panels found in session")
         # Optionally clear session after use (uncomment if you want one-time use)
         # session['uploaded_panels'] = []
         # session.modified = True
@@ -118,11 +125,16 @@ class PanelDownloader:
                 logger.warning(f"Panel {config['id']}: No raw genes data found")
 
         # Add genes from all uploaded panels (including session panels) to the combined list
-        for _sheet_name, genes in self.uploaded_panels:
+        uploaded_gene_count = 0
+        for sheet_name, genes in self.uploaded_panels:
+            logger.info(f"Processing uploaded panel '{sheet_name}' with {len(genes)} genes")
             for gene in genes:
                 self.final_unique_gene_set.add(gene)
+                uploaded_gene_count += 1
         if self.uploaded_panels:
-            logger.info(f"Added {sum(len(genes) for _, genes in self.uploaded_panels)} genes from uploaded panels to combined list.")
+            logger.info(f"Added {uploaded_gene_count} total genes from {len(self.uploaded_panels)} uploaded panels to combined list.")
+        else:
+            logger.info("No uploaded panels found to add to combined list.")
 
     def generate_combined_gene_list(self):
         """Generate a combined gene list from selected panels."""
@@ -226,7 +238,7 @@ class PanelDownloader:
             AuditService.log_panel_download(
                 panel_ids=panel_ids_str,
                 list_types=list_types_str,
-                gene_count=len(self.final_unique_gene_setfinal_unique_gene_set)
+                gene_count=len(self.final_unique_gene_set)
             )
         except Exception as e:
             db.session.rollback()

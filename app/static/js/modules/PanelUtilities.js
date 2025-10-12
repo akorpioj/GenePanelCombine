@@ -91,6 +91,7 @@ class PanelUtilities {
     static parseTags(tagsText) {
         if (!tagsText.trim()) return [];
         
+        console.log("parsing tags: ", tagsText);
         // Split by comma and clean up
         return tagsText
             .split(',')

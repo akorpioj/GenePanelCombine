@@ -13,6 +13,7 @@ Uses AES-256-GCM for symmetric encryption and RSA for key exchange.
 import os
 import base64
 import json
+import datetime
 from typing import Optional, Union, Dict, Any
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes, serialization
@@ -20,6 +21,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from flask import current_app
+from sqlalchemy.inspection import inspect
 import logging
 
 logger = logging.getLogger(__name__)
@@ -111,6 +113,45 @@ class EncryptionService:
         if not self._initialized:
             raise RuntimeError("Encryption service not initialized. Call initialize() first.")
     
+    def _serialize_for_json(self, obj):
+        """
+        Convert SQLAlchemy objects and other non-serializable objects to JSON-serializable format.
+        
+        Args:
+            obj: Object to serialize
+            
+        Returns:
+            JSON-serializable representation of the object
+        """
+        if obj is None:
+            return None
+        elif isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+        elif isinstance(obj, datetime.date):
+            return obj.isoformat()
+        elif isinstance(obj, datetime.time):
+            return obj.isoformat()
+        elif hasattr(obj, '__table__'):  # SQLAlchemy model instance
+            # Convert SQLAlchemy object to dictionary, recursively serializing values
+            return {c.name: self._serialize_for_json(getattr(obj, c.name)) for c in obj.__table__.columns}
+        elif isinstance(obj, dict):
+            # Recursively process dictionary values
+            return {key: self._serialize_for_json(value) for key, value in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            # Recursively process list/tuple items
+            return [self._serialize_for_json(item) for item in obj]
+        elif hasattr(obj, '__dict__') and not isinstance(obj, (str, int, float, bool)):
+            # Handle other objects by converting to dict
+            try:
+                return {key: self._serialize_for_json(value) for key, value in obj.__dict__.items() 
+                       if not key.startswith('_')}
+            except:
+                # If that fails, convert to string
+                return str(obj)
+        else:
+            # Already serializable (str, int, float, bool, None)
+            return obj
+    
     # Field-level database encryption
     def encrypt_field(self, value: Union[str, bytes, None]) -> Optional[str]:
         """
@@ -178,7 +219,9 @@ class EncryptionService:
             return None
         
         try:
-            json_str = json.dumps(data, separators=(',', ':'))
+            # Serialize SQLAlchemy objects and other non-serializable objects
+            serializable_data = self._serialize_for_json(data)
+            json_str = json.dumps(serializable_data, separators=(',', ':'))
             return self.encrypt_field(json_str)
         except Exception as e:
             logger.error(f"JSON encryption failed: {e}")

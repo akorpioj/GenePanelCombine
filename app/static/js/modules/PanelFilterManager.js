@@ -8,7 +8,6 @@ class PanelFilterManager {
     }
 
     applyFilters() {
-        console.log("applyFilters");
         // If using server pagination, reload from server with filters
         if (this.panelLibrary.useServerPagination) {
             this.panelLibrary.currentPage = 1; // Reset to first page when filters change
@@ -96,6 +95,24 @@ class PanelFilterManager {
         this.sortAndRender();
         this.updateFilterInfo();
         this.updateActiveFiltersIndicator();
+    }
+
+    hasActiveFilters() {
+        const filters = this.panelLibrary.currentFilters;
+        
+        // Check if any filters are active
+        if (filters.search && filters.search.trim()) return true;
+        if (filters.visibility && filters.visibility !== 'all') return true;
+        if (filters.status && filters.status !== 'all') return true;
+        
+        // Check date range filter
+        if (filters.dateRange && (filters.dateRange.start || filters.dateRange.end)) return true;
+        
+        // Check gene count range filter (only if it's not the default range)
+        if (filters.geneCountRange && 
+            (filters.geneCountRange.min > 0 || filters.geneCountRange.max < 10000)) return true;
+        
+        return false;
     }
 
     sortAndRender() {
@@ -213,10 +230,9 @@ class PanelFilterManager {
     }
 
     clearFilters() {
-        // Preserve existing search; only reset non-search filters
-        const existingSearch = this.panelLibrary.currentFilters?.search || '';
+        // Clear ALL filters including search
         this.panelLibrary.currentFilters = {
-            search: existingSearch,
+            search: '',
             dateRange: { start: null, end: null },
             source: 'all',
             geneCountRange: { min: 0, max: 10000 },
@@ -225,9 +241,19 @@ class PanelFilterManager {
             tags: []
         };
         
-        // Do NOT reset the search input (separate clear button handles that)
+        // Clear the search input field
+        const searchInput = document.getElementById('panel-search');
+        if (searchInput) {
+            searchInput.value = '';
+        }
         
-        // Current select-based filters in template
+        // Hide the clear search button
+        const clearSearchBtn = document.getElementById('clear-search-btn');
+        if (clearSearchBtn) {
+            clearSearchBtn.classList.add('hidden');
+        }
+        
+        // Clear all select-based filters in template
         const dateSelect = document.getElementById('date-filter');
         if (dateSelect) dateSelect.value = '';
         const sourceSelect = document.getElementById('source-filter') || document.getElementById('filter-source');
@@ -239,7 +265,15 @@ class PanelFilterManager {
         const statusSelect = document.getElementById('status-filter');
         if (statusSelect) statusSelect.value = '';
         
-        this.applyFilters();
+        // When clearing filters, we must reload from server to get all panels back
+        // This prevents getting stuck with an empty panels array from previous filtering
+        this.panelLibrary.useServerPagination = true;
+        this.panelLibrary.currentPage = 1;
+        
+        // Force a server reload with cleared filters instead of calling applyFilters()
+        this.panelLibrary.loadPanels(1, true);
+        
+        // Update the filter indicators
         if (typeof this.updateActiveFiltersIndicator === 'function') {
             this.updateActiveFiltersIndicator();
         }

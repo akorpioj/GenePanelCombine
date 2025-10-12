@@ -409,7 +409,7 @@ class SavedPanel(db.Model):
         latest = self.get_latest_version()
         return latest.version_number if latest else 1
     
-    def create_new_version(self, user_id, comment=None):
+    def create_new_version(self, user_id, comment=None, changes_summary=None):
         """Create a new version of this panel"""
         latest = self.get_latest_version()
         new_version_number = (latest.version_number + 1) if latest else 1
@@ -419,6 +419,7 @@ class SavedPanel(db.Model):
             version_number=new_version_number,
             created_by_id=user_id,
             comment=comment or f"Version {new_version_number}",
+            changes_summary=changes_summary,
             gene_count=self.gene_count
         )
         
@@ -429,6 +430,8 @@ class SavedPanel(db.Model):
         self.current_version_id = new_version.id
         self.version_count = new_version_number
         self.updated_at = datetime.datetime.now()
+
+        print("Created new PanelVersion:", new_version.id, new_version.version_number)
         
         return new_version
     
