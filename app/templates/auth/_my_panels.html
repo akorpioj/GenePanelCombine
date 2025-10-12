@@ -1,0 +1,423 @@
+<!-- Enhanced Panel Library Interface -->
+<div class="panel-library-container">
+    <!-- Library Header with Stats -->
+    <div class="bg-white shadow sm:rounded-lg mb-6">
+        <div class="px-4 py-5 sm:px-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">My Panel Library</h3>
+                    <p class="mt-1 max-w-2xl text-sm text-gray-500">Manage your genetic panels with version control</p>
+                </div>
+                <div class="flex space-x-6">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="total-panels">0</div>
+                        <div class="text-xs text-gray-500">Total Panels</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600" id="total-versions">0</div>
+                        <div class="text-xs text-gray-500">Total Versions</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-purple-600" id="total-genes">0</div>
+                        <div class="text-xs text-gray-500">Total Genes</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Search and Filter Section -->
+    <div class="bg-white shadow sm:rounded-lg mb-6">
+        <div class="px-4 py-4">
+            <!-- Search Controls -->
+            <div class="flex flex-wrap gap-4 mb-4">
+                <div class="flex-1 min-w-64">
+                    <div class="relative group">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" 
+                               id="panel-search" 
+                               placeholder="Search panels by name, symbol, or description..." 
+                               class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <!-- Inline clear (x) button -->
+                        <button type="button" 
+                                id="clear-search-btn" 
+                                aria-label="Clear search"
+                                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 hidden"
+                                title="Clear search">
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button id="create-panel-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <i class="fas fa-plus mr-2"></i>New Panel
+                </button>
+            </div>
+            
+            <!-- Filter Controls -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Source Organisation</label>
+                    <select id="source-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="">All Sources</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Gene Count</label>
+                    <select id="gene-count-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="">All Sizes</option>
+                        <option value="1-10">1-10 genes</option>
+                        <option value="11-50">11-50 genes</option>
+                        <option value="51-100">51-100 genes</option>
+                        <option value="101+">100+ genes</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="status-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="">All Status</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="DRAFT">Draft</option>
+                        <option value="ARCHIVED">Archived</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
+                    <select id="visibility-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="">All Visibility</option>
+                        <option value="PRIVATE">Private</option>
+                        <option value="SHARED">Shared</option>
+                        <option value="PUBLIC">Public</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date Created</label>
+                    <select id="date-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="year">This Year</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Reset Filters Button -->
+            <div class="flex justify-end items-center mt-2 mb-2 gap-3">
+                <div id="active-filters-indicator" class="text-xs text-gray-500 hidden">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-blue-50 text-blue-600 font-medium">
+                        <i class="fas fa-filter mr-1"></i>
+                        <span id="active-filters-count">0 active filters</span>
+                    </span>
+                </div>
+                <button id="clear-filters" class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Clear all filters and search">
+                    <i class="fas fa-filter-circle-xmark mr-1"></i>Clear Filters
+                </button>
+            </div>
+
+            <!-- View Controls -->
+            <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+                <div class="flex items-center space-x-4">
+                    <label class="text-sm font-medium text-gray-700">Sort by:</label>
+                    <select id="sort-select" class="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="created_at_desc">Newest First</option>
+                        <option value="created_at_asc">Oldest First</option>
+                        <option value="name_asc">Name A-Z</option>
+                        <option value="name_desc">Name Z-A</option>
+                        <option value="gene_count_desc">Most Genes</option>
+                        <option value="gene_count_asc">Fewest Genes</option>
+                        <option value="accessed_desc">Recently Accessed</option>
+                    </select>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <div class="flex rounded-md shadow-sm" role="group">
+                        <button type="button" class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 focus:z-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 active" onclick="setViewMode('grid')">
+                            <i class="fas fa-th"></i>
+                        </button>
+                    </div>
+                    
+                    <button class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" 
+                            id="compare-btn" 
+                            disabled 
+                            onclick="compareSelected()">
+                        <i class="fas fa-code-compare mr-1"></i>Compare
+                    </button>
+                    
+                    <div class="relative">
+                        <button class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" 
+                                onclick="toggleActionsMenu()">
+                            <i class="fas fa-cog mr-1"></i>Actions
+                            <i class="fas fa-chevron-down ml-1"></i>
+                        </button>
+                        <div id="actions-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                            <div class="py-1">
+                                <a href="#" onclick="exportSelected()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-download mr-2"></i>Export Selected
+                                </a>
+                                <a href="#" onclick="deleteSelected()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-trash mr-2"></i>Delete Selected
+                                </a>
+                                <hr class="my-1">
+                                <a href="#" onclick="selectAll()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-check-square mr-2"></i>Select All
+                                </a>
+                                <a href="#" onclick="clearSelection()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-square mr-2"></i>Clear Selection
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Enhanced Panels Grid -->
+    <div id="panels-container">
+        <div id="panels-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Panel cards will be loaded here dynamically -->
+            <div id="panels-loading" class="col-span-full text-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-4 text-gray-500">Loading your panels...</p>
+            </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="panels-empty" class="hidden text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No panels found</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by creating your first panel.</p>
+            <div class="mt-6">
+                <button type="button" onclick="document.getElementById('create-panel-btn').click()" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <i class="fas fa-plus mr-2"></i>
+                    Create your first panel
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Enhanced Pagination -->
+    <div id="pagination-container" class="hidden bg-white px-4 py-3 mt-6 border-t border-gray-200 sm:px-6 rounded-lg shadow">
+        <div class="flex items-center justify-between">
+            <div class="flex-1 flex justify-between sm:hidden">
+                <button id="prev-page-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</button>
+                <button id="next-page-mobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</button>
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Showing <span id="page-start">1</span> to <span id="page-end">10</span> of <span id="total-panels-count">0</span> panels
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <button id="prev-page" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</button>
+                        <div id="page-numbers" class="flex"></div>
+                        <button id="next-page" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</button>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Panel Creation/Edit Modal -->
+<div id="panel-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-10 mx-auto p-0 w-11/12 md:w-3/4 lg:w-1/2 max-w-2xl">
+        <!-- Modal Content with consistent styling -->
+        <div class="bg-white shadow-lg sm:rounded-lg">
+            <!-- Modal Header -->
+            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Create New Panel</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Create or edit your genetic panel with version control</p>
+                    </div>
+                    <button type="button" id="close-modal" class="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md p-1">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="px-4 py-5 sm:px-6">
+                <form id="panel-form" class="space-y-6">
+                    <input type="hidden" id="panel-id" value="">
+                    
+                    <!-- Panel Name -->
+                    <div>
+                        <label for="panel-name" class="block text-sm font-medium text-gray-700 mb-1">Panel Name *</label>
+                        <input type="text" 
+                               id="panel-name" 
+                               required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                               placeholder="Enter a descriptive panel name">
+                    </div>
+                    
+                    <!-- Description -->
+                    <div>
+                        <label for="panel-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="panel-description" 
+                                  rows="3" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                  placeholder="Describe the purpose and scope of this panel"></textarea>
+                    </div>
+                    
+                    <!-- Tags -->
+                    <div>
+                        <label for="panel-tags" class="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                        <input type="text" 
+                               id="panel-tags" 
+                               placeholder="cancer, BRCA, hereditary" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <p class="mt-1 text-sm text-gray-500">Separate tags with commas to help organize and find your panels</p>
+                    </div>
+                    
+                    <!-- Status and Visibility -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="panel-status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select id="panel-status" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="ACTIVE">Active</option>
+                                <option value="DRAFT">Draft</option>
+                                <option value="ARCHIVED">Archived</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="panel-visibility" class="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
+                            <select id="panel-visibility" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="PRIVATE">Private</option>
+                                <option value="SHARED">Shared</option>
+                                <option value="PUBLIC">Public</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Genes -->
+                    <div>
+                        <label for="panel-genes" class="block text-sm font-medium text-gray-700 mb-1">Gene List</label>
+                        <textarea id="panel-genes" 
+                                  rows="6" 
+                                  placeholder="Enter gene symbols, one per line or comma-separated&#10;Example:&#10;BRCA1&#10;BRCA2&#10;TP53"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-sm"></textarea>
+                        <p class="mt-1 text-sm text-gray-500">
+                            <i class="fas fa-info-circle mr-1 text-blue-500"></i>
+                            Enter gene symbols (e.g., BRCA1, BRCA2, TP53). Supports multiple formats: comma-separated or line-separated.
+                        </p>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="px-4 py-4 sm:px-6 bg-gray-50 border-t border-gray-200 sm:rounded-b-lg">
+                <div class="flex justify-end space-x-3">
+                    <button type="button" 
+                            id="cancel-panel" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            form="panel-form"
+                            id="save-panel" 
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-save mr-2"></i>Save Panel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Version Timeline Modal -->
+<div id="versionTimelineModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-10 mx-auto p-0 w-11/12 md:w-5/6 lg:w-4/5 xl:w-3/4 max-w-6xl">
+        <div class="bg-white shadow-lg sm:rounded-lg">
+            <!-- Modal Header -->
+            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Version Timeline</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Track changes and manage panel versions over time</p>
+                    </div>
+                    <button type="button" id="close-timeline-modal" class="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md p-1">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="px-4 py-5 sm:px-6">
+                <div id="version-timeline-container" class="max-h-96 overflow-y-auto">
+                    <!-- Timeline content populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Panel Details Modal -->
+<div id="panel-details-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-10 mx-auto p-0 w-11/12 md:w-3/4 lg:w-1/2 max-w-2xl">
+        <div class="bg-white shadow-lg sm:rounded-lg">
+            <!-- Modal Header -->
+            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="panel-details-title">Panel Details</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500" id="panel-details-subtitle">View comprehensive panel information and gene list</p>
+                    </div>
+                    <button type="button" id="close-details-modal" class="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md p-1">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="px-4 py-5 sm:px-6">
+                <div id="panel-details-content">
+                    <!-- Panel details populated dynamically -->
+                    <div class="animate-pulse">
+                        <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+                        <div class="h-20 bg-gray-200 rounded mb-4"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="px-4 py-4 sm:px-6 bg-gray-50 border-t border-gray-200 sm:rounded-b-lg">
+                <div class="flex justify-end space-x-3">
+                    <button type="button" 
+                            id="cancel-details" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Close
+                    </button>
+                    <button type="button" 
+                            id="edit-panel-from-details" 
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-edit mr-2"></i>Edit Panel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize the panel library when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        window.panelLibrary = new PanelLibraryGrid();
+    });
+</script>

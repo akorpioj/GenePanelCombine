@@ -185,6 +185,7 @@ def filter_genes_from_panel_data(panel_genes_data, list_type_selection):
     filtered_gene_symbols = []
     if not panel_genes_data: return filtered_gene_symbols
 
+    logger.info(f"Filtering genes for list type: {list_type_selection}")
     for gene_info in panel_genes_data:
         # Try both field names for compatibility
         gene_symbol = gene_info.get("gene_symbol") or gene_info.get("entity_name")

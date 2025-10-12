@@ -205,7 +205,7 @@ saved_panel_model = api.model('SavedPanel', {
     'name': fields.String(required=True, description='Panel name'),
     'description': fields.String(description='Panel description'),
     'tags': fields.String(description='Panel tags (comma-separated)'),
-    'status': fields.String(description='Panel status (ACTIVE/DRAFT/ARCHIVED)'),
+    'status': fields.String(description='Panel status (ACTIVE/DRAFT/ARCHIVED/DELETED)'),
     'visibility': fields.String(description='Panel visibility (PRIVATE/SHARED/PUBLIC)'),
     'gene_count': fields.Integer(description='Number of genes in panel'),
     'version_count': fields.Integer(description='Number of versions'),
@@ -266,7 +266,7 @@ saved_panel_update_model = api.model('SavedPanelUpdate', {
     'name': fields.String(description='Panel name'),
     'description': fields.String(description='Panel description'),
     'tags': fields.String(description='Panel tags (comma-separated)'),
-    'status': fields.String(description='Panel status (ACTIVE/DRAFT/ARCHIVED)'),
+    'status': fields.String(description='Panel status (ACTIVE/DRAFT/ARCHIVED/DELETED)'),
     'visibility': fields.String(description='Panel visibility (PRIVATE/SHARED/PUBLIC)'),
     'version_comment': fields.String(description='Version comment for this update')
 })

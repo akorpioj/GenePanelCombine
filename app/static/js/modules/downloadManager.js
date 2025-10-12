@@ -327,6 +327,11 @@ export async function handleEnhancedDownload(event) {
         
         // Submit form and get blob
         const formData = new FormData(form);
+        
+        // Add the default filename to the form data so backend can use it
+        // This will be used for the Excel download name and saved panel name
+        formData.append('selected_filename', defaultFilename);
+        
         const blob = await submitFormAndGetBlob(formData);
         
         // Update button text

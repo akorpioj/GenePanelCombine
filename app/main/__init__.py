@@ -12,6 +12,10 @@ main_bp = Blueprint('main', __name__, template_folder='../templates/main', url_p
 # Import routes after Blueprint definition to avoid circular import issues
 # This line makes the routes defined in routes.py part of the auth_bp
 from . import routes
+from . import routes_panel_library
+from . import routes_panelapp
+from . import routes_cache
+from . import routes_user_panels
 
 # Add context processor for permission utilities
 @main_bp.app_context_processor

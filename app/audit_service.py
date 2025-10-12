@@ -10,12 +10,48 @@ from typing import Optional, Dict, Any, Union
 from flask import request, session, current_app
 from flask_login import current_user
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.declarative import DeclarativeMeta
 import logging
 
 from app.models import db, AuditLog, AuditActionType
 
 # Use Flask's logger
 logger = logging.getLogger(__name__)
+
+def make_serializable(obj):
+    """Convert SQLAlchemy objects and other non-serializable objects to JSON-serializable format"""
+    if obj is None:
+        return None
+    
+    if isinstance(obj, dict):
+        return {key: make_serializable(value) for key, value in obj.items()}
+    
+    if isinstance(obj, list):
+        return [make_serializable(item) for item in obj]
+    
+    # Handle SQLAlchemy model instances
+    if hasattr(obj, '__class__') and isinstance(obj.__class__, DeclarativeMeta):
+        # Get all columns from the SQLAlchemy model
+        result = {}
+        for column in obj.__table__.columns:
+            value = getattr(obj, column.name)
+            result[column.name] = make_serializable(value)
+        return result
+    
+    # Handle datetime objects
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    
+    # Handle enum objects
+    if hasattr(obj, 'value'):
+        return obj.value
+    
+    # For primitive types, return as-is
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+    
+    # For unknown types, convert to string
+    return str(obj)
 
 class AuditService:
     """Service class for managing audit trail logging"""
@@ -93,9 +129,9 @@ class AuditService:
                 session_id=session_id,
                 resource_type=resource_type,
                 resource_id=str(resource_id) if resource_id else None,
-                old_values=json.dumps(old_values) if old_values else None,
-                new_values=json.dumps(new_values) if new_values else None,
-                details=json.dumps(details) if details else None,
+                old_values=json.dumps(make_serializable(old_values)) if old_values else None,
+                new_values=json.dumps(make_serializable(new_values)) if new_values else None,
+                details=json.dumps(make_serializable(details)) if details else None,
                 timestamp=datetime.datetime.now(),
                 success=success,
                 error_message=error_message[:1000] if error_message else None,

@@ -1,0 +1,309 @@
+/* Version Timeline Styles */
+.version-timeline {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.timeline-header {
+    padding: 20px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+}
+
+.timeline-header h4 {
+    margin: 0;
+    color: #343a40;
+}
+
+.timeline-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.timeline-legend {
+    padding: 15px 20px;
+    background: #fff;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.legend-dot.main-branch { background: #007bff; }
+.legend-dot.feature-branch { background: #28a745; }
+.legend-dot.merge-commit { background: #ffc107; }
+
+.legend-tag {
+    background: #6f42c1;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+}
+
+.timeline-content {
+    position: relative;
+    padding: 20px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.timeline-graph {
+    position: relative;
+}
+
+.timeline-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.timeline-nodes {
+    position: relative;
+    z-index: 1;
+}
+
+.timeline-node {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 15px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.timeline-node:last-child {
+    border-bottom: none;
+}
+
+.timeline-node.selected {
+    background: rgba(0,123,255,0.05);
+}
+
+.timeline-node.active {
+    background: rgba(0,123,255,0.1);
+}
+
+.node-selector {
+    flex-shrink: 0;
+}
+
+.node-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.75rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.node-circle.main-branch {
+    background: #007bff;
+    color: white;
+}
+
+.node-circle.feature-branch {
+    background: #28a745;
+    color: white;
+}
+
+.node-circle.merge-commit {
+    background: #ffc107;
+    color: #212529;
+}
+
+.node-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.node-header {
+    margin-bottom: 8px;
+}
+
+.node-title {
+    margin: 0 0 5px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #343a40;
+}
+
+.node-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.node-details {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    font-size: 0.875rem;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #6c757d;
+}
+
+.node-tags {
+    margin-bottom: 10px;
+}
+
+.version-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-right: 5px;
+}
+
+.version-tag.tag-production {
+    background: #d4edda;
+    color: #155724;
+}
+
+.version-tag.tag-release {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.version-tag.tag-hotfix {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.node-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.timeline-details {
+    border-top: 1px solid #e9ecef;
+    padding: 20px;
+    background: #f8f9fa;
+}
+
+.version-details-panel h5 {
+    margin-bottom: 10px;
+    color: #343a40;
+}
+
+.version-detail-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.detail-header {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-body {
+    padding: 20px;
+}
+
+.detail-section {
+    margin-bottom: 20px;
+}
+
+.detail-section:last-child {
+    margin-bottom: 0;
+}
+
+.detail-section label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.changes-summary {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.change-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.change-type {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.875rem;
+}
+
+.change-type.added {
+    background: #d4edda;
+    color: #155724;
+}
+
+.change-type.removed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.change-type.modified {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.detail-actions {
+    padding: 15px 20px;
+    border-top: 1px solid #e9ecef;
+    background: #f8f9fa;
+    display: flex;
+    gap: 10px;
+}
