@@ -126,10 +126,14 @@
    - Comprehensive audit trail
    - Automatic expiration for time-based locks
    - Admin accounts not locked (but alerted)
-- **Single-Use Tokens**:
+- ✅ IMPLEMENTED: **Single-Use Tokens**: 13/10/2025
    - Create `password_reset_tokens` table
    - Mark tokens as used after password change
    - Prevents token reuse if intercepted
+- **Suspicious Activity Detection**:
+   - Alert on multiple reset attempts
+   - Geographic anomaly detection
+   - Time-based pattern analysis
 - **Two-Factor Authentication**: Enhanced login security with 2FA
 - **OAuth Integration**: Login with Google, GitHub, and other providers
 - **Hardware Security Modules**: HSM integration for key storage

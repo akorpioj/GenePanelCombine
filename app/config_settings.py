@@ -24,6 +24,12 @@ class Config:
     ACCOUNT_LOCKOUT_THRESHOLD = int(os.getenv('ACCOUNT_LOCKOUT_THRESHOLD', '5'))  # Failed attempts before lockout
     ACCOUNT_LOCKOUT_DURATION = int(os.getenv('ACCOUNT_LOCKOUT_DURATION', '24'))  # Hours to lock account
     
+    # Suspicious Activity Detection Configuration
+    SUSPICIOUS_ACTIVITY_ENABLED = os.getenv('SUSPICIOUS_ACTIVITY_ENABLED', 'True').lower() == 'true'
+    SUSPICIOUS_ACTIVITY_ATTEMPTS_THRESHOLD = int(os.getenv('SUSPICIOUS_ACTIVITY_ATTEMPTS_THRESHOLD', '5'))  # Attempts before alert
+    SUSPICIOUS_ACTIVITY_TIME_WINDOW = int(os.getenv('SUSPICIOUS_ACTIVITY_TIME_WINDOW', '1'))  # Hours for multiple attempt detection
+    SUSPICIOUS_ACTIVITY_RETENTION_DAYS = int(os.getenv('SUSPICIOUS_ACTIVITY_RETENTION_DAYS', '90'))  # Days to keep records
+    
     # Enhanced Session Configuration
     MAX_CONCURRENT_SESSIONS = int(os.getenv('MAX_CONCURRENT_SESSIONS', '5'))
     SESSION_ROTATION_INTERVAL = int(os.getenv('SESSION_ROTATION_INTERVAL', '1800'))  # 30 minutes

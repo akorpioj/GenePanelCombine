@@ -1329,6 +1329,70 @@ def admin_delete_message(message_id):
         return jsonify({'error': 'Failed to delete message'}), 500
 
 
+@auth_bp.route('/admin/suspicious-activity')
+@login_required
+def admin_suspicious_activity():
+    """View suspicious password reset activity"""
+    if not current_user.is_admin():
+        abort(403)
+    
+    from ..models import SuspiciousActivity
+    
+    # Get filter parameters
+    email_filter = request.args.get('email', '').strip()
+    ip_filter = request.args.get('ip', '').strip()
+    alert_only = request.args.get('alert_only', '').lower() == 'true'
+    page = request.args.get('page', 1, type=int)
+    per_page = 50
+    
+    # Build query
+    query = SuspiciousActivity.query
+    
+    if email_filter:
+        query = query.filter(SuspiciousActivity.email.ilike(f'%{email_filter}%'))
+    
+    if ip_filter:
+        query = query.filter(SuspiciousActivity.ip_address.ilike(f'%{ip_filter}%'))
+    
+    if alert_only:
+        query = query.filter(SuspiciousActivity.alert_triggered == True)
+    
+    # Order by most recent first
+    query = query.order_by(SuspiciousActivity.timestamp.desc())
+    
+    # Paginate results
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    activities = pagination.items
+    
+    # Get statistics
+    total_activities = SuspiciousActivity.query.count()
+    total_alerts = SuspiciousActivity.query.filter_by(alert_triggered=True).count()
+    unique_ips = db.session.query(db.func.count(db.func.distinct(SuspiciousActivity.ip_address))).scalar()
+    
+    # Log admin action
+    AuditService.log_admin_action(
+        action_description="Viewed suspicious activity dashboard",
+        details={
+            "filters": {
+                "email": email_filter or None,
+                "ip": ip_filter or None,
+                "alert_only": alert_only
+            },
+            "page": page
+        }
+    )
+    
+    return render_template('auth/admin_suspicious_activity.html',
+                         activities=activities,
+                         pagination=pagination,
+                         total_activities=total_activities,
+                         total_alerts=total_alerts,
+                         unique_ips=unique_ips,
+                         email_filter=email_filter,
+                         ip_filter=ip_filter,
+                         alert_only=alert_only)
+
+
 # ============================================================================
 # EMAIL VERIFICATION ROUTES
 # ============================================================================
@@ -1450,7 +1514,7 @@ def verify_status():
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 @limiter.limit("3 per hour")
 def forgot_password():
-    """Request password reset email"""
+    """Request password reset email with suspicious activity detection"""
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
     
@@ -1461,10 +1525,28 @@ def forgot_password():
             flash('Please enter your email address.', 'error')
             return render_template('auth/forgot_password.html')
         
+        # Get client IP and user agent for suspicious activity tracking
+        from ..suspicious_activity_utils import get_client_ip, get_ip_geolocation
+        from ..models import SuspiciousActivity
+        
+        ip_address = get_client_ip(request)
+        user_agent = request.headers.get('User-Agent', '')[:500]
+        geo_data = get_ip_geolocation(ip_address)
+        
         # Find user by email
         user = User.query.filter_by(email=email).first()
         
         if not user:
+            # Log activity even for non-existent emails (to detect enumeration attacks)
+            SuspiciousActivity.log_activity(
+                email=email,
+                activity_type='reset_request',
+                ip_address=ip_address,
+                user_agent=user_agent,
+                country=geo_data.get('country'),
+                city=geo_data.get('city')
+            )
+            
             # Don't reveal if email exists or not (security best practice)
             flash('If the email exists in our system, a password reset link has been sent.', 'info')
             AuditService.log_action(
@@ -1489,6 +1571,61 @@ def forgot_password():
                 }
             )
             return render_template('auth/account_locked.html', user=user)
+        
+        # Log password reset request activity
+        activity = SuspiciousActivity.log_activity(
+            email=email,
+            activity_type='reset_request',
+            ip_address=ip_address,
+            user_agent=user_agent,
+            user_id=user.id,
+            country=geo_data.get('country'),
+            city=geo_data.get('city')
+        )
+        
+        # Check for suspicious patterns
+        detection_result = SuspiciousActivity.check_all_patterns(
+            email=email,
+            ip_address=ip_address,
+            user_id=user.id,
+            country=geo_data.get('country')
+        )
+        
+        # If suspicious, alert admins
+        if detection_result['is_suspicious']:
+            # Mark activity as suspicious
+            activity.alert_triggered = True
+            activity.alert_reason = '; '.join(detection_result['reasons'])
+            db.session.commit()
+            
+            # Send alert to admins
+            from ..email_service import email_service
+            admin_users = User.query.filter_by(role=UserRole.ADMIN).all()
+            for admin in admin_users:
+                email_service.send_suspicious_activity_alert(
+                    admin.email,
+                    admin.get_full_name() or admin.username,
+                    user.username,
+                    user.email,
+                    detection_result['reasons'],
+                    ip_address,
+                    geo_data.get('country'),
+                    geo_data.get('city')
+                )
+            
+            # Log suspicious activity
+            AuditService.log_action(
+                action_type=AuditActionType.PASSWORD_RESET,
+                action_description=f"Suspicious password reset request detected for {user.username}",
+                resource_type="user",
+                resource_id=user.username,
+                details={
+                    "reasons": detection_result['reasons'],
+                    "ip_address": ip_address,
+                    "country": geo_data.get('country'),
+                    "city": geo_data.get('city')
+                }
+            )
         
         # Send password reset email
         from ..email_service import email_service
@@ -1673,6 +1810,24 @@ def reset_password(token):
             
             db.session.commit()
             
+            # Log successful password reset activity
+            from ..suspicious_activity_utils import get_client_ip, get_ip_geolocation
+            from ..models import SuspiciousActivity
+            
+            ip_address = get_client_ip(request)
+            user_agent = request.headers.get('User-Agent', '')[:500]
+            geo_data = get_ip_geolocation(ip_address)
+            
+            SuspiciousActivity.log_activity(
+                email=user.email,
+                activity_type='reset_success',
+                ip_address=ip_address,
+                user_agent=user_agent,
+                user_id=user.id,
+                country=geo_data.get('country'),
+                city=geo_data.get('city')
+            )
+            
             # Log successful password reset
             AuditService.log_action(
                 action_type=AuditActionType.PASSWORD_RESET,
@@ -1682,7 +1837,9 @@ def reset_password(token):
                 details={
                     "email": user.email,
                     "reset_timestamp": datetime.datetime.now().isoformat(),
-                    "token_used": True
+                    "token_used": True,
+                    "ip_address": ip_address,
+                    "location": f"{geo_data.get('city', 'Unknown')}, {geo_data.get('country', 'Unknown')}"
                 }
             )
             

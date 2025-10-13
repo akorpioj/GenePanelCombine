@@ -458,6 +458,250 @@ class Visit(db.Model):
     path = db.Column(db.String(255), nullable=False)
     user_agent = db.Column(db.String(255))
 
+
+class SuspiciousActivity(db.Model):
+    """
+    Model to track suspicious password reset activity
+    Used for detecting attacks and compromised accounts
+    """
+    __tablename__ = 'suspicious_activity'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    activity_type = db.Column(db.String(50), nullable=False)  # 'reset_request', 'reset_attempt', 'reset_success'
+    ip_address = db.Column(db.String(45), nullable=False, index=True)
+    country = db.Column(db.String(100))
+    city = db.Column(db.String(100))
+    user_agent = db.Column(db.String(500))
+    timestamp = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False, index=True)
+    alert_triggered = db.Column(db.Boolean, default=False, nullable=False)
+    alert_reason = db.Column(db.Text)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('suspicious_activities', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<SuspiciousActivity {self.activity_type} for {self.email} from {self.ip_address}>'
+    
+    @staticmethod
+    def log_activity(email, activity_type, ip_address, user_agent=None, user_id=None, 
+                    country=None, city=None):
+        """
+        Log a password reset activity
+        
+        Args:
+            email: User's email address
+            activity_type: Type of activity ('reset_request', 'reset_attempt', 'reset_success')
+            ip_address: IP address of the request
+            user_agent: User agent string
+            user_id: User ID (if known)
+            country: Country from IP geolocation
+            city: City from IP geolocation
+            
+        Returns:
+            SuspiciousActivity: The created activity record
+        """
+        activity = SuspiciousActivity(
+            email=email,
+            activity_type=activity_type,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            user_id=user_id,
+            country=country,
+            city=city
+        )
+        db.session.add(activity)
+        db.session.commit()
+        
+        return activity
+    
+    @staticmethod
+    def detect_multiple_attempts(email, hours=1, threshold=5):
+        """
+        Detect multiple reset attempts from different IPs within time window
+        
+        Args:
+            email: Email to check
+            hours: Time window in hours
+            threshold: Number of attempts to trigger alert
+            
+        Returns:
+            tuple: (is_suspicious, reason, count)
+        """
+        cutoff_time = datetime.datetime.now() - datetime.timedelta(hours=hours)
+        
+        attempts = SuspiciousActivity.query.filter(
+            SuspiciousActivity.email == email,
+            SuspiciousActivity.activity_type.in_(['reset_request', 'reset_attempt']),
+            SuspiciousActivity.timestamp >= cutoff_time
+        ).all()
+        
+        count = len(attempts)
+        
+        if count >= threshold:
+            unique_ips = len(set([a.ip_address for a in attempts]))
+            reason = f"{count} password reset attempts in {hours} hour(s) from {unique_ips} different IP address(es)"
+            return True, reason, count
+        
+        return False, None, count
+    
+    @staticmethod
+    def detect_geographic_anomaly(email, current_ip, current_country=None):
+        """
+        Detect geographic anomalies (requests from unusual locations)
+        
+        Args:
+            email: Email to check
+            current_ip: Current IP address
+            current_country: Current country (if known)
+            
+        Returns:
+            tuple: (is_suspicious, reason)
+        """
+        # Get recent successful activities (last 30 days)
+        cutoff_time = datetime.datetime.now() - datetime.timedelta(days=30)
+        
+        recent_activities = SuspiciousActivity.query.filter(
+            SuspiciousActivity.email == email,
+            SuspiciousActivity.activity_type == 'reset_success',
+            SuspiciousActivity.timestamp >= cutoff_time,
+            SuspiciousActivity.country.isnot(None)
+        ).order_by(SuspiciousActivity.timestamp.desc()).limit(10).all()
+        
+        if not recent_activities:
+            # No history, can't detect anomaly
+            return False, None
+        
+        # Get countries from recent activities
+        recent_countries = [a.country for a in recent_activities if a.country]
+        
+        if not recent_countries:
+            return False, None
+        
+        # If current country is known and different from all recent countries
+        if current_country and current_country not in recent_countries:
+            most_common = max(set(recent_countries), key=recent_countries.count)
+            reason = f"Password reset from unusual location: {current_country} (usually from {most_common})"
+            return True, reason
+        
+        # Check if current IP was never seen before
+        recent_ips = [a.ip_address for a in recent_activities]
+        if current_ip not in recent_ips:
+            # New IP, but we only alert if also new country
+            if current_country and current_country not in recent_countries:
+                reason = f"Password reset from new IP and new country: {current_country}"
+                return True, reason
+        
+        return False, None
+    
+    @staticmethod
+    def detect_time_pattern_anomaly(email, current_hour):
+        """
+        Detect unusual timing patterns (e.g., activity at odd hours)
+        
+        Args:
+            email: Email to check
+            current_hour: Current hour (0-23)
+            
+        Returns:
+            tuple: (is_suspicious, reason)
+        """
+        # Get recent successful activities (last 90 days)
+        cutoff_time = datetime.datetime.now() - datetime.timedelta(days=90)
+        
+        recent_activities = SuspiciousActivity.query.filter(
+            SuspiciousActivity.email == email,
+            SuspiciousActivity.activity_type == 'reset_success',
+            SuspiciousActivity.timestamp >= cutoff_time
+        ).all()
+        
+        if len(recent_activities) < 5:
+            # Not enough data to establish pattern
+            return False, None
+        
+        # Get hours of previous activities
+        activity_hours = [a.timestamp.hour for a in recent_activities]
+        
+        # Calculate if current hour is unusual (more than 4 hours from any previous activity)
+        min_difference = min([abs(current_hour - h) for h in activity_hours])
+        
+        # Consider both forward and backward wrapping (24-hour clock)
+        wrapped_differences = [min(abs(current_hour - h), 24 - abs(current_hour - h)) for h in activity_hours]
+        min_wrapped_difference = min(wrapped_differences)
+        
+        if min_wrapped_difference >= 6:  # 6+ hours from normal pattern
+            typical_hours = f"{min(activity_hours)}-{max(activity_hours)}"
+            reason = f"Password reset at unusual hour: {current_hour}:00 (typically active {typical_hours}:00)"
+            return True, reason
+        
+        return False, None
+    
+    @staticmethod
+    def check_all_patterns(email, ip_address, user_id=None, country=None):
+        """
+        Check all suspicious patterns and return results
+        
+        Args:
+            email: Email to check
+            ip_address: Current IP address
+            user_id: User ID (if known)
+            country: Current country (if known)
+            
+        Returns:
+            dict: Detection results with alerts and reasons
+        """
+        current_hour = datetime.datetime.now().hour
+        
+        # Check all patterns
+        multiple_attempts, attempts_reason, attempts_count = SuspiciousActivity.detect_multiple_attempts(email)
+        geo_anomaly, geo_reason = SuspiciousActivity.detect_geographic_anomaly(email, ip_address, country)
+        time_anomaly, time_reason = SuspiciousActivity.detect_time_pattern_anomaly(email, current_hour)
+        
+        is_suspicious = multiple_attempts or geo_anomaly or time_anomaly
+        
+        reasons = []
+        if attempts_reason:
+            reasons.append(attempts_reason)
+        if geo_reason:
+            reasons.append(geo_reason)
+        if time_reason:
+            reasons.append(time_reason)
+        
+        return {
+            'is_suspicious': is_suspicious,
+            'reasons': reasons,
+            'multiple_attempts': multiple_attempts,
+            'attempts_count': attempts_count,
+            'geo_anomaly': geo_anomaly,
+            'time_anomaly': time_anomaly
+        }
+    
+    @staticmethod
+    def cleanup_old_records(days=90):
+        """
+        Remove old suspicious activity records
+        
+        Args:
+            days: Number of days to keep records
+            
+        Returns:
+            int: Number of records deleted
+        """
+        cutoff_date = datetime.datetime.now() - datetime.timedelta(days=days)
+        
+        old_records = SuspiciousActivity.query.filter(
+            SuspiciousActivity.timestamp < cutoff_date
+        ).all()
+        
+        count = len(old_records)
+        for record in old_records:
+            db.session.delete(record)
+        
+        db.session.commit()
+        return count
+
+
 class AuditActionType(Enum):
     """Types of actions that can be audited"""
     LOGIN = "LOGIN"

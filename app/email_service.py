@@ -811,6 +811,174 @@ The PanelMerge Team
             logger.error(f"Failed to send account unlocked email to {user_email}: {e}")
             return False
 
+    def send_suspicious_activity_alert(self, admin_email: str, admin_name: str, 
+                                      user_username: str, user_email: str,
+                                      reasons: list, ip_address: str, 
+                                      country: str = None, city: str = None) -> bool:
+        """
+        Send suspicious activity alert to administrators
+        
+        Args:
+            admin_email: Administrator's email address
+            admin_name: Administrator's name
+            user_username: Username of affected user
+            user_email: Email of affected user
+            reasons: List of suspicious activity reasons
+            ip_address: IP address of suspicious activity
+            country: Country of IP address (optional)
+            city: City of IP address (optional)
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            subject = f"⚠️ Suspicious Password Reset Activity Detected - {user_username}"
+            
+            # Format location
+            location = "Unknown"
+            if country and city:
+                location = f"{city}, {country}"
+            elif country:
+                location = country
+            elif city:
+                location = city
+            
+            # Format reasons as bullet points
+            reasons_text = '\n'.join([f"- {reason}" for reason in reasons])
+            reasons_html = '\n'.join([f"<li>{reason}</li>" for reason in reasons])
+
+            text_body = f"""
+Hello {admin_name},
+
+SUSPICIOUS ACTIVITY ALERT
+
+Suspicious password reset activity has been detected for user: {user_username}
+
+User Details:
+- Username: {user_username}
+- Email: {user_email}
+
+Activity Details:
+- IP Address: {ip_address}
+- Location: {location}
+- Timestamp: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+Suspicious Patterns Detected:
+{reasons_text}
+
+Recommended Actions:
+1. Review the user's recent activity logs
+2. Contact the user to verify if they initiated these requests
+3. Consider locking the account if the activity appears malicious
+4. Monitor for continued suspicious patterns
+
+View full activity details in the admin dashboard.
+
+This is an automated security alert from PanelMerge.
+
+Best regards,
+PanelMerge Security System
+            """.strip()
+            
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #dc2626; color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 20px; background-color: #f9fafb; }}
+        .alert-box {{ background-color: #fef2f2; border-left: 4px solid #dc2626; 
+                      padding: 15px; margin: 20px 0; }}
+        .details-box {{ background-color: #f3f4f6; border: 1px solid #d1d5db; 
+                        padding: 15px; margin: 20px 0; border-radius: 5px; }}
+        .info-box {{ background-color: #eff6ff; border-left: 4px solid #3b82f6; 
+                     padding: 15px; margin: 20px 0; }}
+        .footer {{ text-align: center; color: #6b7280; padding: 20px; font-size: 12px; }}
+        ul {{ margin: 10px 0; padding-left: 20px; }}
+        .detail-row {{ margin: 8px 0; }}
+        .detail-label {{ font-weight: bold; color: #4b5563; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ Suspicious Activity Alert</h1>
+        </div>
+        <div class="content">
+            <p>Hello {admin_name},</p>
+            
+            <div class="alert-box">
+                <strong>🚨 SUSPICIOUS ACTIVITY DETECTED</strong><br>
+                Suspicious password reset activity has been detected for user: <strong>{user_username}</strong>
+            </div>
+            
+            <div class="details-box">
+                <h3 style="margin-top: 0;">User Details</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Username:</span> {user_username}
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Email:</span> {user_email}
+                </div>
+            </div>
+            
+            <div class="details-box">
+                <h3 style="margin-top: 0;">Activity Details</h3>
+                <div class="detail-row">
+                    <span class="detail-label">IP Address:</span> {ip_address}
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Location:</span> {location}
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Timestamp:</span> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+                </div>
+            </div>
+            
+            <div class="details-box">
+                <h3 style="margin-top: 0;">Suspicious Patterns Detected</h3>
+                <ul>
+                    {reasons_html}
+                </ul>
+            </div>
+            
+            <div class="info-box">
+                <strong>Recommended Actions:</strong>
+                <ol>
+                    <li>Review the user's recent activity logs</li>
+                    <li>Contact the user to verify if they initiated these requests</li>
+                    <li>Consider locking the account if the activity appears malicious</li>
+                    <li>Monitor for continued suspicious patterns</li>
+                </ol>
+            </div>
+            
+            <p style="text-align: center; margin: 20px 0;">
+                <a href="#" style="background-color: #3b82f6; color: white; padding: 10px 20px; 
+                   text-decoration: none; border-radius: 5px; display: inline-block;">
+                    View Activity Dashboard
+                </a>
+            </p>
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                This is an automated security alert from PanelMerge.
+            </p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 PanelMerge Security System. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+            """.strip()
+            
+            return self.send_email(subject, admin_email, text_body, html_body)
+            
+        except Exception as e:
+            logger.error(f"Failed to send suspicious activity alert to {admin_email}: {e}")
+            return False
+
 
 # Global instance
 email_service = EmailService()
