@@ -1513,13 +1513,28 @@ def forgot_password():
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
 @limiter.limit("5 per hour")
 def reset_password(token):
-    """Reset password using token"""
+    """Reset password using token (single-use token validation)"""
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
     
     from ..email_service import email_service
+    from ..models import PasswordResetToken
     
-    # Verify the token
+    # Check if token exists in database and is valid (not used, not expired)
+    token_record = PasswordResetToken.get_valid_token(token)
+    
+    if not token_record:
+        # Token doesn't exist, already used, or expired
+        flash('The password reset link is invalid, has expired, or has already been used.', 'error')
+        AuditService.log_action(
+            action_type=AuditActionType.PASSWORD_RESET,
+            action_description=f"Invalid or reused password reset token attempted",
+            resource_type="token",
+            resource_id="invalid_token"
+        )
+        return redirect(url_for('auth.forgot_password'))
+    
+    # Verify the token cryptographically
     email = email_service.verify_token(
         token, 
         salt='password-reset',
@@ -1535,6 +1550,17 @@ def reset_password(token):
     
     if not user:
         flash('User not found.', 'error')
+        return redirect(url_for('auth.forgot_password'))
+    
+    # Verify token belongs to this user
+    if token_record.user_id != user.id:
+        flash('The password reset link is invalid.', 'error')
+        AuditService.log_action(
+            action_type=AuditActionType.PASSWORD_RESET,
+            action_description=f"Password reset token user mismatch",
+            resource_type="user",
+            resource_id=user.username
+        )
         return redirect(url_for('auth.forgot_password'))
     
     # Check if account is locked
@@ -1641,6 +1667,10 @@ def reset_password(token):
             user.set_password(password, add_to_history=True)
             # Reset failed attempts on successful password reset
             user.reset_failed_resets()
+            
+            # Mark token as used (single-use validation)
+            token_record.mark_as_used()
+            
             db.session.commit()
             
             # Log successful password reset
@@ -1651,7 +1681,8 @@ def reset_password(token):
                 resource_id=user.username,
                 details={
                     "email": user.email,
-                    "reset_timestamp": datetime.datetime.now().isoformat()
+                    "reset_timestamp": datetime.datetime.now().isoformat(),
+                    "token_used": True
                 }
             )
             

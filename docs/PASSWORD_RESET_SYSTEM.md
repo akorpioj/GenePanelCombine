@@ -262,10 +262,12 @@ The PanelMerge Team
    - Configurable via `PASSWORD_RESET_TOKEN_MAX_AGE`
    - Old tokens automatically invalid after expiration
 
-3. **Single-Use Intent**:
-   - Token not explicitly invalidated (stateless)
-   - But password change makes user validate credentials again
-   - Consider adding token invalidation table for extra security
+3. **Single-Use Tokens** ✅ IMPLEMENTED (October 13, 2025):
+   - Tokens stored in `password_reset_tokens` database table
+   - Each token can only be used once
+   - Tokens marked as "used" after successful password reset
+   - Prevents token reuse if intercepted
+   - Automatic cleanup of expired/old tokens
 
 ### Account Lockout Protection
 
@@ -618,10 +620,12 @@ resets = AuditLog.query.filter(
 
 **Consider Adding**:
 
-1. **Single-Use Tokens**:
-   - Create `password_reset_tokens` table
-   - Mark tokens as used after password change
-   - Prevents token reuse if intercepted
+1. ✅ **Single-Use Tokens** - IMPLEMENTED (October 13, 2025):
+   - ✅ Created `password_reset_tokens` table
+   - ✅ Tokens marked as used after password change
+   - ✅ Prevents token reuse if intercepted
+   - ✅ Automatic cleanup of expired tokens
+   - See "Single-Use Token Implementation" section below
 
 2. **Email Confirmation**:
    - Send confirmation email after password change
@@ -704,12 +708,149 @@ Works with existing security features:
    - Geographic anomaly detection
    - Time-based pattern analysis
 
+## Single-Use Token Implementation
+
+### Overview
+
+**Implemented**: October 13, 2025
+
+The system now uses single-use tokens stored in a database table to prevent token reuse attacks. This adds an extra layer of security beyond time-based expiration.
+
+### How It Works
+
+1. **Token Generation**:
+   - User requests password reset
+   - System generates cryptographically signed token
+   - Token stored in `password_reset_tokens` table with:
+     - Token string
+     - User ID
+     - Created timestamp
+     - Expiration timestamp
+     - Used flag (default: False)
+     - Used timestamp (null initially)
+
+2. **Token Validation**:
+   - User clicks reset link
+   - System checks if token exists in database
+   - Validates token is not used (`used = False`)
+   - Validates token is not expired
+   - Validates token cryptographic signature
+   - Verifies token belongs to correct user
+
+3. **Token Consumption**:
+   - User successfully resets password
+   - System marks token as used (`used = True`)
+   - Records used timestamp
+   - Token can never be used again
+
+4. **Token Cleanup**:
+   - Expired tokens automatically cleaned up
+   - Old tokens (>30 days) removed periodically
+   - Cleanup script: `scripts/cleanup_tokens.py`
+
+### Database Schema
+
+```sql
+CREATE TABLE password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    token VARCHAR(500) UNIQUE NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    used_at TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX ix_password_reset_tokens_token ON password_reset_tokens(token);
+```
+
+### Security Benefits
+
+1. **Prevents Token Reuse**:
+   - Intercepted tokens cannot be used twice
+   - Even if attacker gets token, it's useless after first use
+   - Protects against replay attacks
+
+2. **Audit Trail**:
+   - Complete record of all tokens generated
+   - Track when tokens are used
+   - Identify suspicious patterns
+
+3. **Controlled Cleanup**:
+   - Old tokens automatically removed
+   - Prevents database bloat
+   - Maintains only relevant data
+
+### API Changes
+
+**EmailService.send_password_reset_email()**:
+```python
+# Now stores token in database
+token = serializer.dumps(user_email, salt='password-reset')
+PasswordResetToken.create_token(user.id, token, expiration_seconds)
+```
+
+**reset_password() route**:
+```python
+# Now checks database for token validity
+token_record = PasswordResetToken.get_valid_token(token)
+if not token_record:
+    # Token invalid, used, or expired
+    return error_page
+
+# After successful password reset
+token_record.mark_as_used()
+```
+
+### Maintenance
+
+**Automated Cleanup**:
+```bash
+# Run periodically (e.g., daily cron job)
+python scripts/cleanup_tokens.py
+```
+
+**Manual Cleanup**:
+```python
+from app.models import PasswordResetToken
+
+# Remove expired tokens
+PasswordResetToken.cleanup_expired_tokens()
+
+# Remove old tokens (>30 days)
+PasswordResetToken.cleanup_old_tokens(days=30)
+```
+
+### Error Messages
+
+Updated error message when token is reused:
+```
+"The password reset link is invalid, has expired, or has already been used."
+```
+
+This makes it clear that reused tokens are detected and rejected.
+
+### Migration
+
+Migration file: `migrations/versions/299ea9d516ff_add_password_reset_tokens_table_for_.py`
+
+```bash
+# Apply migration
+flask db upgrade
+
+# Rollback if needed (WARNING: loses token data)
+flask db downgrade
+```
+
+---
+
 ## Related Documentation
 
 - [EMAIL_VERIFICATION_SYSTEM.md](EMAIL_VERIFICATION_SYSTEM.md) - Email verification feature
 - [AUTHENTICATION_SYSTEM.md](AUTHENTICATION_SYSTEM.md) - User authentication overview
 - [AUDIT_TRAIL_SYSTEM.md](AUDIT_TRAIL_SYSTEM.md) - Audit logging details
 - [SECURITY_GUIDE.md](SECURITY_GUIDE.md) - Overall security architecture
+- [ACCOUNT_LOCKOUT_SYSTEM.md](ACCOUNT_LOCKOUT_SYSTEM.md) - Account lockout protection
 
 ## Support
 

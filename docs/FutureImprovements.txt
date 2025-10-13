@@ -126,6 +126,10 @@
    - Comprehensive audit trail
    - Automatic expiration for time-based locks
    - Admin accounts not locked (but alerted)
+- **Single-Use Tokens**:
+   - Create `password_reset_tokens` table
+   - Mark tokens as used after password change
+   - Prevents token reuse if intercepted
 - **Two-Factor Authentication**: Enhanced login security with 2FA
 - **OAuth Integration**: Login with Google, GitHub, and other providers
 - **Hardware Security Modules**: HSM integration for key storage

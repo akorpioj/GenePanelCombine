@@ -287,7 +287,7 @@ The PanelMerge Team
     
     def send_password_reset_email(self, user_email: str, user_name: str) -> bool:
         """
-        Send password reset email
+        Send password reset email and store token in database for single-use validation
         
         Args:
             user_email: User's email address
@@ -300,6 +300,15 @@ The PanelMerge Team
             # Generate reset token
             serializer = self.get_serializer('password-reset')
             token = serializer.dumps(user_email, salt='password-reset')
+            
+            # Store token in database for single-use validation
+            from .models import User, PasswordResetToken
+            user = User.query.filter_by(email=user_email.lower()).first()
+            if user:
+                # Get expiration from config (default: 1 hour)
+                from flask import current_app
+                expiration_seconds = current_app.config.get('PASSWORD_RESET_TOKEN_MAX_AGE', 3600)
+                PasswordResetToken.create_token(user.id, token, expiration_seconds)
             
             # Build reset URL
             reset_url = url_for('auth.reset_password', token=token, _external=True)

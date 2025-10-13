@@ -323,6 +323,134 @@ class PasswordHistory(db.Model):
         return False
 
 
+class PasswordResetToken(db.Model):
+    """
+    Model to store password reset tokens for single-use validation
+    Prevents token reuse by tracking which tokens have been used
+    """
+    __tablename__ = 'password_reset_tokens'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(500), unique=True, nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    used = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    used_at = db.Column(db.DateTime)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('password_reset_tokens', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<PasswordResetToken user_id={self.user_id} used={self.used} created_at={self.created_at}>'
+    
+    def is_valid(self):
+        """
+        Check if token is valid (not used and not expired)
+        
+        Returns:
+            bool: True if token is valid, False otherwise
+        """
+        if self.used:
+            return False
+        if datetime.datetime.now() > self.expires_at:
+            return False
+        return True
+    
+    def mark_as_used(self):
+        """Mark token as used and record timestamp"""
+        self.used = True
+        self.used_at = datetime.datetime.now()
+        db.session.commit()
+    
+    @staticmethod
+    def create_token(user_id, token_string, expiration_seconds=3600):
+        """
+        Create a new password reset token
+        
+        Args:
+            user_id: ID of the user
+            token_string: The token string to store
+            expiration_seconds: How long the token is valid (default: 1 hour)
+            
+        Returns:
+            PasswordResetToken: The created token object
+        """
+        expires_at = datetime.datetime.now() + datetime.timedelta(seconds=expiration_seconds)
+        
+        token = PasswordResetToken(
+            token=token_string,
+            user_id=user_id,
+            expires_at=expires_at
+        )
+        db.session.add(token)
+        db.session.commit()
+        
+        return token
+    
+    @staticmethod
+    def get_valid_token(token_string):
+        """
+        Get a token if it exists and is valid
+        
+        Args:
+            token_string: The token string to look up
+            
+        Returns:
+            PasswordResetToken or None: The token if valid, None otherwise
+        """
+        token = PasswordResetToken.query.filter_by(token=token_string).first()
+        
+        if token and token.is_valid():
+            return token
+        
+        return None
+    
+    @staticmethod
+    def cleanup_expired_tokens():
+        """
+        Remove expired tokens from the database
+        Should be run periodically as maintenance
+        
+        Returns:
+            int: Number of tokens deleted
+        """
+        expired_tokens = PasswordResetToken.query.filter(
+            PasswordResetToken.expires_at < datetime.datetime.now()
+        ).all()
+        
+        count = len(expired_tokens)
+        for token in expired_tokens:
+            db.session.delete(token)
+        
+        db.session.commit()
+        return count
+    
+    @staticmethod
+    def cleanup_old_tokens(days=30):
+        """
+        Remove old tokens (used or expired) older than specified days
+        
+        Args:
+            days: Number of days to keep tokens (default: 30)
+            
+        Returns:
+            int: Number of tokens deleted
+        """
+        cutoff_date = datetime.datetime.now() - datetime.timedelta(days=days)
+        
+        old_tokens = PasswordResetToken.query.filter(
+            PasswordResetToken.created_at < cutoff_date
+        ).all()
+        
+        count = len(old_tokens)
+        for token in old_tokens:
+            db.session.delete(token)
+        
+        db.session.commit()
+        return count
+
+
 class Visit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ip_address = db.Column(db.String(45), nullable=False)  # IPv6 can be up to 45 chars
