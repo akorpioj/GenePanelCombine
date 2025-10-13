@@ -92,24 +92,77 @@ class PanelActionsManager {
 
     async exportPanel(panelId) {
         // Show export wizard for single panel
-        this.showExportWizardSingle(panelId);
+        await this.showExportWizardSingle(panelId);
     }
     
-    showExportWizardSingle(panelId) {
+    async loadExportTemplates() {
+        try {
+            const response = await fetch('/api/user/export-templates');
+            if (!response.ok) throw new Error('Failed to load export templates');
+            
+            const data = await response.json();
+            return data.templates || [];
+        } catch (error) {
+            console.error('Error loading export templates:', error);
+            return [];
+        }
+    }
+    
+    async showExportWizardSingle(panelId) {
         // Get panel info for display
         const panel = this.panelLibrary.panels.find(p => p.id === panelId);
         const panelName = panel ? panel.name : 'panel';
         
+        // Load export templates
+        const templates = await this.loadExportTemplates();
+        const defaultTemplate = templates.find(t => t.is_default);
+        
+        // Generate template options HTML
+        const templateOptionsHTML = templates.length > 0 ? `
+            <div class="mb-4 pb-4 border-b border-gray-200">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-magic mr-1"></i>Quick Templates
+                </label>
+                <select id="templateSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">-- Custom Settings --</option>
+                    ${templates.map(t => `
+                        <option value="${t.id}" ${defaultTemplate && defaultTemplate.id === t.id ? 'selected' : ''}>
+                            ${t.name} (${t.format.toUpperCase()})${t.is_default ? ' ⭐' : ''}
+                        </option>
+                    `).join('')}
+                </select>
+                <div class="flex justify-between items-center mt-2">
+                    <button id="manageTemplatesBtn" class="text-xs text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-cog mr-1"></i>Manage Templates
+                    </button>
+                    <button id="saveAsTemplateBtn" class="text-xs text-green-600 hover:text-green-800">
+                        <i class="fas fa-save mr-1"></i>Save as Template
+                    </button>
+                </div>
+            </div>
+        ` : `
+            <div class="mb-4 pb-4 border-b border-gray-200">
+                <div class="text-sm text-gray-500 mb-2">
+                    <i class="fas fa-info-circle mr-1"></i>Tip: Save your export preferences as templates!
+                </div>
+                <button id="saveAsTemplateBtn" class="text-xs text-green-600 hover:text-green-800">
+                    <i class="fas fa-save mr-1"></i>Save Current Settings as Template
+                </button>
+            </div>
+        `;
+        
         // Create modal HTML
         const modalHTML = `
             <div id="exportWizardModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
                     <div class="mt-3">
                         <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Export Panel</h3>
                         <div class="mt-2">
                             <p class="text-sm text-gray-500 mb-4">
                                 Exporting "${panelName}". Choose your export format:
                             </p>
+                            
+                            ${templateOptionsHTML}
                             
                             <div class="space-y-3">
                                 <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
@@ -155,6 +208,16 @@ class PanelActionsManager {
                                     Include version history
                                 </label>
                             </div>
+                            
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Custom Filename (optional)
+                                </label>
+                                <input type="text" id="customFilename" 
+                                       placeholder="Leave empty for default filename" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                <p class="text-xs text-gray-500 mt-1">File extension will be added automatically</p>
+                            </div>
                         </div>
                         
                         <div class="flex justify-end space-x-3 mt-6">
@@ -177,6 +240,52 @@ class PanelActionsManager {
         const modal = document.getElementById('exportWizardModal');
         const cancelBtn = document.getElementById('cancelExport');
         const confirmBtn = document.getElementById('confirmExport');
+        const templateSelect = document.getElementById('templateSelect');
+        const saveAsTemplateBtn = document.getElementById('saveAsTemplateBtn');
+        const manageTemplatesBtn = document.getElementById('manageTemplatesBtn');
+        
+        // Template selection handler
+        if (templateSelect) {
+            templateSelect.addEventListener('change', async (e) => {
+                const templateId = e.target.value;
+                if (templateId) {
+                    // Find and apply the selected template
+                    const template = templates.find(t => t.id === parseInt(templateId));
+                    if (template) {
+                        this.applyTemplate(template);
+                        
+                        // Mark template as used
+                        try {
+                            await fetch(`/api/user/export-templates/${templateId}/use`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        } catch (error) {
+                            console.error('Error marking template as used:', error);
+                        }
+                    }
+                }
+            });
+            
+            // Apply default template if one exists
+            if (defaultTemplate) {
+                this.applyTemplate(defaultTemplate);
+            }
+        }
+        
+        // Save as template button handler
+        if (saveAsTemplateBtn) {
+            saveAsTemplateBtn.addEventListener('click', () => {
+                this.showSaveTemplateDialog();
+            });
+        }
+        
+        // Manage templates button handler
+        if (manageTemplatesBtn) {
+            manageTemplatesBtn.addEventListener('click', () => {
+                this.showManageTemplatesDialog();
+            });
+        }
         
         // Cancel button
         cancelBtn.addEventListener('click', () => {
@@ -188,6 +297,7 @@ class PanelActionsManager {
             const format = document.querySelector('input[name="exportFormat"]:checked').value;
             const includeMetadata = document.getElementById('includeMetadata').checked;
             const includeVersions = document.getElementById('includeVersions').checked;
+            const customFilename = document.getElementById('customFilename').value.trim();
             
             // Disable buttons and show loading
             confirmBtn.disabled = true;
@@ -195,7 +305,7 @@ class PanelActionsManager {
             cancelBtn.disabled = true;
             
             try {
-                await this.performSingleExport(panelId, format, includeMetadata, includeVersions);
+                await this.performSingleExport(panelId, format, includeMetadata, includeVersions, customFilename);
                 modal.remove();
             } catch (error) {
                 // Re-enable buttons on error
@@ -206,7 +316,7 @@ class PanelActionsManager {
         });
     }
     
-    async performSingleExport(panelId, format, includeMetadata, includeVersions) {
+    async performSingleExport(panelId, format, includeMetadata, includeVersions, customFilename = null) {
         try {
             console.log('Exporting panel:', panelId, 'Format:', format);
             
@@ -221,6 +331,11 @@ class PanelActionsManager {
                 include_versions: includeVersions,
                 include_genes: true
             });
+            
+            // Add custom filename if provided
+            if (customFilename) {
+                params.append('filename', customFilename);
+            }
             
             // Make request to export endpoint
             const response = await fetch(`/api/user/panels/${panelId}/export?${params}`, {
@@ -264,6 +379,133 @@ class PanelActionsManager {
             this.panelLibrary.showError(error.message || 'Failed to export panel. Please try again.');
             throw error; // Re-throw to handle in caller
         }
+    }
+
+    applyTemplate(template) {
+        // Apply template settings to form
+        const formatRadio = document.querySelector(`input[name="exportFormat"][value="${template.format}"]`);
+        if (formatRadio) formatRadio.checked = true;
+        
+        const metadataCheckbox = document.getElementById('includeMetadata');
+        if (metadataCheckbox) metadataCheckbox.checked = template.include_metadata;
+        
+        const versionsCheckbox = document.getElementById('includeVersions');
+        if (versionsCheckbox) versionsCheckbox.checked = template.include_versions;
+        
+        const filenameInput = document.getElementById('customFilename');
+        if (filenameInput && template.filename_pattern) {
+            filenameInput.value = template.filename_pattern;
+        }
+    }
+    
+    showSaveTemplateDialog() {
+        // Get current settings
+        const format = document.querySelector('input[name="exportFormat"]:checked').value;
+        const includeMetadata = document.getElementById('includeMetadata').checked;
+        const includeVersions = document.getElementById('includeVersions').checked;
+        const filenamePattern = document.getElementById('customFilename')?.value.trim() || '';
+        
+        const dialogHTML = `
+            <div id="saveTemplateDialog" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center">
+                <div class="bg-white p-6 rounded-md shadow-lg w-96">
+                    <h3 class="text-lg font-medium mb-4">Save Export Template</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Template Name*</label>
+                            <input type="text" id="templateName" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., My Excel Export">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+                            <input type="text" id="templateDescription" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Export with all metadata">
+                        </div>
+                        <div>
+                            <label class="flex items-center text-sm">
+                                <input type="checkbox" id="templateDefault" class="mr-2">
+                                Set as default template
+                            </label>
+                        </div>
+                        <div class="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                            <strong>Current settings:</strong><br>
+                            Format: ${format.toUpperCase()}<br>
+                            Metadata: ${includeMetadata ? 'Yes' : 'No'}<br>
+                            Versions: ${includeVersions ? 'Yes' : 'No'}
+                            ${filenamePattern ? `<br>Filename: ${filenamePattern}` : ''}
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button id="cancelSaveTemplate" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                            Cancel
+                        </button>
+                        <button id="confirmSaveTemplate" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                            <i class="fas fa-save mr-2"></i>Save Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', dialogHTML);
+        
+        const dialog = document.getElementById('saveTemplateDialog');
+        const cancelBtn = document.getElementById('cancelSaveTemplate');
+        const confirmBtn = document.getElementById('confirmSaveTemplate');
+        const nameInput = document.getElementById('templateName');
+        
+        nameInput.focus();
+        
+        cancelBtn.addEventListener('click', () => dialog.remove());
+        
+        confirmBtn.addEventListener('click', async () => {
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('Please enter a template name');
+                return;
+            }
+            
+            const description = document.getElementById('templateDescription').value.trim();
+            const isDefault = document.getElementById('templateDefault').checked;
+            
+            try {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+                
+                const response = await fetch('/api/user/export-templates', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        is_default: isDefault,
+                        format,
+                        include_metadata: includeMetadata,
+                        include_versions: includeVersions,
+                        include_genes: true,
+                        filename_pattern: filenamePattern || null
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save template');
+                }
+                
+                dialog.remove();
+                this.panelLibrary.showSuccess('Export template saved successfully!');
+                
+            } catch (error) {
+                console.error('Error saving template:', error);
+                alert(error.message);
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Save Template';
+            }
+        });
+    }
+    
+    showManageTemplatesDialog() {
+        // Show template management interface
+        alert('Template management interface will be implemented here. For now, you can manage templates from your profile.');
     }
 
     async deletePanel(panelId) {
@@ -973,6 +1215,16 @@ class PanelActionsManager {
                                     Include version history
                                 </label>
                             </div>
+                            
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Custom Filename (optional)
+                                </label>
+                                <input type="text" id="customFilename" 
+                                       placeholder="Leave empty for default filename" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                <p class="text-xs text-gray-500 mt-1">File extension will be added automatically</p>
+                            </div>
                         </div>
                         
                         <div class="flex justify-end space-x-3 mt-6">
@@ -1006,6 +1258,7 @@ class PanelActionsManager {
             const format = document.querySelector('input[name="exportFormat"]:checked').value;
             const includeMetadata = document.getElementById('includeMetadata').checked;
             const includeVersions = document.getElementById('includeVersions').checked;
+            const customFilename = document.getElementById('customFilename').value.trim();
             
             // Disable buttons and show loading
             confirmBtn.disabled = true;
@@ -1013,7 +1266,7 @@ class PanelActionsManager {
             cancelBtn.disabled = true;
             
             try {
-                await this.performExport(panelIds, format, includeMetadata, includeVersions);
+                await this.performExport(panelIds, format, includeMetadata, includeVersions, customFilename);
                 modal.remove();
             } catch (error) {
                 // Re-enable buttons on error
@@ -1024,9 +1277,23 @@ class PanelActionsManager {
         });
     }
     
-    async performExport(panelIds, format, includeMetadata, includeVersions) {
+    async performExport(panelIds, format, includeMetadata, includeVersions, customFilename = null) {
         try {
             console.log('Exporting panels:', panelIds, 'Format:', format);
+            
+            // Build request body
+            const requestBody = {
+                panel_ids: panelIds,
+                format: format,
+                include_metadata: includeMetadata,
+                include_versions: includeVersions,
+                include_genes: true
+            };
+            
+            // Add custom filename if provided
+            if (customFilename) {
+                requestBody.filename = customFilename;
+            }
             
             // Make request to export endpoint
             const response = await fetch('/api/user/panels/export', {
@@ -1034,13 +1301,7 @@ class PanelActionsManager {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    panel_ids: panelIds,
-                    format: format,
-                    include_metadata: includeMetadata,
-                    include_versions: includeVersions,
-                    include_genes: true
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {

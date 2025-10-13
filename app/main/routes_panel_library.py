@@ -309,3 +309,300 @@ def api_user_panels_export_multiple():
     except Exception as e:
         logger.error(f"Error exporting panels: {e}")
         return jsonify({'error': f'Failed to export panels: {str(e)}'}), 500
+
+
+# ============================================================================
+# Export Templates API
+# ============================================================================
+
+@main_bp.route('/api/user/export-templates', methods=['GET', 'POST'])
+@login_required
+@limiter.limit("30 per minute")
+def api_user_export_templates():
+    """Manage export templates - GET to list, POST to create"""
+    from ..models import ExportTemplate
+    
+    if request.method == 'GET':
+        """Get user's export templates"""
+        try:
+            templates = ExportTemplate.query.filter_by(user_id=current_user.id)\
+                .order_by(ExportTemplate.is_default.desc(), ExportTemplate.usage_count.desc()).all()
+            
+            return jsonify({
+                'templates': [t.to_dict() for t in templates],
+                'count': len(templates)
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Error fetching export templates: {e}")
+            return jsonify({'error': 'Failed to fetch export templates'}), 500
+    
+    elif request.method == 'POST':
+        """Create a new export template"""
+        try:
+            data = request.get_json()
+            
+            # Validate required fields
+            if not data or 'name' not in data or 'format' not in data:
+                return jsonify({'error': 'name and format are required'}), 400
+            
+            # Validate format
+            valid_formats = ['excel', 'csv', 'tsv', 'json']
+            if data['format'].lower() not in valid_formats:
+                return jsonify({'error': f'Invalid format. Must be one of: {", ".join(valid_formats)}'}), 400
+            
+            # Check for duplicate name
+            existing = ExportTemplate.query.filter_by(
+                user_id=current_user.id,
+                name=data['name']
+            ).first()
+            
+            if existing:
+                return jsonify({'error': 'A template with this name already exists'}), 409
+            
+            # If setting as default, unset other defaults
+            if data.get('is_default', False):
+                ExportTemplate.query.filter_by(
+                    user_id=current_user.id,
+                    is_default=True
+                ).update({'is_default': False})
+            
+            # Create new template
+            template = ExportTemplate(
+                user_id=current_user.id,
+                name=data['name'],
+                description=data.get('description'),
+                is_default=data.get('is_default', False),
+                format=data['format'].lower(),
+                include_metadata=data.get('include_metadata', True),
+                include_versions=data.get('include_versions', True),
+                include_genes=data.get('include_genes', True),
+                filename_pattern=data.get('filename_pattern')
+            )
+            
+            db.session.add(template)
+            db.session.commit()
+            
+            # Log audit action
+            AuditService.log_action(
+                action_type=AuditActionType.PANEL_EXPORT_TEMPLATE_CREATE,
+                action_description=f"Created export template '{template.name}'",
+                user_id=current_user.id,
+                resource_type='export_template',
+                resource_id=template.id,
+                details={
+                    'template_name': template.name,
+                    'format': template.format
+                }
+            )
+            
+            logger.info(f"Export template created: {template.name} by user {current_user.id}")
+            
+            return jsonify({
+                'message': 'Export template created successfully',
+                'template': template.to_dict()
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creating export template: {e}")
+            return jsonify({'error': f'Failed to create export template: {str(e)}'}), 500
+
+
+@main_bp.route('/api/user/export-templates/<int:template_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+@limiter.limit("30 per minute")
+def api_user_export_template_detail(template_id):
+    """Manage individual export template - GET to retrieve, PUT to update, DELETE to remove"""
+    from ..models import ExportTemplate
+    
+    try:
+        # Get template and verify ownership
+        template = ExportTemplate.query.filter_by(
+            id=template_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not template:
+            return jsonify({'error': 'Export template not found or access denied'}), 404
+        
+        if request.method == 'GET':
+            """Get export template details"""
+            return jsonify({'template': template.to_dict()}), 200
+        
+        elif request.method == 'PUT':
+            """Update export template"""
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({'error': 'No data provided'}), 400
+            
+            # Update fields if provided
+            if 'name' in data:
+                # Check for duplicate name (excluding current template)
+                existing = ExportTemplate.query.filter(
+                    ExportTemplate.user_id == current_user.id,
+                    ExportTemplate.name == data['name'],
+                    ExportTemplate.id != template_id
+                ).first()
+                
+                if existing:
+                    return jsonify({'error': 'A template with this name already exists'}), 409
+                
+                template.name = data['name']
+            
+            if 'description' in data:
+                template.description = data['description']
+            
+            if 'format' in data:
+                valid_formats = ['excel', 'csv', 'tsv', 'json']
+                if data['format'].lower() not in valid_formats:
+                    return jsonify({'error': f'Invalid format. Must be one of: {", ".join(valid_formats)}'}), 400
+                template.format = data['format'].lower()
+            
+            if 'include_metadata' in data:
+                template.include_metadata = data['include_metadata']
+            
+            if 'include_versions' in data:
+                template.include_versions = data['include_versions']
+            
+            if 'include_genes' in data:
+                template.include_genes = data['include_genes']
+            
+            if 'filename_pattern' in data:
+                template.filename_pattern = data['filename_pattern']
+            
+            # Handle default flag
+            if 'is_default' in data and data['is_default']:
+                # Unset other defaults
+                ExportTemplate.query.filter_by(
+                    user_id=current_user.id,
+                    is_default=True
+                ).update({'is_default': False})
+                template.is_default = True
+            elif 'is_default' in data:
+                template.is_default = False
+            
+            template.updated_at = datetime.datetime.now()
+            db.session.commit()
+            
+            # Log audit action
+            AuditService.log_action(
+                action_type=AuditActionType.PANEL_EXPORT_TEMPLATE_UPDATE,
+                action_description=f"Updated export template '{template.name}'",
+                user_id=current_user.id,
+                resource_type='export_template',
+                resource_id=template.id
+            )
+            
+            logger.info(f"Export template updated: {template.name} by user {current_user.id}")
+            
+            return jsonify({
+                'message': 'Export template updated successfully',
+                'template': template.to_dict()
+            }), 200
+        
+        elif request.method == 'DELETE':
+            """Delete export template"""
+            template_name = template.name
+            
+            db.session.delete(template)
+            db.session.commit()
+            
+            # Log audit action
+            AuditService.log_action(
+                action_type=AuditActionType.PANEL_EXPORT_TEMPLATE_DELETE,
+                action_description=f"Deleted export template '{template_name}'",
+                user_id=current_user.id,
+                resource_type='export_template',
+                resource_id=template_id
+            )
+            
+            logger.info(f"Export template deleted: {template_name} by user {current_user.id}")
+            
+            return jsonify({'message': 'Export template deleted successfully'}), 200
+            
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error managing export template: {e}")
+        return jsonify({'error': f'Failed to manage export template: {str(e)}'}), 500
+
+
+@main_bp.route('/api/user/export-templates/<int:template_id>/use', methods=['POST'])
+@login_required
+@limiter.limit("30 per minute")
+def api_use_export_template(template_id):
+    """Mark template as used and return its settings"""
+    from ..models import ExportTemplate
+    
+    try:
+        # Get template and verify ownership
+        template = ExportTemplate.query.filter_by(
+            id=template_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not template:
+            return jsonify({'error': 'Export template not found or access denied'}), 404
+        
+        # Mark as used
+        template.mark_as_used()
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Template usage recorded',
+            'template': template.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error using export template: {e}")
+        return jsonify({'error': f'Failed to use export template: {str(e)}'}), 500
+
+
+@main_bp.route('/api/user/export-templates/<int:template_id>/set-default', methods=['POST'])
+@login_required
+@limiter.limit("30 per minute")
+def api_set_default_export_template(template_id):
+    """Set a template as the default"""
+    from ..models import ExportTemplate
+    
+    try:
+        # Get template and verify ownership
+        template = ExportTemplate.query.filter_by(
+            id=template_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not template:
+            return jsonify({'error': 'Export template not found or access denied'}), 404
+        
+        # Unset other defaults
+        ExportTemplate.query.filter_by(
+            user_id=current_user.id,
+            is_default=True
+        ).update({'is_default': False})
+        
+        # Set this as default
+        template.is_default = True
+        template.updated_at = datetime.datetime.now()
+        db.session.commit()
+        
+        # Log audit action
+        AuditService.log_action(
+            action_type=AuditActionType.PANEL_EXPORT_TEMPLATE_UPDATE,
+            action_description=f"Set export template '{template.name}' as default",
+            user_id=current_user.id,
+            resource_type='export_template',
+            resource_id=template.id
+        )
+        
+        return jsonify({
+            'message': 'Default template set successfully',
+            'template': template.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error setting default template: {e}")
+        return jsonify({'error': f'Failed to set default template: {str(e)}'}), 500

@@ -24,7 +24,7 @@
   - **Diff Viewer**: Visual comparison between panel versions
   - **Source Merge**: Merge upstream panel updates with user customizations
   - **Panel Templates**: Use saved panels as templates for new panel creation
-  - **Export Formats**: Export panels as Excel, CSV, TSV formats
+  - ✅ IMPLEMENTED: **Export Formats**: Export panels as Excel, CSV, TSV formats - 13/10/2025
   - ✅ IMPLEMENTED: **Profile Integration**: Dedicated "My Panels" tab in user profile - 12/10/2025
   - **Storage Options**: Multiple storage backends (local, cloud database, OneDrive API)
   - **Panel Inheritance**: Create new panels based on existing saved panels
@@ -92,11 +92,10 @@
     - Automatic merge for non-conflicting changes
     - Manual review mode for all changes
   - **Export System**:
-    - ✅ Excel format with multiple sheets (genes, metadata, version history) - IMPLEMENTED 13/10/2025
+    - ✅ IMPLEMENTED: Excel format with multiple sheets (genes, metadata, version history) - 13/10/2025
     - CSV/TSV with configurable column selection
-    - JSON format for programmatic access
-    - BED format for genomic coordinate data
-    - ✅ Batch export functionality for multiple panels - IMPLEMENTED 13/10/2025
+    - ✅ IMPLEMENTED: JSON format for programmatic access - 13/10/2025
+    - ✅ IMPLEMENTED: Batch export functionality for multiple panels - 13/10/2025
 
 ### Security & Privacy
 - ✅ IMPLEMENTED: **User Accounts**: Full user registration and authentication system - 26/07/2025
@@ -104,7 +103,7 @@
 - ✅ IMPLEMENTED: **Data Encryption**: Encrypt sensitive data at rest and in transit - 27/07/2025
 - ✅ IMPLEMENTED: **Session Security**: Enhanced session management with secure tokens - 27/07/2025
 - ✅ IMPLEMENTED: **Audit Logs**: Comprehensive security audit logging - 27/07/2025
-- **GDPR Compliance**: Data privacy features and user data control
+- ✅ IMPLEMENTED: **GDPR Compliance**: Data privacy features and user data control - 12/10/2025
 - **Email Verification**: Email verification for user registration
 - **Password Reset**: Self-service password reset functionality
 - **Two-Factor Authentication**: Enhanced login security with 2FA
@@ -244,7 +243,8 @@
   - **Export Wizard**: 
     - ✅ IMPLEMENTED: Format selection (Excel, CSV, TSV, JSON) - 13/10/2025
     - ✅ IMPLEMENTED: Column customization with metadata and version options - 13/10/2025
-    - Template creation for recurring export needs
+    - ✅ IMPLEMENTED: Custom filename input for exports - 13/10/2025
+    - 🔄 IN PROGRESS: Template creation for recurring export needs - 13/10/2025 (Backend complete, frontend integration in progress)
     - ✅ IMPLEMENTED: Batch export for multiple panels - 13/10/2025
   - **Import Interface**: 
     - Drag-and-drop file upload with format detection

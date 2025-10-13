@@ -55,6 +55,15 @@ The Export Wizard provides a user-friendly interface for exporting saved panels 
 - Phenotype and evidence information
 - User notes and modifications
 
+#### Custom Filename
+- Optional text input for custom filename
+- File extension is added automatically based on format
+- If left empty, uses default naming convention:
+  - Single panel: `{panel_name}_export.{format}`
+  - Multiple panels: `panels_export.{format}`
+- Filename is sanitized to remove invalid characters
+- Helps organize exports with meaningful names
+
 ## User Interface
 
 ### Single Panel Export
@@ -65,8 +74,9 @@ The Export Wizard provides a user-friendly interface for exporting saved panels 
 1. Modal appears with format selection
 2. Choose format (Excel/CSV/TSV/JSON)
 3. Toggle metadata and version options
-4. Click "Export" to download
-5. File downloads automatically with appropriate extension
+4. Optionally enter a custom filename
+5. Click "Export" to download
+6. File downloads automatically with appropriate extension
 
 **Format Descriptions:**
 - Visual format selection with radio buttons
@@ -80,7 +90,7 @@ The Export Wizard provides a user-friendly interface for exporting saved panels 
 **Wizard Steps:**
 1. Shows count of selected panels
 2. Same format selection interface
-3. Same customization options
+3. Same customization options (metadata, versions, filename)
 4. Exports combined data for all panels
 
 ### UI Features
@@ -88,6 +98,7 @@ The Export Wizard provides a user-friendly interface for exporting saved panels 
 - **Modal Design**: Clean, centered modal with backdrop
 - **Format Cards**: Visual cards with radio selection
 - **Checkboxes**: Toggle options for metadata and versions
+- **Custom Filename**: Optional text input for custom filenames
 - **Loading State**: Spinner and disabled buttons during export
 - **Error Handling**: Clear error messages if export fails
 - **Success Notification**: Confirmation message with format info
@@ -303,10 +314,11 @@ POST /api/user/panels/export
 2. Clicks export button
 3. Wizard modal appears
 4. User selects format
-5. User toggles options
-6. Clicks "Export" button
-7. File downloads automatically
-8. Success notification shown
+5. User toggles options (metadata, versions)
+6. User optionally enters custom filename
+7. Clicks "Export" button
+8. File downloads automatically
+9. Success notification shown
 
 ### Feedback
 - Visual format cards with descriptions
@@ -326,9 +338,9 @@ POST /api/user/panels/export
 ## Future Enhancements
 
 Potential improvements:
-- [ ] Export templates (save format preferences)
+- [x] Export templates (save format preferences) - IN PROGRESS
 - [ ] Column selection for CSV/TSV
-- [ ] Custom filename input
+- [x] Custom filename input
 - [ ] Preview before export
 - [ ] Scheduled exports
 - [ ] Email delivery option

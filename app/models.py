@@ -182,6 +182,9 @@ class AuditActionType(Enum):
     PANEL_UPDATE = "PANEL_UPDATE"
     PANEL_SHARE = "PANEL_SHARE"
     PANEL_LIST = "PANEL_LIST"
+    PANEL_EXPORT_TEMPLATE_CREATE = "PANEL_EXPORT_TEMPLATE_CREATE"
+    PANEL_EXPORT_TEMPLATE_UPDATE = "PANEL_EXPORT_TEMPLATE_UPDATE"
+    PANEL_EXPORT_TEMPLATE_DELETE = "PANEL_EXPORT_TEMPLATE_DELETE"
     SEARCH = "SEARCH"
     VIEW = "VIEW"
     CACHE_CLEAR = "CACHE_CLEAR"
@@ -1074,6 +1077,71 @@ class PanelChange(db.Model):
             'changed_at': self.changed_at.isoformat() if self.changed_at else None,
             'change_reason': self.change_reason,
         }
+
+
+class ExportTemplate(db.Model):
+    """Export templates for saving user export preferences"""
+    __tablename__ = 'export_templates'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    
+    # Template details
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(255))
+    is_default = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Export settings
+    format = db.Column(db.String(20), nullable=False)  # excel, csv, tsv, json
+    include_metadata = db.Column(db.Boolean, default=True, nullable=False)
+    include_versions = db.Column(db.Boolean, default=True, nullable=False)
+    include_genes = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Optional filename pattern (e.g., "{panel_name}_{date}")
+    filename_pattern = db.Column(db.String(255))
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now, nullable=False)
+    last_used_at = db.Column(db.DateTime)
+    usage_count = db.Column(db.Integer, default=0, nullable=False)
+    
+    # Relationships
+    user = db.relationship('User', backref=db.backref('export_templates', lazy='dynamic'))
+    
+    # Indexes
+    __table_args__ = (
+        db.Index('idx_export_templates_user', 'user_id'),
+        db.Index('idx_export_templates_default', 'user_id', 'is_default'),
+        db.UniqueConstraint('user_id', 'name', name='uq_user_template_name'),
+    )
+    
+    def __repr__(self):
+        return f'<ExportTemplate {self.name} ({self.format})>'
+    
+    def to_dict(self):
+        """Convert template to dictionary"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'is_default': self.is_default,
+            'format': self.format,
+            'include_metadata': self.include_metadata,
+            'include_versions': self.include_versions,
+            'include_genes': self.include_genes,
+            'filename_pattern': self.filename_pattern,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_used_at': self.last_used_at.isoformat() if self.last_used_at else None,
+            'usage_count': self.usage_count
+        }
+    
+    def mark_as_used(self):
+        """Update usage statistics"""
+        self.last_used_at = datetime.datetime.now()
+        self.usage_count += 1
+        self.updated_at = datetime.datetime.now()
 
 
 def db_init(app):

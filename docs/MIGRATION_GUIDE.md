@@ -84,6 +84,11 @@ This guide provides step-by-step instructions for migrating between different ve
 - User time format preference (12h/24h clock display)
 - Enhanced timezone and time display system with user preferences
 - JavaScript-based dynamic time format rendering
+- **Export Templates System** (13/10/2025) - Save and reuse export format preferences
+  - New `export_templates` table with user-specific templates
+  - Template management API endpoints
+  - Quick template selection in export wizard
+  - Usage tracking and default template support
 
 **Migration Steps**:
 
@@ -120,6 +125,11 @@ This guide provides step-by-step instructions for migrating between different ve
    # Apply migration to database (includes time_format_preference column)
    flask db upgrade
    
+   # Apply export templates migration (13/10/2025)
+   # Migration file: 9227e34bde83_add_export_templates_table.py
+   # This creates the export_templates table with indexes
+   flask db upgrade
+   
    # Verify migration status
    flask db current
    
@@ -138,6 +148,24 @@ This guide provides step-by-step instructions for migrating between different ve
            print('✅ time_format_preference column added successfully')
        else:
            print('❌ time_format_preference column missing')
+   "
+   
+   # Verify export templates table
+   python -c "
+   from app import create_app, db
+   from sqlalchemy import inspect
+   app = create_app()
+   with app.app_context():
+       inspector = inspect(db.engine)
+       tables = inspector.get_table_names()
+       if 'export_templates' in tables:
+           columns = [col['name'] for col in inspector.get_columns('export_templates')]
+           indexes = inspector.get_indexes('export_templates')
+           print('✅ export_templates table created successfully')
+           print(f'   - Columns: {len(columns)}')
+           print(f'   - Indexes: {len(indexes)}')
+       else:
+           print('❌ export_templates table missing')
    "
    ```
 
@@ -180,6 +208,25 @@ This guide provides step-by-step instructions for migrating between different ve
    echo "  - timezone.js: loadUserPreferences() method"
    echo "  - profileManager.js: async time format detection"
    echo "  - API endpoint: /api/timezone/preferences"
+   
+   # Test export templates functionality
+   python -c "
+   from app import create_app
+   from app.models import ExportTemplate
+   app = create_app()
+   with app.app_context():
+       print('✅ Export Templates System:')
+       print('   - Model: ExportTemplate')
+       print('   - API Endpoints:')
+       print('     - GET/POST /api/user/export-templates')
+       print('     - GET/PUT/DELETE /api/user/export-templates/<id>')
+       print('     - POST /api/user/export-templates/<id>/use')
+       print('     - POST /api/user/export-templates/<id>/set-default')
+       
+       # Check if any templates exist
+       count = ExportTemplate.query.count()
+       print(f'   - Current templates: {count}')
+   "
    ```
 
 ### Time Format Preference Feature (v1.5.0)
@@ -464,6 +511,134 @@ The v1.5.0 release includes user-configurable time format preference (12-hour vs
    ALTER TABLE "user" ADD COLUMN time_format_preference VARCHAR(10);
    UPDATE "user" SET time_format_preference = '24h' WHERE time_format_preference IS NULL;
    ```
+
+3. **Export Templates Migration** - IMPLEMENTED 13/10/2025
+   ```bash
+   # Create migration for export templates
+   flask db revision -m "Add export templates table"
+   
+   # Apply migration to database
+   flask db upgrade
+   
+   # Verify migration status
+   flask db current
+   
+   # Verify export templates table
+   python -c "
+   from app import create_app, db
+   from sqlalchemy import inspect
+   app = create_app()
+   with app.app_context():
+       inspector = inspect(db.engine)
+       if 'export_templates' in inspector.get_table_names():
+           print('✅ export_templates table created')
+           columns = inspector.get_columns('export_templates')
+           print(f'   Columns: {len(columns)}')
+           indexes = inspector.get_indexes('export_templates')
+           print(f'   Indexes: {len(indexes)}')
+       else:
+           print('❌ export_templates table missing')
+   "
+   ```
+
+   **Migration creates:**
+   - `export_templates` table for user export preferences
+   
+   **Table structure:**
+   - `id` - Primary key
+   - `user_id` - Foreign key to user table
+   - `name` - Template name (max 100 chars)
+   - `description` - Optional description (max 255 chars)
+   - `is_default` - Boolean flag for default template
+   - `format` - Export format (excel, csv, tsv, json)
+   - `include_metadata` - Boolean for metadata inclusion
+   - `include_versions` - Boolean for version history
+   - `include_genes` - Boolean for gene data
+   - `filename_pattern` - Optional filename pattern
+   - `created_at`, `updated_at` - Timestamps
+   - `last_used_at` - Last usage timestamp
+   - `usage_count` - Usage counter
+   
+   **Indexes:**
+   - `idx_export_templates_user` on `user_id`
+   - `idx_export_templates_default` on `user_id`, `is_default`
+   - Unique constraint on `user_id`, `name`
+   
+   **Migration file:** `9227e34bde83_add_export_templates_table.py`
+   
+   **SQL equivalent:**
+   ```sql
+   CREATE TABLE export_templates (
+       id SERIAL PRIMARY KEY,
+       user_id INTEGER NOT NULL,
+       name VARCHAR(100) NOT NULL,
+       description VARCHAR(255),
+       is_default BOOLEAN NOT NULL DEFAULT false,
+       format VARCHAR(20) NOT NULL,
+       include_metadata BOOLEAN NOT NULL DEFAULT true,
+       include_versions BOOLEAN NOT NULL DEFAULT true,
+       include_genes BOOLEAN NOT NULL DEFAULT true,
+       filename_pattern VARCHAR(255),
+       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       last_used_at TIMESTAMP,
+       usage_count INTEGER NOT NULL DEFAULT 0,
+       FOREIGN KEY (user_id) REFERENCES "user"(id),
+       CONSTRAINT uq_user_template_name UNIQUE (user_id, name)
+   );
+   
+   CREATE INDEX idx_export_templates_user ON export_templates(user_id);
+   CREATE INDEX idx_export_templates_default ON export_templates(user_id, is_default);
+   ```
+
+4. **Export Template Audit Types Migration** - IMPLEMENTED 13/10/2025
+   ```bash
+   # Apply migration to add new audit action types
+   flask db upgrade
+   
+   # Verify new enum values exist
+   python verify_audit_types.py
+   
+   # Or run manually:
+   python -c "
+   from app import create_app, db
+   from sqlalchemy import text
+   app = create_app()
+   with app.app_context():
+       result = db.session.execute(text(
+           '''SELECT e::text 
+              FROM unnest(enum_range(NULL::auditactiontype)) AS e
+              WHERE e::text LIKE \\'%EXPORT_TEMPLATE%\\';'''
+       ))
+       values = [row[0] for row in result]
+       expected = ['PANEL_EXPORT_TEMPLATE_CREATE', 'PANEL_EXPORT_TEMPLATE_UPDATE', 'PANEL_EXPORT_TEMPLATE_DELETE']
+       if all(v in values for v in expected):
+           print('✅ All export template audit types added')
+           for v in expected:
+               print(f'   - {v}')
+       else:
+           print('❌ Some audit types missing')
+           print(f'   Found: {values}')
+           print(f'   Expected: {expected}')
+   "
+   ```
+
+   **Migration adds:**
+   - `PANEL_EXPORT_TEMPLATE_CREATE` - For template creation audit logs
+   - `PANEL_EXPORT_TEMPLATE_UPDATE` - For template update audit logs
+   - `PANEL_EXPORT_TEMPLATE_DELETE` - For template deletion audit logs
+   
+   **Migration file:** `b413fb2acd82_add_export_template_audit_types.py`
+   
+   **SQL equivalent:**
+   ```sql
+   -- Add new enum values to AuditActionType
+   ALTER TYPE auditactiontype ADD VALUE IF NOT EXISTS 'PANEL_EXPORT_TEMPLATE_CREATE';
+   ALTER TYPE auditactiontype ADD VALUE IF NOT EXISTS 'PANEL_EXPORT_TEMPLATE_UPDATE';
+   ALTER TYPE auditactiontype ADD VALUE IF NOT EXISTS 'PANEL_EXPORT_TEMPLATE_DELETE';
+   ```
+   
+   **Note:** PostgreSQL does not support removing enum values. If you need to downgrade, the enum values will remain in the database but will not be used.
 
 #### Manual Database Migration
 

@@ -81,6 +81,9 @@ The system tracks the following action types:
 | `PANEL_UPDATE` | Saved panel updates |
 | `PANEL_SHARE` | Panel sharing operations |
 | `PANEL_LIST` | Panel listing/browsing |
+| `PANEL_EXPORT_TEMPLATE_CREATE` | Export template creation |
+| `PANEL_EXPORT_TEMPLATE_UPDATE` | Export template updates |
+| `PANEL_EXPORT_TEMPLATE_DELETE` | Export template deletion |
 | `SEARCH` | Search operations |
 | `VIEW` | Panel view operations |
 
