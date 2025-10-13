@@ -553,9 +553,24 @@ class PanelActionsManager {
 
     async showVersionTimeline(panelId) {
         console.log('Showing version timeline for panel:', panelId);
-        alert('Showing version timeline for panel functionality coming soon!');
-        if (typeof showVersionTimeline === 'function') {
-            showVersionTimeline(panelId);
+        
+        try {
+            // Fetch panel data to get the panel name
+            const response = await fetch(`/api/user/panels/${panelId}`);
+            if (!response.ok) throw new Error('Failed to load panel data');
+            
+            const data = await response.json();
+            const panelName = data.panel?.name || 'Panel ' + panelId;
+            
+            // Show the timeline viewer
+            if (typeof versionTimelineViewer !== 'undefined') {
+                await versionTimelineViewer.show(panelId, panelName);
+            } else {
+                throw new Error('Version timeline viewer not loaded');
+            }
+        } catch (error) {
+            console.error('Error showing version timeline:', error);
+            this.panelLibrary.showError(error.message || 'Failed to load version timeline. Please try again.');
         }
     }
 

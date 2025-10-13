@@ -3,11 +3,20 @@ from flask_login import current_user, login_required
 import datetime
 from app.extensions import limiter, cache
 from . import main_bp # Import the Blueprint object defined in __init__.py
-from ..models import SavedPanel, PanelVersion, PanelGene, PanelStatus, PanelVisibility, db, AuditActionType
+from ..models import (
+    SavedPanel, PanelVersion, PanelGene, PanelStatus, PanelVisibility, db, AuditActionType,
+    PanelVersionTag, PanelVersionBranch, PanelVersionMetadata, PanelRetentionPolicy,
+    TagType, VersionType
+)
 from .utils import logger
 from .panel_library_utils import get_panels, create_or_update_panel, get_panel_data, update_panel_data
 from ..audit_service import AuditService
+from ..version_control_service import (
+    VersionControlService, VersionControlError, BranchConflictError,
+    MergeStrategy
+)
 from sqlalchemy import desc
+from sqlalchemy.exc import IntegrityError
 
 @main_bp.route('/api/user/panels', methods=['GET', 'POST'])
 @login_required
@@ -606,3 +615,456 @@ def api_set_default_export_template(template_id):
         db.session.rollback()
         logger.error(f"Error setting default template: {e}")
         return jsonify({'error': f'Failed to set default template: {str(e)}'}), 500
+
+
+# ===========================
+# VERSION CONTROL ENDPOINTS
+# ===========================
+
+@main_bp.route('/api/user/panels/<int:panel_id>/versions/<int:version_id>/tags', methods=['GET', 'POST'])
+@login_required
+@limiter.limit("30 per minute")
+def api_version_tags(panel_id, version_id):
+    """Get or create tags for a specific version"""
+    
+    # Verify panel ownership
+    panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+    if not panel:
+        return jsonify({'error': 'Panel not found or access denied'}), 404
+    
+    # Verify version exists
+    version = PanelVersion.query.filter_by(id=version_id, panel_id=panel_id).first()
+    if not version:
+        return jsonify({'error': 'Version not found'}), 404
+    
+    if request.method == 'GET':
+        """Get all tags for a version"""
+        try:
+            tags = PanelVersionTag.query.filter_by(version_id=version_id).all()
+            return jsonify({
+                'tags': [tag.to_dict() for tag in tags]
+            }), 200
+        except Exception as e:
+            logger.error(f"Error getting tags for version {version_id}: {e}")
+            return jsonify({'error': 'Failed to retrieve tags'}), 500
+    
+    elif request.method == 'POST':
+        """Create a new tag for a version"""
+        try:
+            data = request.get_json()
+            
+            if not data or 'tag_name' not in data or 'tag_type' not in data:
+                return jsonify({'error': 'tag_name and tag_type are required'}), 400
+            
+            # Validate tag type
+            try:
+                tag_type = TagType(data['tag_type'].upper())
+            except ValueError:
+                return jsonify({'error': f'Invalid tag type: {data["tag_type"]}'}), 400
+            
+            # Check for duplicate tag name
+            existing_tag = PanelVersionTag.query.filter_by(
+                version_id=version_id,
+                tag_name=data['tag_name']
+            ).first()
+            if existing_tag:
+                return jsonify({'error': f'Tag "{data["tag_name"]}" already exists for this version'}), 409
+            
+            # Create tag
+            tag = PanelVersionTag(
+                version_id=version_id,
+                tag_name=data['tag_name'],
+                tag_type=tag_type,
+                description=data.get('description'),
+                created_by_id=current_user.id,
+                is_protected=(tag_type in [TagType.PRODUCTION, TagType.STAGING])
+            )
+            
+            db.session.add(tag)
+            
+            # Update version protection if needed
+            if tag.is_protected:
+                version.is_protected = True
+                version.retention_priority = 10
+            
+            db.session.commit()
+            
+            # Log tag creation
+            AuditService.log_action(
+                action_type=AuditActionType.PANEL_UPDATE,
+                action_description=f"Created tag '{data['tag_name']}' ({tag_type.value}) for version {version.version_number}",
+                user_id=current_user.id,
+                resource_type='panel_version_tag',
+                resource_id=tag.id,
+                details={
+                    'panel_id': panel_id,
+                    'version_id': version_id,
+                    'tag_name': data['tag_name'],
+                    'tag_type': tag_type.value,
+                    'is_protected': tag.is_protected
+                }
+            )
+            
+            return jsonify({
+                'message': 'Tag created successfully',
+                'tag': tag.to_dict()
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creating tag: {e}")
+            return jsonify({'error': f'Failed to create tag: {str(e)}'}), 500
+
+
+@main_bp.route('/api/user/panels/<int:panel_id>/branches', methods=['GET', 'POST'])
+@login_required
+@limiter.limit("30 per minute")
+def api_panel_branches(panel_id):
+    """Get or create branches for a panel"""
+    
+    # Verify panel ownership
+    panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+    if not panel:
+        return jsonify({'error': 'Panel not found or access denied'}), 404
+    
+    if request.method == 'GET':
+        """Get all branches for a panel"""
+        try:
+            branches = PanelVersionBranch.query.filter_by(panel_id=panel_id)\
+                .order_by(desc(PanelVersionBranch.created_at)).all()
+            
+            return jsonify({
+                'branches': [branch.to_dict() for branch in branches]
+            }), 200
+        except Exception as e:
+            logger.error(f"Error getting branches for panel {panel_id}: {e}")
+            return jsonify({'error': 'Failed to retrieve branches'}), 500
+    
+    elif request.method == 'POST':
+        """Create a new branch"""
+        try:
+            data = request.get_json()
+            
+            if not data or 'branch_name' not in data or 'from_version_id' not in data:
+                return jsonify({'error': 'branch_name and from_version_id are required'}), 400
+            
+            # Verify source version
+            from_version = PanelVersion.query.get(data['from_version_id'])
+            if not from_version or from_version.panel_id != panel_id:
+                return jsonify({'error': 'Invalid source version'}), 400
+            
+            # Check for duplicate branch name
+            existing_branch = PanelVersionBranch.query.filter_by(
+                panel_id=panel_id,
+                branch_name=data['branch_name']
+            ).first()
+            if existing_branch:
+                return jsonify({'error': f'Branch "{data["branch_name"]}" already exists'}), 409
+            
+            # Use version control service to create branch
+            vc_service = VersionControlService()
+            branch_version = vc_service.create_branch(
+                panel_id=panel_id,
+                from_version_id=data['from_version_id'],
+                branch_name=data['branch_name'],
+                user_id=current_user.id,
+                description=data.get('description')
+            )
+            
+            # Get the created branch
+            branch = PanelVersionBranch.query.filter_by(
+                panel_id=panel_id,
+                branch_name=data['branch_name']
+            ).first()
+            
+            return jsonify({
+                'message': 'Branch created successfully',
+                'branch': branch.to_dict(),
+                'branch_version': branch_version.to_dict()
+            }), 201
+            
+        except VersionControlError as e:
+            logger.error(f"Version control error creating branch: {e}")
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creating branch: {e}")
+            return jsonify({'error': f'Failed to create branch: {str(e)}'}), 500
+
+
+@main_bp.route('/api/user/panels/<int:panel_id>/versions/<int:version_id>/diff/<int:other_version_id>')
+@login_required
+@limiter.limit("20 per minute")
+def api_version_diff(panel_id, version_id, other_version_id):
+    """Get differences between two versions"""
+    
+    # Verify panel ownership
+    panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+    if not panel:
+        return jsonify({'error': 'Panel not found or access denied'}), 404
+    
+    try:
+        # Verify both versions exist
+        version1 = PanelVersion.query.filter_by(id=version_id, panel_id=panel_id).first()
+        version2 = PanelVersion.query.filter_by(id=other_version_id, panel_id=panel_id).first()
+        
+        if not version1 or not version2:
+            return jsonify({'error': 'One or both versions not found'}), 404
+        
+        # Use version control service to get diff
+        vc_service = VersionControlService()
+        diff = vc_service.get_version_diff(version_id, other_version_id)
+        
+        return jsonify(diff), 200
+        
+    except VersionControlError as e:
+        logger.error(f"Version control error getting diff: {e}")
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error getting version diff: {e}")
+        return jsonify({'error': 'Failed to get version diff'}), 500
+
+
+@main_bp.route('/api/user/panels/<int:panel_id>/merge', methods=['POST'])
+@login_required
+@limiter.limit("3 per minute")
+def api_merge_versions(panel_id):
+    """Merge two versions"""
+    
+    # Verify panel ownership
+    panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+    if not panel:
+        return jsonify({'error': 'Panel not found or access denied'}), 404
+    
+    try:
+        data = request.get_json()
+        
+        if not data or 'source_version_id' not in data or 'target_version_id' not in data:
+            return jsonify({'error': 'source_version_id and target_version_id are required'}), 400
+        
+        # Validate merge strategy
+        strategy_str = data.get('strategy', 'auto').upper()
+        try:
+            strategy = MergeStrategy(strategy_str)
+        except ValueError:
+            return jsonify({'error': f'Invalid merge strategy: {strategy_str}'}), 400
+        
+        # Use version control service to perform merge
+        vc_service = VersionControlService()
+        
+        try:
+            merged_version = vc_service.merge_versions(
+                panel_id=panel_id,
+                source_version_id=data['source_version_id'],
+                target_version_id=data['target_version_id'],
+                user_id=current_user.id,
+                strategy=strategy,
+                conflict_resolutions=data.get('conflict_resolutions'),
+                comment=data.get('comment')
+            )
+            
+            return jsonify({
+                'success': True,
+                'merged_version': merged_version.to_dict(),
+                'message': f'Successfully merged versions {data["source_version_id"]} and {data["target_version_id"]}'
+            }), 200
+            
+        except BranchConflictError as e:
+            return jsonify({'error': str(e), 'conflicts': True}), 409
+            
+    except VersionControlError as e:
+        logger.error(f"Version control error during merge: {e}")
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error merging versions: {e}")
+        return jsonify({'error': 'Failed to merge versions'}), 500
+
+
+@main_bp.route('/api/user/panels/<int:panel_id>/retention-policy', methods=['GET', 'PUT'])
+@login_required
+@limiter.limit("30 per minute")
+def api_retention_policy(panel_id):
+    """Get or update retention policy for a panel"""
+    
+    # Verify panel ownership
+    panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+    if not panel:
+        return jsonify({'error': 'Panel not found or access denied'}), 404
+    
+    if request.method == 'GET':
+        """Get retention policy"""
+        try:
+            policy = PanelRetentionPolicy.query.filter_by(panel_id=panel_id).first()
+            if not policy:
+                # Create default policy
+                policy = PanelRetentionPolicy(
+                    panel_id=panel_id,
+                    created_by_id=current_user.id
+                )
+                db.session.add(policy)
+                db.session.commit()
+            
+            return jsonify({'policy': policy.to_dict()}), 200
+            
+        except Exception as e:
+            logger.error(f"Error getting retention policy for panel {panel_id}: {e}")
+            return jsonify({'error': 'Failed to retrieve retention policy'}), 500
+    
+    elif request.method == 'PUT':
+        """Update retention policy"""
+        try:
+            data = request.get_json()
+            
+            policy = PanelRetentionPolicy.query.filter_by(panel_id=panel_id).first()
+            if not policy:
+                # Create new policy
+                policy = PanelRetentionPolicy(
+                    panel_id=panel_id,
+                    created_by_id=current_user.id
+                )
+                db.session.add(policy)
+            
+            # Update policy fields
+            if 'max_versions' in data:
+                policy.max_versions = data['max_versions']
+            if 'backup_retention_days' in data:
+                policy.backup_retention_days = data['backup_retention_days']
+            if 'keep_tagged_versions' in data:
+                policy.keep_tagged_versions = data['keep_tagged_versions']
+            if 'keep_production_tags' in data:
+                policy.keep_production_tags = data['keep_production_tags']
+            if 'auto_cleanup_enabled' in data:
+                policy.auto_cleanup_enabled = data['auto_cleanup_enabled']
+            if 'cleanup_frequency_hours' in data:
+                policy.cleanup_frequency_hours = data['cleanup_frequency_hours']
+            
+            policy.updated_at = datetime.datetime.now()
+            db.session.commit()
+            
+            # Log policy update
+            AuditService.log_action(
+                action_type=AuditActionType.PANEL_UPDATE,
+                action_description=f"Updated retention policy for panel '{panel.name}'",
+                user_id=current_user.id,
+                resource_type='retention_policy',
+                resource_id=policy.id,
+                details={
+                    'panel_id': panel_id,
+                    'policy_id': policy.id,
+                    'changes': list(data.keys())
+                }
+            )
+            
+            return jsonify({
+                'message': 'Retention policy updated successfully',
+                'policy': policy.to_dict()
+            }), 200
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error updating retention policy: {e}")
+            return jsonify({'error': 'Failed to update retention policy'}), 500
+
+
+@main_bp.route('/api/user/panels/<int:panel_id>/cleanup', methods=['POST'])
+@login_required
+@limiter.limit("2 per hour")
+def api_retention_cleanup(panel_id):
+    """Manually run retention cleanup for a panel"""
+    
+    # Verify panel ownership
+    panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+    if not panel:
+        return jsonify({'error': 'Panel not found or access denied'}), 404
+    
+    try:
+        # Use version control service to apply retention
+        vc_service = VersionControlService()
+        vc_service.retention_policy.apply_retention(panel_id)
+        
+        # Update policy timestamp
+        policy = PanelRetentionPolicy.query.filter_by(panel_id=panel_id).first()
+        if policy:
+            policy.update_cleanup_timestamp()
+            db.session.commit()
+        
+        # Log cleanup operation
+        AuditService.log_action(
+            action_type=AuditActionType.PANEL_UPDATE,
+            action_description=f"Manually ran retention cleanup for panel '{panel.name}'",
+            user_id=current_user.id,
+            resource_type='panel',
+            resource_id=panel_id,
+            details={
+                'panel_id': panel_id,
+                'triggered_by': 'manual',
+                'user_id': current_user.id
+            }
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Retention cleanup completed successfully',
+            'timestamp': datetime.datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error running retention cleanup: {e}")
+        return jsonify({'error': 'Failed to run retention cleanup'}), 500
+
+
+@main_bp.route('/api/user/panels/<int:panel_id>/versions/<int:version_id>/restore', methods=['POST'])
+@login_required
+@limiter.limit("3 per hour")
+def api_restore_version(panel_id, version_id):
+    """Restore a panel to a specific version
+    
+    Note: version_id in the URL can be either the database ID or version_number.
+    The function will try both to maintain compatibility.
+    """
+    
+    # Verify panel ownership
+    panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).first()
+    if not panel:
+        logger.error(f"Panel {panel_id} not found or access denied for user {current_user.id}")
+        return jsonify({'error': 'Panel not found or access denied'}), 404
+    
+    # Try to find version by ID first, then by version_number
+    version = PanelVersion.query.filter_by(id=version_id, panel_id=panel_id).first()
+    if not version:
+        # Try finding by version_number instead
+        version = PanelVersion.query.filter_by(version_number=version_id, panel_id=panel_id).first()
+        if not version:
+            logger.error(f"Version {version_id} not found for panel {panel_id}")
+            return jsonify({'error': 'Version not found'}), 404
+    
+    try:
+        logger.info(f"User {current_user.id} is restoring panel {panel_id} to version {version.id} (version_number: {version.version_number})")
+        data = request.get_json() or {}
+        create_backup = data.get('create_backup', True)
+        
+        # Use version control service to restore
+        # IMPORTANT: Pass version.id (database ID) not version_id from URL
+        vc_service = VersionControlService()
+        restored_version = vc_service.restore_version(
+            panel_id=panel_id,
+            version_id=version.id,  # Use the database ID, not the URL parameter
+            user_id=current_user.id,
+            create_backup=create_backup
+        )
+        
+        return jsonify({
+            'success': True,
+            'restored_version': restored_version.to_dict(),
+            'message': f'Successfully restored to version {version.version_number}',
+            'backup_created': create_backup
+        }), 200
+        
+    except VersionControlError as e:
+        logger.error(f"Version control error during restore: {e}")
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error restoring version: {e}")
+        return jsonify({'error': 'Failed to restore version'}), 500

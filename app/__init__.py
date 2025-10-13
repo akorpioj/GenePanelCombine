@@ -117,17 +117,7 @@ def create_app(config_name=None):
     from .auth import auth_bp  # Register the new auth blueprint
     app.register_blueprint(auth_bp)
 
-    # Register API blueprint with Swagger documentation
-    from .api import api_bp
-    app.register_blueprint(api_bp)
-
-    # Register timezone API
-    from .api.timezone import timezone_bp
-    app.register_blueprint(timezone_bp)
-
     # You could register other Blueprints here
-    # from .api import api_bp
-    # app.register_blueprint(api_bp, url_prefix='/api/v1')
 
     # Application-level error handlers (optional, but good practice)
     @app.errorhandler(404)
