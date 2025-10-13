@@ -74,11 +74,40 @@ class User(UserMixin, db.Model):
     # Relationship to track user downloads
     downloads = db.relationship('PanelDownload', backref='user', lazy=True)
 
-    def set_password(self, password):
+    def set_password(self, password, add_to_history=True):
+        """
+        Set user password and optionally add to password history
+        
+        Args:
+            password: Plain text password
+            add_to_history: Whether to add this password to history (default: True)
+        """
         self.password_hash = generate_password_hash(password)
+        
+        # Add to password history if requested and user has an ID
+        if add_to_history and self.id:
+            from .config_settings import DevelopmentConfig
+            max_history = int(os.getenv('PASSWORD_HISTORY_LENGTH', 5))
+            PasswordHistory.add_password(self.id, self.password_hash, max_history)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def check_password_reuse(self, password):
+        """
+        Check if password has been used recently
+        
+        Args:
+            password: Plain text password to check
+            
+        Returns:
+            bool: True if password was used recently (should reject), False otherwise
+        """
+        if not self.id:
+            return False
+        
+        max_history = int(os.getenv('PASSWORD_HISTORY_LENGTH', 5))
+        return PasswordHistory.check_password_reuse(self.id, password, max_history)
     
     def get_full_name(self):
         """Get user's full name"""
@@ -160,6 +189,78 @@ class User(UserMixin, db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
+
+
+class PasswordHistory(db.Model):
+    """
+    Model to store password history for users
+    Prevents password reuse by keeping track of previous passwords
+    """
+    __tablename__ = 'password_history'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('password_history', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<PasswordHistory user_id={self.user_id} created_at={self.created_at}>'
+    
+    @staticmethod
+    def add_password(user_id, password_hash, max_history=5):
+        """
+        Add a password to the history and maintain the configured history length
+        
+        Args:
+            user_id: ID of the user
+            password_hash: Hashed password to store
+            max_history: Maximum number of passwords to keep (default: 5)
+        """
+        # Add new password to history
+        history_entry = PasswordHistory(
+            user_id=user_id,
+            password_hash=password_hash
+        )
+        db.session.add(history_entry)
+        
+        # Clean up old passwords beyond the limit
+        all_passwords = PasswordHistory.query.filter_by(user_id=user_id).order_by(
+            PasswordHistory.created_at.desc()
+        ).all()
+        
+        if len(all_passwords) > max_history:
+            # Delete oldest passwords
+            for old_password in all_passwords[max_history:]:
+                db.session.delete(old_password)
+        
+        db.session.commit()
+    
+    @staticmethod
+    def check_password_reuse(user_id, password, max_history=5):
+        """
+        Check if a password has been used recently
+        
+        Args:
+            user_id: ID of the user
+            password: Plain text password to check
+            max_history: Number of recent passwords to check against
+            
+        Returns:
+            bool: True if password was used recently (should be rejected), False otherwise
+        """
+        recent_passwords = PasswordHistory.query.filter_by(user_id=user_id).order_by(
+            PasswordHistory.created_at.desc()
+        ).limit(max_history).all()
+        
+        for history_entry in recent_passwords:
+            if check_password_hash(history_entry.password_hash, password):
+                return True
+        
+        return False
+
 
 class Visit(db.Model):
     id = db.Column(db.Integer, primary_key=True)

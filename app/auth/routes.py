@@ -8,6 +8,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 import datetime
 import re
+import os
 from . import auth_bp
 from ..models import db, User, UserRole, AuditActionType
 from ..extensions import limiter
@@ -99,10 +100,16 @@ def register():
                 is_active=True,
                 is_verified=False  # Email not verified yet
             )
-            user.set_password(password)
+            # Set initial password without adding to history (first password)
+            user.set_password(password, add_to_history=False)
             
             db.session.add(user)
             db.session.commit()
+            
+            # Now add the first password to history after user has an ID
+            from ..models import PasswordHistory
+            max_history = int(os.getenv('PASSWORD_HISTORY_LENGTH', 5))
+            PasswordHistory.add_password(user.id, user.password_hash, max_history)
             
             # Log successful registration with GDPR consent information
             AuditService.log_registration(username, email, success=True)
@@ -473,6 +480,11 @@ def change_password():
         if new_password != confirm_password:
             errors.append("New passwords do not match")
         
+        # Check for password reuse
+        if new_password and current_user.check_password_reuse(new_password):
+            max_history = int(os.getenv('PASSWORD_HISTORY_LENGTH', 5))
+            errors.append(f"You cannot reuse any of your last {max_history} passwords. Please choose a different password.")
+        
         if errors:
             for error in errors:
                 flash(error, 'error')
@@ -480,7 +492,7 @@ def change_password():
         
         try:
             # Update password
-            current_user.set_password(new_password)
+            current_user.set_password(new_password, add_to_history=True)
             db.session.commit()
             
             # Revoke all other sessions for security
@@ -1258,6 +1270,11 @@ def reset_password(token):
         if password != confirm_password:
             errors.append("Passwords do not match")
         
+        # Check for password reuse
+        if password and user.check_password_reuse(password):
+            max_history = int(os.getenv('PASSWORD_HISTORY_LENGTH', 5))
+            errors.append(f"You cannot reuse any of your last {max_history} passwords. Please choose a different password.")
+        
         if errors:
             for error in errors:
                 flash(error, 'error')
@@ -1265,7 +1282,7 @@ def reset_password(token):
         
         # Update password
         try:
-            user.set_password(password)
+            user.set_password(password, add_to_history=True)
             db.session.commit()
             
             # Log successful password reset

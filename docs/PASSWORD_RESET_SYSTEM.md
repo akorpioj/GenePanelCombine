@@ -649,14 +649,18 @@ Works with existing security features:
 - Session security
 - CSRF protection
 
+## Implemented Enhancements
+
+1. ✅ **Password History** (Implemented October 13, 2025):
+   - Prevents password reuse (last 5 passwords by default)
+   - Stores hashed password history using bcrypt
+   - Configurable history length via `PASSWORD_HISTORY_LENGTH`
+   - Automatic cleanup of old entries
+   - See `PASSWORD_HISTORY_IMPLEMENTATION.md` for details
+
 ## Future Enhancements
 
-1. **Password History**:
-   - Prevent password reuse
-   - Store hashed password history
-   - Configurable history length
-
-2. **Password Strength Meter**:
+1. **Password Strength Meter**:
    - Visual indicator while typing
    - Real-time feedback
    - Suggestions for improvement
