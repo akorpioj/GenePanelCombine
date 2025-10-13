@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Unlock User Account - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            <svg class="inline-block w-8 h-8 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+            </svg>
+            Unlock User Account
+        </h1>
+        <p class="text-gray-600">Unlock accounts that have been locked due to failed password reset attempts</p>
+    </div>
+
+    <!-- Navigation -->
+    <div class="mb-6 flex space-x-4">
+        <a href="{{ url_for('auth.admin_users') }}" 
+           class="text-blue-600 hover:text-blue-800 font-medium transition-colors">
+            ← Back to User Management
+        </a>
+        <a href="{{ url_for('auth.admin_reset_user_password') }}" 
+           class="text-orange-600 hover:text-orange-800 font-medium transition-colors">
+            Reset User Password
+        </a>
+    </div>
+
+    <!-- Security Warning -->
+    <div class="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-yellow-700">
+                    <strong class="font-medium">Security Notice:</strong> 
+                    Before unlocking an account, verify the user's identity and confirm the lockout was not 
+                    triggered by malicious activity. Check the audit logs for suspicious behavior.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {% if locked_users %}
+    <!-- Locked Users List -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 bg-red-50 border-b border-red-200">
+            <h3 class="text-lg leading-6 font-medium text-red-900">
+                Locked User Accounts ({{ locked_users|length }})
+            </h3>
+            <p class="mt-1 text-sm text-red-700">
+                These accounts are currently locked due to failed password reset attempts
+            </p>
+        </div>
+        
+        <div class="border-t border-gray-200">
+            <ul class="divide-y divide-gray-200">
+                {% for user in locked_users %}
+                <li class="px-4 py-4 hover:bg-gray-50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-10 w-10 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ user.username }}
+                                        {% if user.role.name == 'ADMIN' %}
+                                        <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                            Admin
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ user.email }}
+                                    </div>
+                                    <div class="mt-1 text-xs text-gray-500">
+                                        <strong>Name:</strong> {{ user.get_full_name() or 'N/A' }}
+                                        {% if user.organization %}
+                                        | <strong>Organization:</strong> {{ user.organization }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Lockout Details -->
+                            <div class="mt-2 ml-14">
+                                <div class="flex items-start space-x-4 text-xs">
+                                    <div class="bg-red-100 px-2 py-1 rounded">
+                                        <span class="text-red-800">
+                                            <strong>Failed Attempts:</strong> {{ user.failed_reset_attempts }}
+                                        </span>
+                                    </div>
+                                    
+                                    {% if user.reset_locked_by_admin %}
+                                    <div class="bg-orange-100 px-2 py-1 rounded">
+                                        <span class="text-orange-800">
+                                            <strong>Type:</strong> Admin Locked (Permanent)
+                                        </span>
+                                    </div>
+                                    {% elif user.reset_locked_until %}
+                                    <div class="bg-yellow-100 px-2 py-1 rounded">
+                                        <span class="text-yellow-800">
+                                            <strong>Locked Until:</strong> {{ user.reset_locked_until.strftime('%Y-%m-%d %H:%M UTC') }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Unlock Button -->
+                        <div class="ml-4 flex-shrink-0">
+                            <form method="POST" action="{{ url_for('auth.admin_unlock_account') }}" 
+                                  onsubmit="return confirm('Are you sure you want to unlock this account?\n\nUser: {{ user.username }}\nEmail: {{ user.email }}\n\nMake sure you have verified the user\'s identity before proceeding.');"
+                                  class="inline">
+                                <input type="hidden" name="user_id" value="{{ user.id }}">
+                                <button type="submit" 
+                                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                                    </svg>
+                                    Unlock Account
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Locked Users -->
+    <div class="bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6 text-center">
+            <svg class="mx-auto h-12 w-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 class="mt-2 text-lg font-medium text-gray-900">No Locked Accounts</h3>
+            <p class="mt-1 text-sm text-gray-500">
+                There are currently no user accounts locked due to failed password reset attempts.
+            </p>
+            <div class="mt-6">
+                <a href="{{ url_for('auth.admin_users') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Back to User Management
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Information Box -->
+    <div class="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">Account Lockout Information</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>Accounts are automatically locked after {{ config.ACCOUNT_LOCKOUT_THRESHOLD }} failed password reset attempts</li>
+                        <li>Automatic lockouts expire after {{ config.ACCOUNT_LOCKOUT_DURATION }} hours</li>
+                        <li>Admin-initiated lockouts are permanent until manually unlocked</li>
+                        <li>Unlocking an account will reset the failed attempt counter</li>
+                        <li>All actions are logged in the audit trail</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

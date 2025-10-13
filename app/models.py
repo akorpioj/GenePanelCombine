@@ -68,6 +68,11 @@ class User(UserMixin, db.Model):
     locked_until = db.Column(db.DateTime)
     force_password_change = db.Column(db.Boolean, default=False, nullable=False)  # Admin can force password change
     
+    # Account lockout fields for password reset abuse
+    failed_reset_attempts = db.Column(db.Integer, default=0, nullable=False)  # Track failed password reset attempts
+    reset_locked_until = db.Column(db.DateTime)  # Lockout expiration for password resets
+    reset_locked_by_admin = db.Column(db.Boolean, default=False, nullable=False)  # Requires admin intervention
+    
     # User preferences
     timezone_preference = db.Column(db.String(50), default='UTC')  # IANA timezone name
     time_format_preference = db.Column(db.String(10), default='24h')  # '12h' or '24h'
@@ -137,6 +142,61 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         """Check if user is admin"""
         return self.role == UserRole.ADMIN
+    
+    # Account Lockout Methods for Password Reset
+    def increment_failed_resets(self):
+        """Increment failed password reset attempts counter"""
+        self.failed_reset_attempts = (self.failed_reset_attempts or 0) + 1
+    
+    def reset_failed_resets(self):
+        """Reset failed password reset attempts counter"""
+        self.failed_reset_attempts = 0
+        self.reset_locked_until = None
+        self.reset_locked_by_admin = False
+    
+    def is_reset_locked_out(self):
+        """
+        Check if account is locked out from password resets
+        
+        Returns:
+            bool: True if locked out, False otherwise
+        """
+        # Check if locked by admin (requires admin intervention)
+        if self.reset_locked_by_admin:
+            return True
+        
+        # Check if temporary lockout is still active
+        if self.reset_locked_until:
+            if datetime.datetime.now() < self.reset_locked_until:
+                return True
+            else:
+                # Lockout expired, clear it
+                self.reset_locked_until = None
+                self.failed_reset_attempts = 0
+                return False
+        
+        return False
+    
+    def lock_reset_account(self, duration_hours=24, by_admin=False):
+        """
+        Lock account from password resets
+        
+        Args:
+            duration_hours: Hours to lock account (default: 24)
+            by_admin: Whether lock requires admin intervention (default: False)
+        """
+        if by_admin:
+            self.reset_locked_by_admin = True
+            self.reset_locked_until = None  # Permanent until admin unlocks
+        else:
+            self.reset_locked_until = datetime.datetime.now() + datetime.timedelta(hours=duration_hours)
+            self.reset_locked_by_admin = False
+    
+    def unlock_reset_account(self):
+        """Unlock account (admin action)"""
+        self.reset_locked_until = None
+        self.reset_locked_by_admin = False
+        self.failed_reset_attempts = 0
     
     def get_timezone(self):
         """Get user's preferred timezone"""

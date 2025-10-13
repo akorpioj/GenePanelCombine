@@ -20,6 +20,10 @@ class Config:
     HSTS_MAX_AGE = int(os.getenv('HSTS_MAX_AGE', '31536000'))  # 1 year
     SESSION_TIMEOUT = int(os.getenv('SESSION_TIMEOUT', '3600'))  # 1 hour
     
+    # Account Lockout Configuration
+    ACCOUNT_LOCKOUT_THRESHOLD = int(os.getenv('ACCOUNT_LOCKOUT_THRESHOLD', '5'))  # Failed attempts before lockout
+    ACCOUNT_LOCKOUT_DURATION = int(os.getenv('ACCOUNT_LOCKOUT_DURATION', '24'))  # Hours to lock account
+    
     # Enhanced Session Configuration
     MAX_CONCURRENT_SESSIONS = int(os.getenv('MAX_CONCURRENT_SESSIONS', '5'))
     SESSION_ROTATION_INTERVAL = int(os.getenv('SESSION_ROTATION_INTERVAL', '1800'))  # 30 minutes

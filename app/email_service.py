@@ -480,6 +480,328 @@ The PanelMerge Team
             logger.error(f"Failed to send admin password reset email to {user_email}: {e}")
             return False
 
+    def send_account_locked_email(self, user_email: str, user_name: str) -> bool:
+        """
+        Send account locked notification email
+        
+        Args:
+            user_email: User's email address
+            user_name: User's name
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            subject = "Account Locked - Security Alert - PanelMerge"
+
+            text_body = f"""
+Hello {user_name},
+
+Your PanelMerge account has been temporarily locked for security reasons.
+
+Reason: Multiple failed password reset attempts
+
+Your account has been locked to protect it from unauthorized access. An administrator 
+has been notified and will review your account.
+
+What to do next:
+- Please contact an administrator to unlock your account
+- Verify that you were the one attempting to reset your password
+- If you did not initiate these password reset attempts, your account may be compromised
+
+Security Notice:
+This is an automated security measure to protect your account. If you believe this 
+was triggered in error, please contact support immediately.
+
+Best regards,
+The PanelMerge Team
+            """.strip()
+            
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #dc2626; color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 20px; background-color: #f9fafb; }}
+        .warning-box {{ background-color: #fef2f2; border-left: 4px solid #dc2626; 
+                        padding: 15px; margin: 20px 0; }}
+        .info-box {{ background-color: #eff6ff; border-left: 4px solid #3b82f6; 
+                     padding: 15px; margin: 20px 0; }}
+        .footer {{ text-align: center; color: #6b7280; padding: 20px; font-size: 12px; }}
+        ul {{ margin: 10px 0; padding-left: 20px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 Account Locked</h1>
+        </div>
+        <div class="content">
+            <p>Hello {user_name},</p>
+            
+            <div class="warning-box">
+                <strong>⚠️ Security Alert</strong><br>
+                Your PanelMerge account has been temporarily locked.
+            </div>
+            
+            <p><strong>Reason:</strong> Multiple failed password reset attempts</p>
+            
+            <p>Your account has been locked to protect it from unauthorized access. 
+            An administrator has been notified and will review your account.</p>
+            
+            <div class="info-box">
+                <strong>What to do next:</strong>
+                <ul>
+                    <li>Contact an administrator to unlock your account</li>
+                    <li>Verify that you were attempting to reset your password</li>
+                    <li>If you did not initiate these attempts, your account may be compromised</li>
+                </ul>
+            </div>
+            
+            <p><strong>Security Notice:</strong><br>
+            This is an automated security measure to protect your account. If you believe 
+            this was triggered in error, please contact support immediately.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 PanelMerge. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+            """.strip()
+            
+            return self.send_email(subject, user_email, text_body, html_body)
+            
+        except Exception as e:
+            logger.error(f"Failed to send account locked email to {user_email}: {e}")
+            return False
+
+    def send_admin_security_alert_email(self, admin_email: str, admin_name: str, 
+                                       locked_username: str, locked_email: str, 
+                                       failed_attempts: int) -> bool:
+        """
+        Send security alert email to administrators about locked account
+        
+        Args:
+            admin_email: Administrator's email address
+            admin_name: Administrator's name
+            locked_username: Username of the locked account
+            locked_email: Email of the locked account
+            failed_attempts: Number of failed attempts
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            subject = f"Security Alert: Account Locked - {locked_username} - PanelMerge"
+
+            text_body = f"""
+Hello {admin_name},
+
+SECURITY ALERT: A user account has been automatically locked due to suspicious activity.
+
+Account Details:
+- Username: {locked_username}
+- Email: {locked_email}
+- Failed Attempts: {failed_attempts}
+- Action Taken: Account locked for password reset
+
+This is an automated security measure. The user has been notified and instructed to 
+contact an administrator.
+
+Admin Actions Available:
+1. Review the audit logs for this account
+2. Contact the user to verify their identity
+3. Unlock the account if the activity was legitimate
+4. Investigate further if the activity appears suspicious
+
+To unlock the account, visit the Admin Unlock Account page in PanelMerge.
+
+Best regards,
+The PanelMerge Security System
+            """.strip()
+            
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #dc2626; color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 20px; background-color: #f9fafb; }}
+        .alert-box {{ background-color: #fef2f2; border: 2px solid #dc2626; 
+                      padding: 15px; margin: 20px 0; }}
+        .details-box {{ background-color: #fff; border: 1px solid #d1d5db; 
+                        padding: 15px; margin: 20px 0; }}
+        .action-box {{ background-color: #eff6ff; border-left: 4px solid #3b82f6; 
+                       padding: 15px; margin: 20px 0; }}
+        .footer {{ text-align: center; color: #6b7280; padding: 20px; font-size: 12px; }}
+        ul {{ margin: 10px 0; padding-left: 20px; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        td {{ padding: 8px; border-bottom: 1px solid #e5e7eb; }}
+        td:first-child {{ font-weight: bold; width: 40%; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Security Alert</h1>
+        </div>
+        <div class="content">
+            <p>Hello {admin_name},</p>
+            
+            <div class="alert-box">
+                <strong>⚠️ SECURITY ALERT</strong><br>
+                A user account has been automatically locked due to suspicious activity.
+            </div>
+            
+            <div class="details-box">
+                <strong>Account Details:</strong>
+                <table>
+                    <tr>
+                        <td>Username:</td>
+                        <td>{locked_username}</td>
+                    </tr>
+                    <tr>
+                        <td>Email:</td>
+                        <td>{locked_email}</td>
+                    </tr>
+                    <tr>
+                        <td>Failed Attempts:</td>
+                        <td>{failed_attempts}</td>
+                    </tr>
+                    <tr>
+                        <td>Action Taken:</td>
+                        <td>Account locked for password reset</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <p>This is an automated security measure. The user has been notified and 
+            instructed to contact an administrator.</p>
+            
+            <div class="action-box">
+                <strong>Admin Actions Available:</strong>
+                <ul>
+                    <li>Review the audit logs for this account</li>
+                    <li>Contact the user to verify their identity</li>
+                    <li>Unlock the account if the activity was legitimate</li>
+                    <li>Investigate further if the activity appears suspicious</li>
+                </ul>
+            </div>
+            
+            <p>To unlock the account, visit the <strong>Admin Unlock Account</strong> 
+            page in PanelMerge.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 PanelMerge Security System. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+            """.strip()
+            
+            return self.send_email(subject, admin_email, text_body, html_body)
+            
+        except Exception as e:
+            logger.error(f"Failed to send admin security alert email to {admin_email}: {e}")
+            return False
+
+    def send_account_unlocked_email(self, user_email: str, user_name: str, admin_name: str) -> bool:
+        """
+        Send account unlocked notification email
+        
+        Args:
+            user_email: User's email address
+            user_name: User's name
+            admin_name: Name of admin who unlocked the account
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            subject = "Account Unlocked - PanelMerge"
+
+            text_body = f"""
+Hello {user_name},
+
+Your PanelMerge account has been unlocked by an administrator ({admin_name}).
+
+You can now log in and use the password reset feature again if needed.
+
+Security Reminder:
+- Use a strong, unique password
+- Do not share your password with anyone
+- Contact support if you experience any issues
+
+If you did not request this unlock, please contact an administrator immediately.
+
+Best regards,
+The PanelMerge Team
+            """.strip()
+            
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #10b981; color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 20px; background-color: #f9fafb; }}
+        .success-box {{ background-color: #d1fae5; border-left: 4px solid #10b981; 
+                        padding: 15px; margin: 20px 0; }}
+        .info-box {{ background-color: #eff6ff; border-left: 4px solid #3b82f6; 
+                     padding: 15px; margin: 20px 0; }}
+        .footer {{ text-align: center; color: #6b7280; padding: 20px; font-size: 12px; }}
+        ul {{ margin: 10px 0; padding-left: 20px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✅ Account Unlocked</h1>
+        </div>
+        <div class="content">
+            <p>Hello {user_name},</p>
+            
+            <div class="success-box">
+                <strong>Good News!</strong><br>
+                Your PanelMerge account has been unlocked by an administrator ({admin_name}).
+            </div>
+            
+            <p>You can now log in and use the password reset feature again if needed.</p>
+            
+            <div class="info-box">
+                <strong>Security Reminder:</strong>
+                <ul>
+                    <li>Use a strong, unique password</li>
+                    <li>Do not share your password with anyone</li>
+                    <li>Contact support if you experience any issues</li>
+                </ul>
+            </div>
+            
+            <p><strong>Important:</strong> If you did not request this unlock, 
+            please contact an administrator immediately.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 PanelMerge. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+            """.strip()
+            
+            return self.send_email(subject, user_email, text_body, html_body)
+            
+        except Exception as e:
+            logger.error(f"Failed to send account unlocked email to {user_email}: {e}")
+            return False
+
 
 # Global instance
 email_service = EmailService()

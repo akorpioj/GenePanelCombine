@@ -713,6 +713,87 @@ def admin_reset_user_password():
     users = User.query.filter(User.id != current_user.id).order_by(User.username).all()
     return render_template('auth/admin_reset_password.html', users=users)
 
+@auth_bp.route('/admin/unlock-account', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_unlock_account():
+    """Admin can unlock user accounts that have been locked due to failed password reset attempts"""
+    if request.method == 'POST':
+        user_id = request.form.get('user_id')
+        
+        if not user_id:
+            flash('User ID is required', 'error')
+            return redirect(url_for('auth.admin_unlock_account'))
+        
+        try:
+            user = User.query.get(int(user_id))
+            if not user:
+                flash('User not found', 'error')
+                return redirect(url_for('auth.admin_unlock_account'))
+            
+            # Check if account is actually locked
+            if not user.is_reset_locked_out():
+                flash(f'{user.username} is not currently locked.', 'info')
+                return redirect(url_for('auth.admin_unlock_account'))
+            
+            # Unlock the account
+            user.unlock_reset_account()
+            db.session.commit()
+            
+            # Log admin action
+            AuditService.log_action(
+                action_type=AuditActionType.ADMIN_ACTION,
+                user_id=current_user.id,
+                action_description=f'Admin {current_user.username} unlocked account for user {user.username}',
+                resource_type='user',
+                resource_id=str(user.id),
+                details={
+                    'target_user': user.username,
+                    'target_email': user.email,
+                    'admin_user': current_user.username,
+                    'admin_id': current_user.id
+                }
+            )
+            
+            # Send email notification to user
+            try:
+                from ..email_service import email_service
+                email_service.send_account_unlocked_email(
+                    user.email, 
+                    user.get_full_name() or user.username,
+                    current_user.username
+                )
+                email_sent = True
+            except Exception as e:
+                current_app.logger.error(f"Failed to send unlock notification email: {e}")
+                email_sent = False
+            
+            if email_sent:
+                flash(f'Account unlocked for {user.username}. User has been notified by email.', 'success')
+            else:
+                flash(f'Account unlocked for {user.username}. (Email notification failed)', 'success')
+            
+            return redirect(url_for('auth.admin_unlock_account'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Admin unlock account error: {e}")
+            flash('Failed to unlock account. Please try again.', 'error')
+            return redirect(url_for('auth.admin_unlock_account'))
+    
+    # GET request - show form with locked users
+    locked_users = User.query.filter(
+        db.or_(
+            User.reset_locked_until.isnot(None),
+            User.reset_locked_by_admin == True
+        )
+    ).order_by(User.username).all()
+    
+    # Filter to only show actually locked users (check expiration)
+    locked_users = [user for user in locked_users if user.is_reset_locked_out()]
+    
+    return render_template('auth/admin_unlock_account.html', locked_users=locked_users)
+
 @auth_bp.route('/admin/users')
 @login_required
 def admin_users():
@@ -1394,6 +1475,21 @@ def forgot_password():
             )
             return render_template('auth/forgot_password.html')
         
+        # Check if account is locked
+        if user.is_reset_locked_out():
+            flash('Your account has been locked due to multiple failed password reset attempts. Please contact an administrator.', 'error')
+            AuditService.log_action(
+                action_type=AuditActionType.PASSWORD_RESET,
+                action_description=f"Password reset attempted on locked account: {user.username}",
+                resource_type="user",
+                resource_id=user.username,
+                details={
+                    "locked_until": user.reset_locked_until.isoformat() if user.reset_locked_until else None,
+                    "locked_by_admin": user.reset_locked_by_admin
+                }
+            )
+            return render_template('auth/account_locked.html', user=user)
+        
         # Send password reset email
         from ..email_service import email_service
         email_sent = email_service.send_password_reset_email(user.email, user.get_full_name() or user.username)
@@ -1441,6 +1537,21 @@ def reset_password(token):
         flash('User not found.', 'error')
         return redirect(url_for('auth.forgot_password'))
     
+    # Check if account is locked
+    if user.is_reset_locked_out():
+        flash('Your account has been locked due to multiple failed password reset attempts. Please contact an administrator.', 'error')
+        AuditService.log_action(
+            action_type=AuditActionType.PASSWORD_RESET,
+            action_description=f"Password reset attempted on locked account: {user.username}",
+            resource_type="user",
+            resource_id=user.username,
+            details={
+                "locked_until": user.reset_locked_until.isoformat() if user.reset_locked_until else None,
+                "locked_by_admin": user.reset_locked_by_admin
+            }
+        )
+        return render_template('auth/account_locked.html', user=user)
+    
     if request.method == 'POST':
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
@@ -1464,6 +1575,63 @@ def reset_password(token):
             errors.append(f"You cannot reuse any of your last {max_history} passwords. Please choose a different password.")
         
         if errors:
+            # Increment failed reset attempts
+            user.increment_failed_resets()
+            db.session.commit()
+            
+            # Get lockout threshold from environment
+            lockout_threshold = int(os.getenv('ACCOUNT_LOCKOUT_THRESHOLD', 5))
+            lockout_duration = int(os.getenv('ACCOUNT_LOCKOUT_DURATION', 24))
+            
+            # Check if we should lock the account
+            if user.failed_reset_attempts >= lockout_threshold:
+                # Lock the account
+                user.lock_reset_account(duration_hours=lockout_duration, by_admin=False)
+                db.session.commit()
+                
+                # Send notifications
+                email_service.send_account_locked_email(user.email, user.get_full_name() or user.username)
+                
+                # Alert admins (but don't lock admin accounts)
+                if not user.is_admin():
+                    admin_users = User.query.filter_by(role=UserRole.ADMIN).all()
+                    for admin in admin_users:
+                        email_service.send_admin_security_alert_email(
+                            admin.email,
+                            admin.get_full_name() or admin.username,
+                            user.username,
+                            user.email,
+                            user.failed_reset_attempts
+                        )
+                
+                # Log lockout
+                AuditService.log_action(
+                    action_type=AuditActionType.PASSWORD_RESET,
+                    action_description=f"Account locked due to {user.failed_reset_attempts} failed password reset attempts: {user.username}",
+                    resource_type="user",
+                    resource_id=user.username,
+                    details={
+                        "failed_attempts": user.failed_reset_attempts,
+                        "lockout_duration_hours": lockout_duration,
+                        "locked_until": user.reset_locked_until.isoformat() if user.reset_locked_until else None
+                    }
+                )
+                
+                flash('Your account has been locked due to multiple failed password reset attempts. An administrator has been notified.', 'error')
+                return render_template('auth/account_locked.html', user=user)
+            else:
+                # Log failed attempt
+                AuditService.log_action(
+                    action_type=AuditActionType.PASSWORD_RESET,
+                    action_description=f"Failed password reset attempt ({user.failed_reset_attempts}/{lockout_threshold}): {user.username}",
+                    resource_type="user",
+                    resource_id=user.username,
+                    details={
+                        "failed_attempts": user.failed_reset_attempts,
+                        "threshold": lockout_threshold
+                    }
+                )
+            
             for error in errors:
                 flash(error, 'error')
             return render_template('auth/reset_password.html', token=token)
@@ -1471,6 +1639,8 @@ def reset_password(token):
         # Update password
         try:
             user.set_password(password, add_to_history=True)
+            # Reset failed attempts on successful password reset
+            user.reset_failed_resets()
             db.session.commit()
             
             # Log successful password reset

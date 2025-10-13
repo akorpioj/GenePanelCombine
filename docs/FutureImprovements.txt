@@ -117,6 +117,15 @@
    - Generates secure temporary password
    - Terminates all user sessions
    - Email notification with temporary password
+- ✅ IMPLEMENTED: **Account Lockout**: 13/10/2025
+   - Lock account after multiple failed reset attempts
+   - Configurable threshold (default: 5 attempts)
+   - Configurable duration (default: 24 hours)
+   - Email notifications to users and admins
+   - Admin interface to unlock accounts
+   - Comprehensive audit trail
+   - Automatic expiration for time-based locks
+   - Admin accounts not locked (but alerted)
 - **Two-Factor Authentication**: Enhanced login security with 2FA
 - **OAuth Integration**: Login with Google, GitHub, and other providers
 - **Hardware Security Modules**: HSM integration for key storage

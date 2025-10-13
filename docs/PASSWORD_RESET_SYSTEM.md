@@ -267,6 +267,26 @@ The PanelMerge Team
    - But password change makes user validate credentials again
    - Consider adding token invalidation table for extra security
 
+### Account Lockout Protection
+
+**NEW:** The system now includes automatic account lockout after multiple failed password reset attempts.
+
+**Features:**
+- Tracks failed password reset attempts per user
+- Automatically locks accounts after threshold (default: 5 attempts)
+- Configurable lockout duration (default: 24 hours)
+- Email notifications to users and administrators
+- Admin interface to unlock accounts
+- Comprehensive audit trail
+
+**Configuration:**
+```env
+ACCOUNT_LOCKOUT_THRESHOLD=5   # Failed attempts before lockout
+ACCOUNT_LOCKOUT_DURATION=24   # Hours to lock account
+```
+
+**See also:** [ACCOUNT_LOCKOUT_SYSTEM.md](ACCOUNT_LOCKOUT_SYSTEM.md) for complete documentation.
+
 ### Rate Limiting
 
 ```python
