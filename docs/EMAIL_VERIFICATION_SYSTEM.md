@@ -269,7 +269,7 @@ Prevents:
 All verification events are logged with:
 
 ```python
-AuditActionType.ACCOUNT_ACTION
+AuditActionType.REGISTER
 ```
 
 **Events Logged**:

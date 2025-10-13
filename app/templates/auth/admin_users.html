@@ -15,6 +15,10 @@
                    class="bg-sky-100 text-sky-700 px-3 py-2 rounded-md text-sm font-medium">
                     User Management
                 </a>
+                <a href="{{ url_for('auth.admin_reset_user_password') }}" 
+                   class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
+                    Reset User Password
+                </a>
                 <a href="{{ url_for('auth.admin_messages') }}" 
                    class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
                     Site Messages
@@ -211,6 +215,10 @@
                                 Edit
                             </button>
                             {% if user.id != current_user.id %}
+                            <a href="{{ url_for('auth.admin_reset_user_password') }}?user_id={{ user.id }}"
+                               class="text-orange-600 hover:text-orange-900 text-sm font-medium">
+                                Reset Password
+                            </a>
                             <button onclick="toggleUserStatus({{ user.id }}, {{ user.is_active|lower }})" 
                                     class="text-{{ 'red' if user.is_active else 'green' }}-600 hover:text-{{ 'red' if user.is_active else 'green' }}-900 text-sm font-medium">
                                 {{ 'Deactivate' if user.is_active else 'Activate' }}

@@ -514,7 +514,7 @@ Password history events are logged:
 ```python
 # When password reuse is blocked
 AuditService.log_action(
-    action_type=AuditActionType.ACCOUNT_ACTION,
+    action_type=AuditActionType.PASSWORD_CHANGE,
     action_description=f"Password reuse blocked for user: {user.username}",
     resource_type="user",
     resource_id=user.username

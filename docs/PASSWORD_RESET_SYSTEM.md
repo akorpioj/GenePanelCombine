@@ -151,7 +151,7 @@ PASSWORD_RESET_TOKEN_MAX_AGE=1800  # 30 minutes
 **Audit Log**:
 ```python
 {
-  "action_type": "ACCOUNT_ACTION",
+  "action_type": "PASSWORD_RESET",
   "action": "Password reset email sent to user@example.com",
   "resource_type": "user",
   "resource_id": "username"
@@ -196,7 +196,7 @@ PASSWORD_RESET_TOKEN_MAX_AGE=1800  # 30 minutes
 **Audit Log**:
 ```python
 {
-  "action_type": "ACCOUNT_ACTION",
+  "action_type": "PASSWORD_RESET",
   "action": "Password reset completed for user: username",
   "resource_type": "user",
   "resource_id": "username",
@@ -545,19 +545,19 @@ All password reset events are logged:
 
 1. **Password Reset Requested (Exists)**:
 ```python
-AuditActionType.ACCOUNT_ACTION
+AuditActionType.PASSWORD_RESET
 "Password reset email sent to user@example.com"
 ```
 
 2. **Password Reset Requested (Non-existent)**:
 ```python
-AuditActionType.ACCOUNT_ACTION
+AuditActionType.PASSWORD_RESET
 "Password reset attempted for non-existent email: user@example.com"
 ```
 
 3. **Password Reset Completed**:
 ```python
-AuditActionType.ACCOUNT_ACTION
+AuditActionType.PASSWORD_RESET
 "Password reset completed for user: username"
 Details: {
     "email": "user@example.com",
@@ -637,7 +637,7 @@ Password reset reuses email infrastructure:
 
 Integrates with existing audit trail:
 - Uses `AuditService.log_action()`
-- Same `AuditActionType.ACCOUNT_ACTION`
+- Uses `AuditActionType.PASSWORD_RESET` for password reset events
 - Consistent with other account actions
 - Full event history
 
@@ -665,17 +665,21 @@ Works with existing security features:
    - Real-time feedback
    - Suggestions for improvement
 
-3. **Alternative Recovery**:
+2. **Alternative Recovery**:
    - Security questions
    - SMS verification
    - Backup email address
 
-4. **Admin Override**:
+3. ✅ **Admin Override** (Implemented October 13, 2025):
    - Admin can reset user password
    - Requires admin authentication
    - Forces password change on next login
+   - Generates secure temporary password
+   - Terminates all user sessions
+   - Sends email notification to user
+   - See `ADMIN_PASSWORD_RESET.md` for details
 
-5. **Suspicious Activity Detection**:
+4. **Suspicious Activity Detection**:
    - Alert on multiple reset attempts
    - Geographic anomaly detection
    - Time-based pattern analysis

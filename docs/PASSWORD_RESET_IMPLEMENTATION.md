@@ -361,7 +361,7 @@ With `MAIL_SUPPRESS_SEND=True`:
 
 ### Audit System
 - ✅ Uses existing `AuditService`
-- ✅ Same `AuditActionType.ACCOUNT_ACTION`
+- ✅ Uses `AuditActionType.PASSWORD_RESET` for password reset events
 - ✅ Consistent logging format
 - ✅ Full event tracking
 

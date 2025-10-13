@@ -110,6 +110,13 @@
    - Prevent password reuse
    - Store hashed password history
    - Configurable history length
+- ✅ IMPLEMENTED: **Admin Override**: 13/10/2025
+   - Admin can reset user password
+   - Requires admin authentication
+   - Forces password change on next login
+   - Generates secure temporary password
+   - Terminates all user sessions
+   - Email notification with temporary password
 - **Two-Factor Authentication**: Enhanced login security with 2FA
 - **OAuth Integration**: Login with Google, GitHub, and other providers
 - **Hardware Security Modules**: HSM integration for key storage

@@ -3,17 +3,34 @@ Authentication routes for PanelMerge
 Handles user registration, login, logout, and profile management
 """
 
-from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 import datetime
 import re
 import os
+from functools import wraps
 from . import auth_bp
 from ..models import db, User, UserRole, AuditActionType
 from ..extensions import limiter
 from ..audit_service import AuditService
 from ..session_service import session_service
+
+def admin_required(f):
+    """
+    Decorator to require admin role for a route
+    Must be used after @login_required
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Please log in to access this page.', 'warning')
+            return redirect(url_for('auth.login'))
+        if not current_user.is_admin():
+            flash('Admin access required.', 'danger')
+            abort(403)  # Forbidden
+        return f(*args, **kwargs)
+    return decorated_function
 
 def validate_email(email):
     """Validate email format"""
@@ -133,7 +150,7 @@ def register():
             if email_sent:
                 flash('Registration successful! Please check your email to verify your account.', 'success')
                 AuditService.log_action(
-                    action_type=AuditActionType.ACCOUNT_ACTION,
+                    action_type=AuditActionType.REGISTER,
                     action_description=f"Verification email sent to {email}",
                     resource_type="user",
                     resource_id=username
@@ -211,6 +228,11 @@ def login():
             
             # Log successful login
             AuditService.log_login(user.username, success=True)
+            
+            # Check if user needs to change password (admin reset)
+            if user.force_password_change:
+                flash('Your password was reset by an administrator. You must change it before continuing.', 'warning')
+                return redirect(url_for('auth.forced_password_change'))
             
             flash(f'Welcome back, {user.get_full_name()}!', 'success')
             
@@ -491,8 +513,10 @@ def change_password():
             return render_template('auth/change_password.html')
         
         try:
-            # Update password
+            # Update password and clear force_password_change flag if set
             current_user.set_password(new_password, add_to_history=True)
+            if current_user.force_password_change:
+                current_user.force_password_change = False
             db.session.commit()
             
             # Revoke all other sessions for security
@@ -524,6 +548,170 @@ def change_password():
             flash('Failed to change password. Please try again.', 'error')
     
     return render_template('auth/change_password.html')
+
+@auth_bp.route('/forced-password-change', methods=['GET', 'POST'])
+@login_required
+def forced_password_change():
+    """Force password change after admin reset"""
+    # If user doesn't need to change password, redirect to home
+    if not current_user.force_password_change:
+        return redirect(url_for('main.index'))
+    
+    if request.method == 'POST':
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # Validation
+        errors = []
+        
+        if not new_password:
+            errors.append("New password is required")
+        else:
+            valid, message = validate_password(new_password)
+            if not valid:
+                errors.append(message)
+        
+        if new_password != confirm_password:
+            errors.append("Passwords do not match")
+        
+        # Check for password reuse
+        if new_password and current_user.check_password_reuse(new_password):
+            max_history = int(os.getenv('PASSWORD_HISTORY_LENGTH', 5))
+            errors.append(f"You cannot reuse any of your last {max_history} passwords. Please choose a different password.")
+        
+        if errors:
+            for error in errors:
+                flash(error, 'error')
+            return render_template('auth/forced_password_change.html')
+        
+        try:
+            # Update password and clear force_password_change flag
+            current_user.set_password(new_password, add_to_history=True)
+            current_user.force_password_change = False
+            db.session.commit()
+            
+            # Revoke all other sessions for security (keep current session)
+            revoked_count = session_service.revoke_user_sessions(
+                current_user.id, 
+                except_current=True
+            )
+            
+            # Rotate current session
+            session_service._rotate_session_id()
+            
+            # Log password change
+            AuditService.log_action(
+                action_type=AuditActionType.PASSWORD_CHANGE,
+                user_id=current_user.id,
+                action_description='User completed forced password change after admin reset',
+                details={
+                    'sessions_revoked': revoked_count,
+                    'session_rotated': True,
+                    'forced_change': True
+                }
+            )
+            
+            flash('Password changed successfully! You can now use the application.', 'success')
+            return redirect(url_for('main.index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Forced password change error: {e}")
+            flash('Failed to change password. Please try again.', 'error')
+    
+    return render_template('auth/forced_password_change.html')
+
+@auth_bp.route('/admin/reset-user-password', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_reset_user_password():
+    """Admin can reset user password and force password change on next login"""
+    if request.method == 'POST':
+        user_id = request.form.get('user_id')
+        
+        if not user_id:
+            flash('User ID is required', 'error')
+            return redirect(url_for('auth.admin_reset_user_password'))
+        
+        try:
+            user = User.query.get(int(user_id))
+            if not user:
+                flash('User not found', 'error')
+                return redirect(url_for('auth.admin_reset_user_password'))
+            
+            # Prevent admin from resetting their own password this way
+            if user.id == current_user.id:
+                flash('Cannot reset your own password. Use the change password feature instead.', 'error')
+                return redirect(url_for('auth.admin_reset_user_password'))
+            
+            # Generate a secure temporary password
+            import secrets
+            import string
+            alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+            temp_password = ''.join(secrets.choice(alphabet) for _ in range(16))
+            
+            # Ensure it meets requirements (uppercase, lowercase, number)
+            while not (any(c.isupper() for c in temp_password) and 
+                      any(c.islower() for c in temp_password) and 
+                      any(c.isdigit() for c in temp_password)):
+                temp_password = ''.join(secrets.choice(alphabet) for _ in range(16))
+            
+            # Set new password (don't add to history for admin resets)
+            user.set_password(temp_password, add_to_history=False)
+            user.force_password_change = True
+            
+            # Revoke all user sessions
+            revoked_count = session_service.revoke_user_sessions(user.id, except_current=False)
+            
+            db.session.commit()
+            
+            # Log admin action
+            AuditService.log_action(
+                action_type=AuditActionType.ADMIN_ACTION,
+                user_id=current_user.id,
+                action_description=f'Admin {current_user.username} reset password for user {user.username}',
+                resource_type='user',
+                resource_id=str(user.id),
+                details={
+                    'target_user': user.username,
+                    'target_email': user.email,
+                    'sessions_revoked': revoked_count,
+                    'force_password_change': True,
+                    'admin_user': current_user.username,
+                    'admin_id': current_user.id
+                }
+            )
+            
+            # Send email notification to user
+            try:
+                from ..email_service import email_service
+                email_service.send_admin_password_reset_email(
+                    user.email, 
+                    user.get_full_name() or user.username,
+                    temp_password,
+                    current_user.username
+                )
+                email_sent = True
+            except Exception as e:
+                current_app.logger.error(f"Failed to send admin reset email: {e}")
+                email_sent = False
+            
+            if email_sent:
+                flash(f'Password reset for {user.username}. Email sent with temporary password.', 'success')
+            else:
+                flash(f'Password reset for {user.username}. Temporary password: {temp_password} (Email delivery failed - please provide this to the user securely)', 'warning')
+            
+            return redirect(url_for('auth.admin_reset_user_password'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Admin password reset error: {e}")
+            flash('Failed to reset password. Please try again.', 'error')
+            return redirect(url_for('auth.admin_reset_user_password'))
+    
+    # GET request - show form with user list
+    users = User.query.filter(User.id != current_user.id).order_by(User.username).all()
+    return render_template('auth/admin_reset_password.html', users=users)
 
 @auth_bp.route('/admin/users')
 @login_required
@@ -1095,7 +1283,7 @@ def verify_email(token):
         
         # Log verification
         AuditService.log_action(
-            action_type=AuditActionType.ACCOUNT_ACTION,
+            action_type=AuditActionType.REGISTER,
             action_description=f"Email verified for user: {user.username}",
             resource_type="user",
             resource_id=user.username,
@@ -1147,7 +1335,7 @@ def resend_verification():
         
         if email_sent:
             AuditService.log_action(
-                action_type=AuditActionType.ACCOUNT_ACTION,
+                action_type=AuditActionType.REGISTER,
                 action_description=f"Verification email resent to {email}",
                 resource_type="user",
                 resource_id=user.username
@@ -1199,7 +1387,7 @@ def forgot_password():
             # Don't reveal if email exists or not (security best practice)
             flash('If the email exists in our system, a password reset link has been sent.', 'info')
             AuditService.log_action(
-                action_type=AuditActionType.ACCOUNT_ACTION,
+                action_type=AuditActionType.PASSWORD_RESET,
                 action_description=f"Password reset attempted for non-existent email: {email}",
                 resource_type="user",
                 resource_id="unknown"
@@ -1212,7 +1400,7 @@ def forgot_password():
         
         if email_sent:
             AuditService.log_action(
-                action_type=AuditActionType.ACCOUNT_ACTION,
+                action_type=AuditActionType.PASSWORD_RESET,
                 action_description=f"Password reset email sent to {email}",
                 resource_type="user",
                 resource_id=user.username
@@ -1287,7 +1475,7 @@ def reset_password(token):
             
             # Log successful password reset
             AuditService.log_action(
-                action_type=AuditActionType.ACCOUNT_ACTION,
+                action_type=AuditActionType.PASSWORD_RESET,
                 action_description=f"Password reset completed for user: {user.username}",
                 resource_type="user",
                 resource_id=user.username,

@@ -66,6 +66,7 @@ class User(UserMixin, db.Model):
     last_ip_address = db.Column(db.String(45))
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime)
+    force_password_change = db.Column(db.Boolean, default=False, nullable=False)  # Admin can force password change
     
     # User preferences
     timezone_preference = db.Column(db.String(50), default='UTC')  # IANA timezone name

@@ -367,6 +367,118 @@ The PanelMerge Team
         except Exception as e:
             logger.error(f"Failed to send password reset email to {user_email}: {e}")
             return False
+    
+    def send_admin_password_reset_email(self, user_email: str, user_name: str, temp_password: str, admin_name: str) -> bool:
+        """
+        Send admin password reset notification email with temporary password
+        
+        Args:
+            user_email: User's email address
+            user_name: User's name
+            temp_password: Temporary password
+            admin_name: Name of admin who reset the password
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            subject = "Your Password Has Been Reset - PanelMerge"
+
+            text_body = f"""
+Hello {user_name},
+
+An administrator ({admin_name}) has reset your PanelMerge account password.
+
+Your temporary password is: {temp_password}
+
+IMPORTANT: You will be required to change this password when you log in.
+
+Security Notice:
+- All your active sessions have been logged out
+- This temporary password will work only once
+- Please change it immediately after logging in
+- If you did not request this reset, please contact an administrator immediately
+
+To log in:
+1. Go to the PanelMerge login page
+2. Use your username and the temporary password above
+3. You will be prompted to create a new password
+
+Best regards,
+The PanelMerge Team
+            """.strip()
+            
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #dc2626; color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 20px; background-color: #f9fafb; }}
+        .password-box {{ background-color: #fff; border: 2px solid #3b82f6; padding: 15px; 
+                         text-align: center; font-size: 18px; font-family: monospace; 
+                         letter-spacing: 2px; margin: 20px 0; border-radius: 5px; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #3b82f6; color: white; 
+                   text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }}
+        .warning {{ background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin: 10px 0; }}
+        .danger {{ background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 10px; margin: 10px 0; }}
+        .steps {{ background-color: #fff; padding: 15px; margin: 15px 0; border-radius: 5px; }}
+        .steps ol {{ margin: 10px 0; padding-left: 20px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 Password Reset by Administrator</h1>
+        </div>
+        <div class="content">
+            <p>Hello {user_name},</p>
+            <p>An administrator (<strong>{admin_name}</strong>) has reset your PanelMerge account password.</p>
+            
+            <div class="warning">
+                <strong>⚠️ IMPORTANT:</strong> You will be required to change this password when you log in.
+            </div>
+            
+            <p><strong>Your temporary password:</strong></p>
+            <div class="password-box">
+                {temp_password}
+            </div>
+            
+            <div class="steps">
+                <strong>How to log in:</strong>
+                <ol>
+                    <li>Go to the PanelMerge login page</li>
+                    <li>Use your username and the temporary password above</li>
+                    <li>You will be prompted to create a new password</li>
+                    <li>Choose a strong password you haven't used before</li>
+                </ol>
+            </div>
+            
+            <div class="danger">
+                <strong>🛡️ Security Notice:</strong>
+                <ul style="margin: 5px 0; padding-left: 20px;">
+                    <li>All your active sessions have been logged out</li>
+                    <li>This temporary password should be changed immediately</li>
+                    <li>If you did not request this reset, contact an administrator immediately</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 PanelMerge. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+            """.strip()
+            
+            return self.send_email(subject, user_email, text_body, html_body)
+            
+        except Exception as e:
+            logger.error(f"Failed to send admin password reset email to {user_email}: {e}")
+            return False
 
 
 # Global instance
