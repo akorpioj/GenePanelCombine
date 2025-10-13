@@ -1,6 +1,6 @@
 # Timezone Support Implementation
 
-This document describes the comprehensive timezone support system implemented in GenePanelCombine.
+This document describes the comprehensive timezone support system implemented in PanelMerge.
 
 ## Overview
 
@@ -345,7 +345,7 @@ Enable debug logging to see:
 
 ## Conclusion
 
-The timezone support system provides a comprehensive, user-friendly way to handle time display across the entire GenePanelCombine application. It balances automation with user control, ensuring timestamps are always meaningful and accessible to users regardless of their location.
+The timezone support system provides a comprehensive, user-friendly way to handle time display across the entire PanelMerge application. It balances automation with user control, ensuring timestamps are always meaningful and accessible to users regardless of their location.
 
 ### Key Features Summary:
 - ✅ Automatic timezone detection

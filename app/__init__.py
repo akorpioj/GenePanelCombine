@@ -80,9 +80,13 @@ def create_app(config_name=None):
     db_init(app) # Initialize the database and create an admin user if needed
     migrate.init_app(app, db) # Flask-Migrate needs both app and db
     login_manager.init_app(app)
-    #mail.init_app(app) # Initialize other extensions
     limiter.init_app(app)
     cache.init_app(app)  # Initialize Redis cache
+    
+    # Initialize email service
+    from .email_service import email_service
+    email_service.init_app(app)
+    app.logger.info("Email service initialized")
     
     # Initialize security and encryption services
     from .encryption_service import init_encryption

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides step-by-step instructions for setting up and configuring the Google Cloud PostgreSQL database for the GenePanelCombine application.
+This guide provides step-by-step instructions for setting up and configuring the Google Cloud PostgreSQL database for the PanelMerge application.
 
 ## Current Database Configuration
 
@@ -408,4 +408,4 @@ gcloud sql import sql gene-panel-user-db gs://YOUR_BUCKET/backup.sql \
 
 ---
 
-This setup guide ensures a secure, scalable, and maintainable PostgreSQL database configuration for the GenePanelCombine application.
+This setup guide ensures a secure, scalable, and maintainable PostgreSQL database configuration for the PanelMerge application.

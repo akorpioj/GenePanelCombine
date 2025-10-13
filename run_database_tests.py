@@ -144,7 +144,7 @@ def generate_database_test_report():
 def main():
     """Main CLI interface for database testing."""
     parser = argparse.ArgumentParser(
-        description='Database Testing Runner for GenePanelCombine',
+        description='Database Testing Runner for PanelMerge',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

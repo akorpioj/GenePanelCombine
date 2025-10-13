@@ -566,7 +566,7 @@ Marked feature as implemented:
 
 ## Conclusion
 
-The **Version Timeline** feature is now **fully implemented and integrated** into the GenePanelCombine application. It provides users with an intuitive, visual way to understand panel evolution, navigate version history, and manage panel versions effectively.
+The **Version Timeline** feature is now **fully implemented and integrated** into the PanelMerge application. It provides users with an intuitive, visual way to understand panel evolution, navigate version history, and manage panel versions effectively.
 
 ### Key Achievements:
 ✅ Complete visual timeline component  

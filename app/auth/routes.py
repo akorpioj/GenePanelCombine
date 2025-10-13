@@ -96,7 +96,8 @@ def register():
                 last_name=last_name,
                 organization=organization,
                 role=UserRole.USER,  # Default role
-                is_active=True
+                is_active=True,
+                is_verified=False  # Email not verified yet
             )
             user.set_password(password)
             
@@ -118,7 +119,27 @@ def register():
                 }
             )
             
-            flash('Registration successful! You can now log in.', 'success')
+            # Send verification email
+            from ..email_service import email_service
+            email_sent = email_service.send_verification_email(user.email, user.get_full_name() or user.username)
+            
+            if email_sent:
+                flash('Registration successful! Please check your email to verify your account.', 'success')
+                AuditService.log_action(
+                    action_type=AuditActionType.ACCOUNT_ACTION,
+                    action_description=f"Verification email sent to {email}",
+                    resource_type="user",
+                    resource_id=username
+                )
+            else:
+                flash('Registration successful, but we could not send verification email. Please contact support.', 'warning')
+                AuditService.log_action(
+                    action_type=AuditActionType.ERROR,
+                    action_description=f"Failed to send verification email to {email}",
+                    resource_type="user",
+                    resource_id=username
+                )
+            
             return redirect(url_for('auth.login'))
             
         except Exception as e:
@@ -157,6 +178,13 @@ def login():
                 # Log failed login due to inactive account
                 AuditService.log_login(username_or_email, success=False, error_message="Account deactivated")
                 flash('Your account has been deactivated. Please contact an administrator.', 'error')
+                return render_template('auth/login.html')
+            
+            if not user.is_verified:
+                # Log failed login due to unverified email
+                AuditService.log_login(username_or_email, success=False, error_message="Email not verified")
+                flash('Please verify your email address before logging in. Check your inbox for the verification link.', 'warning')
+                flash(f'<a href="{url_for("auth.resend_verification", email=user.email)}">Resend verification email</a>', 'info')
                 return render_template('auth/login.html')
             
             # Update login statistics
@@ -1018,3 +1046,117 @@ def admin_delete_message(message_id):
         db.session.rollback()
         current_app.logger.error(f"Error deleting message: {e}")
         return jsonify({'error': 'Failed to delete message'}), 500
+
+
+# ============================================================================
+# EMAIL VERIFICATION ROUTES
+# ============================================================================
+
+@auth_bp.route('/verify/<token>')
+@limiter.limit("10 per hour")
+def verify_email(token):
+    """Verify user's email address using token"""
+    from ..email_service import email_service
+    
+    # Verify the token
+    email = email_service.verify_token(token, salt='email-verification')
+    
+    if not email:
+        flash('The verification link is invalid or has expired.', 'error')
+        return redirect(url_for('auth.login'))
+    
+    # Find user by email
+    user = User.query.filter_by(email=email.lower()).first()
+    
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('auth.login'))
+    
+    if user.is_verified:
+        flash('Email already verified. You can log in.', 'info')
+        return redirect(url_for('auth.login'))
+    
+    # Verify the user
+    try:
+        user.is_verified = True
+        db.session.commit()
+        
+        # Log verification
+        AuditService.log_action(
+            action_type=AuditActionType.ACCOUNT_ACTION,
+            action_description=f"Email verified for user: {user.username}",
+            resource_type="user",
+            resource_id=user.username,
+            details={
+                "email": user.email,
+                "verification_timestamp": datetime.datetime.now().isoformat()
+            }
+        )
+        
+        # Send confirmation email
+        email_service.send_verification_success_email(user.email, user.get_full_name() or user.username)
+        
+        flash('Email verified successfully! You can now log in.', 'success')
+        return redirect(url_for('auth.login'))
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error verifying email: {e}")
+        flash('An error occurred during verification. Please try again.', 'error')
+        return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/resend-verification', methods=['GET', 'POST'])
+@limiter.limit("3 per hour")
+def resend_verification():
+    """Resend verification email"""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Please enter your email address.', 'error')
+            return render_template('auth/resend_verification.html')
+        
+        # Find user by email
+        user = User.query.filter_by(email=email).first()
+        
+        if not user:
+            # Don't reveal if email exists or not (security best practice)
+            flash('If the email exists in our system, a verification link has been sent.', 'info')
+            return render_template('auth/resend_verification.html')
+        
+        if user.is_verified:
+            flash('This email is already verified. You can log in.', 'info')
+            return redirect(url_for('auth.login'))
+        
+        # Send verification email
+        from ..email_service import email_service
+        email_sent = email_service.send_verification_email(user.email, user.get_full_name() or user.username)
+        
+        if email_sent:
+            AuditService.log_action(
+                action_type=AuditActionType.ACCOUNT_ACTION,
+                action_description=f"Verification email resent to {email}",
+                resource_type="user",
+                resource_id=user.username
+            )
+            flash('Verification email sent! Please check your inbox.', 'success')
+        else:
+            flash('Failed to send verification email. Please try again later.', 'error')
+        
+        return render_template('auth/resend_verification.html')
+    
+    # GET request - check if email provided in query string
+    email = request.args.get('email', '')
+    return render_template('auth/resend_verification.html', email=email)
+
+
+@auth_bp.route('/verify-status')
+@login_required
+def verify_status():
+    """Show verification status for current user"""
+    if current_user.is_verified:
+        flash('Your email is already verified.', 'success')
+        return redirect(url_for('auth.profile'))
+    
+    return render_template('auth/verify_status.html')
