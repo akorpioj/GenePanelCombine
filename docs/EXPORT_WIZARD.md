@@ -338,9 +338,9 @@ POST /api/user/panels/export
 ## Future Enhancements
 
 Potential improvements:
-- [x] Export templates (save format preferences) - IN PROGRESS
+- [x] Export templates (save format preferences) - ✅ IMPLEMENTED
 - [ ] Column selection for CSV/TSV
-- [x] Custom filename input
+- [x] Custom filename input - ✅ IMPLEMENTED
 - [ ] Preview before export
 - [ ] Scheduled exports
 - [ ] Email delivery option

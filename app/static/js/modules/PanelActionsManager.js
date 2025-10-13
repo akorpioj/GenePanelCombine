@@ -504,8 +504,10 @@ class PanelActionsManager {
     }
     
     showManageTemplatesDialog() {
-        // Show template management interface
-        alert('Template management interface will be implemented here. For now, you can manage templates from your profile.');
+        // Redirect to profile page templates tab
+        if (confirm('Manage templates in your Profile page?\n\nClick OK to go to Profile → Export Templates tab.')) {
+            window.location.href = '/profile#templates';
+        }
     }
 
     async deletePanel(panelId) {
@@ -1159,17 +1161,57 @@ class PanelActionsManager {
         this.showExportWizard(selectedIds);
     }
     
-    showExportWizard(panelIds) {
+    async showExportWizard(panelIds) {
+        // Load export templates
+        const templates = await this.loadExportTemplates();
+        const defaultTemplate = templates.find(t => t.is_default);
+        
+        // Generate template options HTML
+        const templateOptionsHTML = templates.length > 0 ? `
+            <div class="mb-4 pb-4 border-b border-gray-200">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-magic mr-1"></i>Quick Templates
+                </label>
+                <select id="templateSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="">-- Custom Settings --</option>
+                    ${templates.map(t => `
+                        <option value="${t.id}" ${defaultTemplate && defaultTemplate.id === t.id ? 'selected' : ''}>
+                            ${t.name} (${t.format.toUpperCase()})${t.is_default ? ' ⭐' : ''}
+                        </option>
+                    `).join('')}
+                </select>
+                <div class="flex justify-between items-center mt-2">
+                    <button id="manageTemplatesBtn" class="text-xs text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-cog mr-1"></i>Manage Templates
+                    </button>
+                    <button id="saveAsTemplateBtn" class="text-xs text-green-600 hover:text-green-800">
+                        <i class="fas fa-save mr-1"></i>Save as Template
+                    </button>
+                </div>
+            </div>
+        ` : `
+            <div class="mb-4 pb-4 border-b border-gray-200">
+                <div class="text-sm text-gray-500 mb-2">
+                    <i class="fas fa-info-circle mr-1"></i>Tip: Save your export preferences as templates!
+                </div>
+                <button id="saveAsTemplateBtn" class="text-xs text-green-600 hover:text-green-800">
+                    <i class="fas fa-save mr-1"></i>Save Current Settings as Template
+                </button>
+            </div>
+        `;
+        
         // Create modal HTML
         const modalHTML = `
             <div id="exportWizardModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
                     <div class="mt-3">
                         <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Export Panels</h3>
                         <div class="mt-2">
                             <p class="text-sm text-gray-500 mb-4">
                                 Exporting ${panelIds.length} panel(s). Choose your export format:
                             </p>
+                            
+                            ${templateOptionsHTML}
                             
                             <div class="space-y-3">
                                 <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
@@ -1247,6 +1289,52 @@ class PanelActionsManager {
         const modal = document.getElementById('exportWizardModal');
         const cancelBtn = document.getElementById('cancelExport');
         const confirmBtn = document.getElementById('confirmExport');
+        const templateSelect = document.getElementById('templateSelect');
+        const saveAsTemplateBtn = document.getElementById('saveAsTemplateBtn');
+        const manageTemplatesBtn = document.getElementById('manageTemplatesBtn');
+        
+        // Template selection handler
+        if (templateSelect) {
+            templateSelect.addEventListener('change', async (e) => {
+                const templateId = e.target.value;
+                if (templateId) {
+                    // Find and apply the selected template
+                    const template = templates.find(t => t.id === parseInt(templateId));
+                    if (template) {
+                        this.applyTemplate(template);
+                        
+                        // Mark template as used
+                        try {
+                            await fetch(`/api/user/export-templates/${templateId}/use`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        } catch (error) {
+                            console.error('Error marking template as used:', error);
+                        }
+                    }
+                }
+            });
+            
+            // Apply default template if one exists
+            if (defaultTemplate) {
+                this.applyTemplate(defaultTemplate);
+            }
+        }
+        
+        // Save as template button handler
+        if (saveAsTemplateBtn) {
+            saveAsTemplateBtn.addEventListener('click', () => {
+                this.showSaveTemplateDialog();
+            });
+        }
+        
+        // Manage templates button handler
+        if (manageTemplatesBtn) {
+            manageTemplatesBtn.addEventListener('click', () => {
+                this.showManageTemplatesDialog();
+            });
+        }
         
         // Cancel button
         cancelBtn.addEventListener('click', () => {

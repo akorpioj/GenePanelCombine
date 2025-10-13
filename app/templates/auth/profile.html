@@ -28,6 +28,10 @@
                        class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
                         My Panels
                     </a>
+                    <a href="#" id="templates-nav" 
+                       class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
+                        Export Templates
+                    </a>
                 </nav>
             </div>
         </div>
@@ -252,7 +256,46 @@
     <!-- My Panels Tab -->
     <div id="panels-content" class="tab-content hidden mt-6">
         {% include 'auth/_my_panels.html' %}
-    </div>    
+    </div>
+    
+    <!-- Export Templates Tab -->
+    <div id="templates-content" class="tab-content hidden mt-6">
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Export Templates</h3>
+                    <p class="mt-1 max-w-2xl text-sm text-gray-500">Manage your saved export format preferences.</p>
+                </div>
+                <button id="create-template-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    <i class="fas fa-plus mr-2"></i>Create Template
+                </button>
+            </div>
+            
+            <div class="border-t border-gray-200">
+                <!-- Templates will be loaded here -->
+                <div id="templates-loading" class="px-4 py-8 text-center text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading templates...</p>
+                </div>
+                
+                <div id="templates-list" class="hidden">
+                    <!-- Templates will be dynamically inserted here -->
+                </div>
+                
+                <div id="templates-empty" class="hidden px-4 py-12 text-center">
+                    <i class="fas fa-file-export text-gray-300 text-5xl mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Export Templates</h3>
+                    <p class="text-sm text-gray-500 mb-4">
+                        You haven't created any export templates yet.<br>
+                        Create templates to save your favorite export settings for quick reuse.
+                    </p>
+                    <button class="create-template-trigger bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        <i class="fas fa-plus mr-2"></i>Create Your First Template
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -289,5 +332,6 @@
 <script src="{{ url_for('static', filename='js/panel-library-grid.js') }}?v={{ cache_bust }}"></script>
 <script src="{{ url_for('static', filename='js/version-timeline.js') }}?v={{ cache_bust }}"></script>
 <script src="{{ url_for('static', filename='js/diff-viewer.js') }}?v={{ cache_bust }}"></script>
+<script src="{{ url_for('static', filename='js/export-templates-manager.js') }}?v={{ cache_bust }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/pages/profilePage.js') }}?v={{ cache_bust }}"></script>
 {% endblock %}
