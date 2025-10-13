@@ -285,6 +285,243 @@ The PanelMerge Team
         
         return self.send_email(subject, user_email, text_body, html_body)
     
+    def generate_email_change_token(self, user_id: int, new_email: str) -> str:
+        """
+        Generate email change verification token
+        
+        Args:
+            user_id: User's ID
+            new_email: New email address
+            
+        Returns:
+            Verification token string
+        """
+        serializer = self.get_serializer('email-change')
+        data = {'user_id': user_id, 'new_email': new_email}
+        return serializer.dumps(data, salt='email-change')
+    
+    def verify_email_change_token(self, token: str, max_age=None) -> Optional[dict]:
+        """
+        Verify and decode an email change token
+        
+        Args:
+            token: Token to verify
+            max_age: Maximum age in seconds (None uses default from config)
+            
+        Returns:
+            Dict with user_id and new_email if valid, None otherwise
+        """
+        if max_age is None:
+            max_age = current_app.config.get('VERIFICATION_TOKEN_MAX_AGE', 86400)
+        
+        serializer = self.get_serializer('email-change')
+        try:
+            data = serializer.loads(token, salt='email-change', max_age=max_age)
+            return data
+        except SignatureExpired:
+            logger.warning(f"Email change token expired")
+            return None
+        except BadSignature:
+            logger.warning(f"Invalid email change token signature")
+            return None
+        except Exception as e:
+            logger.error(f"Error verifying email change token: {e}")
+            return None
+    
+    def send_email_change_verification(self, old_email: str, new_email: str, 
+                                       user_name: str, token: str) -> bool:
+        """
+        Send email change verification to new email address
+        
+        Args:
+            old_email: Current email address
+            new_email: New email address to verify
+            user_name: User's name
+            token: Verification token
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            # Build verification URL
+            verify_url = url_for('auth.verify_email_change', token=token, _external=True)
+
+            subject = "Verify Your New Email Address - PanelMerge"
+
+            text_body = f"""
+Hello {user_name},
+
+You requested to change your email address on PanelMerge.
+
+Current email: {old_email}
+New email: {new_email}
+
+Please click the link below to verify your new email address:
+
+{verify_url}
+
+This link will expire in 24 hours.
+
+IMPORTANT: Your current email address ({old_email}) will remain active until you verify this new address.
+
+If you did not request this change, please ignore this email or contact support immediately.
+
+Best regards,
+The PanelMerge Team
+            """.strip()
+            
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #3b82f6; color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 20px; background-color: #f9fafb; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #3b82f6; color: white; 
+                   text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .warning {{ background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin: 10px 0; }}
+        .info-box {{ background-color: #e0f2fe; border-left: 4px solid #3b82f6; padding: 10px; margin: 10px 0; }}
+        .footer {{ padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Verify Your New Email Address</h1>
+        </div>
+        <div class="content">
+            <p>Hello {user_name},</p>
+            <p>You requested to change your email address on PanelMerge.</p>
+            
+            <div class="info-box">
+                <strong>Email Change Details:</strong><br>
+                Current email: {old_email}<br>
+                New email: {new_email}
+            </div>
+            
+            <p>Please click the button below to verify your new email address:</p>
+            <p style="text-align: center;">
+                <a href="{verify_url}" class="button">Verify New Email</a>
+            </p>
+            <p style="font-size: 12px; color: #6b7280;">
+                If the button doesn't work, copy and paste this link into your browser:<br>
+                {verify_url}
+            </p>
+            
+            <div class="warning">
+                <strong>⚠️ Important:</strong><br>
+                • This link will expire in 24 hours<br>
+                • Your current email ({old_email}) will remain active until you verify this new address<br>
+                • All notifications will still be sent to your current email until verification is complete
+            </div>
+            
+            <p style="margin-top: 20px;">
+                If you did not request this change, please ignore this email or 
+                <a href="#">contact support</a> immediately.
+            </p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 PanelMerge. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+            """.strip()
+            
+            # Send to the NEW email address
+            return self.send_email(subject, new_email, text_body, html_body)
+        
+        except Exception as e:
+            logger.error(f"Failed to send email change verification: {e}")
+            return False
+    
+    def send_email_change_notification(self, old_email: str, new_email: str, user_name: str) -> bool:
+        """
+        Send notification to old email about successful email change
+        
+        Args:
+            old_email: Old email address
+            new_email: New email address (partially masked)
+            user_name: User's name
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            subject = "Email Address Changed - PanelMerge"
+            
+            # Mask the new email for privacy
+            new_email_parts = new_email.split('@')
+            masked_email = f"{new_email_parts[0][:3]}***@{new_email_parts[1]}" if len(new_email_parts) == 2 else "***"
+
+            text_body = f"""
+Hello {user_name},
+
+This is to confirm that your PanelMerge account email address has been successfully changed.
+
+Your new email address is: {masked_email}
+
+If you did not make this change, please contact support immediately at support@panelmerge.com
+
+For security, you have been logged out of all sessions. Please log in with your new email address.
+
+Best regards,
+The PanelMerge Team
+            """.strip()
+            
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #10b981; color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 20px; background-color: #f9fafb; }}
+        .alert {{ background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin: 10px 0; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #3b82f6; color: white; 
+                   text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✓ Email Address Changed</h1>
+        </div>
+        <div class="content">
+            <p>Hello {user_name},</p>
+            <p>This is to confirm that your PanelMerge account email address has been successfully changed.</p>
+            <p><strong>Your new email address is:</strong> {masked_email}</p>
+            
+            <div class="alert">
+                <strong>⚠️ Security Notice:</strong><br>
+                If you did not make this change, please contact support immediately at support@panelmerge.com
+            </div>
+            
+            <p>For security, you have been logged out of all sessions. Please log in with your new email address.</p>
+            
+            <p style="text-align: center;">
+                <a href="{url_for('auth.login', _external=True)}" class="button">Log In Now</a>
+            </p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 PanelMerge. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+            """.strip()
+            
+            # Send to the OLD email address
+            return self.send_email(subject, old_email, text_body, html_body)
+        
+        except Exception as e:
+            logger.error(f"Failed to send email change notification: {e}")
+            return False
+    
     def send_password_reset_email(self, user_email: str, user_name: str) -> bool:
         """
         Send password reset email and store token in database for single-use validation
@@ -377,7 +614,7 @@ The PanelMerge Team
             logger.error(f"Failed to send password reset email to {user_email}: {e}")
             return False
     
-    def send_admin_password_reset_email(self, user_email: str, user_name: str, temp_password: str, admin_name: str) -> bool:
+    def send_admin_password_reset_email(self, user_email: str, user_name: str, temp_password: str, admin_name: str, expiration_hours: int = 24) -> bool:
         """
         Send admin password reset notification email with temporary password
         
@@ -386,6 +623,7 @@ The PanelMerge Team
             user_name: User's name
             temp_password: Temporary password
             admin_name: Name of admin who reset the password
+            expiration_hours: Hours until password expires (default: 24)
             
         Returns:
             True if sent successfully, False otherwise
@@ -402,9 +640,11 @@ Your temporary password is: {temp_password}
 
 IMPORTANT: You will be required to change this password when you log in.
 
+⏰ EXPIRATION: This temporary password will expire in {expiration_hours} hours.
+
 Security Notice:
 - All your active sessions have been logged out
-- This temporary password will work only once
+- This temporary password will work only until it expires
 - Please change it immediately after logging in
 - If you did not request this reset, please contact an administrator immediately
 
@@ -451,6 +691,10 @@ The PanelMerge Team
                 <strong>⚠️ IMPORTANT:</strong> You will be required to change this password when you log in.
             </div>
             
+            <div class="danger" style="background-color: #fef3c7; border-left: 4px solid #f59e0b;">
+                <strong>⏰ EXPIRATION:</strong> This temporary password will expire in <strong>{expiration_hours} hours</strong>.
+            </div>
+            
             <p><strong>Your temporary password:</strong></p>
             <div class="password-box">
                 {temp_password}
@@ -470,7 +714,8 @@ The PanelMerge Team
                 <strong>🛡️ Security Notice:</strong>
                 <ul style="margin: 5px 0; padding-left: 20px;">
                     <li>All your active sessions have been logged out</li>
-                    <li>This temporary password should be changed immediately</li>
+                    <li>This temporary password expires in {expiration_hours} hours</li>
+                    <li>Change your password immediately after logging in</li>
                     <li>If you did not request this reset, contact an administrator immediately</li>
                 </ul>
             </div>

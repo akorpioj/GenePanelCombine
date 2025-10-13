@@ -818,10 +818,11 @@ Reuses existing email infrastructure:
    - Stored in audit log
    - Better accountability
 
-2. **Temporary Password Expiration**:
-   - Set expiration time for temp password
+2. **Temporary Password Expiration** ✅ **IMPLEMENTED** 13/10/2025:
+   - Set expiration time for temp password (default: 24 hours)
    - More secure than indefinite validity
-   - Requires token-like system
+   - Token-based system with database tracking
+   - See [Temporary Password Expiration](#temporary-password-expiration) section below
 
 3. **Bulk Password Resets**:
    - Reset multiple users at once
@@ -837,6 +838,615 @@ Reuses existing email infrastructure:
    - Dashboard of reset activities
    - Identify frequent resetters
    - Security insights
+
+## Temporary Password Expiration
+
+The Temporary Password Expiration feature enhances security by setting a time limit on admin-reset temporary passwords. This prevents indefinite use of temporary passwords and reduces the window of opportunity for potential attacks.
+
+### Features
+
+- ✅ **Configurable Expiration**: Set expiration time via environment variable (default: 24 hours)
+- ✅ **Token-Based System**: Unique token generated for each temporary password
+- ✅ **Automatic Expiration Check**: Login flow validates expiration before allowing access
+- ✅ **Database Tracking**: Expiration time and creator tracked in database
+- ✅ **User Notifications**: Email includes expiration time
+- ✅ **Time Remaining Display**: Shows remaining time during password change
+- ✅ **Audit Logging**: Expiration information logged in audit trail
+- ✅ **Secure Cleanup**: Temporary password fields cleared after successful change
+
+### How It Works
+
+#### When Admin Resets Password
+
+1. Admin initiates password reset for user
+2. System generates:
+   - Secure 16-character temporary password
+   - Unique token (32-byte URL-safe string)
+   - Expiration timestamp (current time + configured hours)
+3. System stores in database:
+   - `temp_password_token` - Unique identifier for this temp password
+   - `temp_password_expires_at` - Timestamp when password expires
+   - `temp_password_created_by` - Admin ID who created the password
+4. Email sent to user includes expiration time
+5. Audit log records expiration details
+
+#### When User Attempts Login
+
+1. User enters temporary password
+2. System validates credentials
+3. **NEW**: System checks if temporary password is expired:
+   - If `temp_password_expires_at` < current time → Login denied
+   - User sees error: "Your temporary password has expired"
+   - User must contact admin for new reset
+4. If not expired:
+   - Login succeeds
+   - User redirected to forced password change page
+   - Time remaining displayed in flash message
+
+#### When User Changes Password
+
+1. User enters new password
+2. System validates new password
+3. Password updated in database
+4. **NEW**: Temporary password fields cleared:
+   - `temp_password_token` → NULL
+   - `temp_password_expires_at` → NULL
+   - `temp_password_created_by` → NULL
+5. `force_password_change` flag cleared
+6. User gains full access to application
+
+### Database Schema
+
+#### User Model Changes
+
+```python
+class User(UserMixin, db.Model):
+    # ... existing fields ...
+    
+    # Temporary password expiration fields
+    temp_password_token = db.Column(db.String(255))  # Token for temp password validation
+    temp_password_expires_at = db.Column(db.DateTime)  # Expiration timestamp
+    temp_password_created_by = db.Column(db.Integer, db.ForeignKey('user.id'))  # Admin ID
+    
+    # Helper methods
+    def set_temp_password(self, password: str, token: str, admin_id: int, expiration_hours: int = 24):
+        """Set temporary password with expiration"""
+        
+    def is_temp_password_expired(self) -> bool:
+        """Check if temporary password has expired"""
+        
+    def has_temp_password(self) -> bool:
+        """Check if user has a temporary password set"""
+        
+    def clear_temp_password(self):
+        """Clear temporary password fields after successful password change"""
+        
+    def get_temp_password_time_remaining(self) -> str:
+        """Get human-readable time remaining for temp password"""
+```
+
+**Migration**: Run the migration to add these fields:
+
+```bash
+# Apply migration
+flask db upgrade
+
+# Or run specific migration
+python migrations/versions/add_temp_password_expiration.py
+```
+
+**Foreign Key**: `temp_password_created_by` references `user.id` (admin who created the password)
+
+### Configuration
+
+Add to `.env` file:
+
+```env
+# Temporary password expiration (in hours)
+TEMP_PASSWORD_EXPIRATION_HOURS=24  # Default: 24 hours
+
+# Other related settings
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+```
+
+**Configuration Options**:
+- `TEMP_PASSWORD_EXPIRATION_HOURS`: Hours until temporary password expires
+  - Default: 24 (1 day)
+  - Minimum recommended: 1 hour
+  - Maximum recommended: 168 hours (7 days)
+
+### User Experience
+
+#### Admin Workflow
+
+```
+1. Admin resets user password
+   ↓
+2. System generates temp password with 24-hour expiration
+   ↓
+3. Admin sees success message (email sent)
+   ↓
+4. Audit log records expiration timestamp
+```
+
+#### User Workflow - Success Case
+
+```
+1. User receives email with temp password
+   Email shows: "This password expires in 24 hours"
+   ↓
+2. User logs in within 24 hours
+   Flash message: "You must change password. Time remaining: 23 hours 15 min"
+   ↓
+3. User changes password successfully
+   ↓
+4. Temp password fields cleared
+   ↓
+5. User gains full access
+```
+
+#### User Workflow - Expired Password
+
+```
+1. User attempts login after 24+ hours
+   ↓
+2. System checks expiration
+   ↓
+3. Login denied immediately
+   ↓
+4. User sees error: "Your temporary password has expired"
+   ↓
+5. User must contact administrator
+   ↓
+6. Admin creates new temp password reset
+```
+
+### Email Template Updates
+
+The admin password reset email now includes expiration information:
+
+**Text Version**:
+```
+Your temporary password is: [PASSWORD]
+
+IMPORTANT: You will be required to change this password when you log in.
+
+⏰ EXPIRATION: This temporary password will expire in 24 hours.
+
+Security Notice:
+- All your active sessions have been logged out
+- This temporary password will work only until it expires
+- Please change it immediately after logging in
+```
+
+**HTML Version**:
+Includes:
+- Yellow warning box with expiration time
+- Orange danger box listing expiration in security notices
+- Clear "expires in X hours" messaging
+
+### Security Benefits
+
+1. **Reduced Attack Window**:
+   - Temporary passwords only valid for limited time
+   - If password intercepted, attacker has limited window
+   - Expired passwords cannot be used, even if compromised
+
+2. **Encourages Prompt Action**:
+   - Users motivated to change password quickly
+   - Reduces likelihood of forgetting/losing temp password
+   - Promotes better security hygiene
+
+3. **Prevents Indefinite Access**:
+   - No risk of forgotten temp passwords remaining active
+   - Admin can't accidentally leave account vulnerable
+   - Automatic security enforcement
+
+4. **Audit Trail**:
+   - Expiration time logged for each reset
+   - Can track if users changed password before expiration
+   - Identify patterns of expired password attempts
+
+### Audit Logging
+
+Temporary password expiration is fully integrated with audit system:
+
+#### Admin Reset Action
+
+```json
+{
+  "action_type": "ADMIN_ACTION",
+  "user_id": 1,
+  "action": "Admin admin_username reset password for user target_username",
+  "resource_type": "user",
+  "resource_id": "123",
+  "details": {
+    "target_user": "target_username",
+    "target_email": "user@example.com",
+    "sessions_revoked": 3,
+    "force_password_change": true,
+    "admin_user": "admin_username",
+    "admin_id": 1,
+    "temp_password_expires_at": "2025-10-14T15:30:00",
+    "expiration_hours": 24
+  },
+  "timestamp": "2025-10-13T15:30:00"
+}
+```
+
+#### Expired Password Login Attempt
+
+```json
+{
+  "action_type": "LOGIN",
+  "username_or_email": "user@example.com",
+  "success": false,
+  "error_message": "Temporary password expired",
+  "timestamp": "2025-10-15T16:00:00"
+}
+```
+
+#### Successful Password Change
+
+```json
+{
+  "action_type": "PASSWORD_CHANGE",
+  "user_id": 123,
+  "action": "User completed forced password change after admin reset",
+  "details": {
+    "sessions_revoked": 2,
+    "session_rotated": true,
+    "forced_change": true,
+    "temp_password_cleared": true
+  },
+  "timestamp": "2025-10-13T16:00:00"
+}
+```
+
+### Error Handling
+
+#### Expired Password Error
+
+**User Experience**:
+```
+Flash Message (Red):
+"Your temporary password has expired. Please contact an administrator for a new password reset."
+
+Action: Login form displayed, user logged out immediately
+```
+
+**Backend Behavior**:
+- User logged out immediately (even if credentials valid)
+- Session destroyed
+- Audit log records failed attempt with "Temporary password expired" error
+- No access granted to any part of application
+
+#### No Expiration Set (Legacy)
+
+If `temp_password_expires_at` is NULL:
+- System treats as no expiration (backward compatible)
+- User can still login and change password
+- Recommended: Admin should reset password again to set expiration
+
+### Administration
+
+#### Checking Temp Password Status
+
+```python
+# Flask shell or admin script
+from app.models import User
+
+user = User.query.filter_by(username='username').first()
+
+# Check if user has temp password
+if user.has_temp_password():
+    print(f"Temp password set: Yes")
+    print(f"Expires at: {user.temp_password_expires_at}")
+    print(f"Time remaining: {user.get_temp_password_time_remaining()}")
+    print(f"Is expired: {user.is_temp_password_expired()}")
+    
+    # Get admin who created it
+    admin = User.query.get(user.temp_password_created_by)
+    print(f"Created by: {admin.username}")
+else:
+    print("No temporary password set")
+```
+
+#### Manually Clearing Expired Passwords
+
+```python
+# Find all users with expired temp passwords
+from datetime import datetime
+from app import db
+
+users_with_expired = User.query.filter(
+    User.temp_password_expires_at < datetime.now(),
+    User.temp_password_expires_at.isnot(None)
+).all()
+
+print(f"Found {len(users_with_expired)} users with expired temp passwords")
+
+# Clear expired passwords
+for user in users_with_expired:
+    user.clear_temp_password()
+    user.force_password_change = False
+    print(f"Cleared expired temp password for {user.username}")
+
+db.session.commit()
+```
+
+#### Extending Expiration Time
+
+If a user needs more time:
+
+```python
+from datetime import datetime, timedelta
+from app import db
+
+user = User.query.filter_by(username='username').first()
+
+# Extend by 24 hours from now
+user.temp_password_expires_at = datetime.now() + timedelta(hours=24)
+db.session.commit()
+
+print(f"Extended temp password expiration for {user.username}")
+print(f"New expiration: {user.temp_password_expires_at}")
+```
+
+### Testing
+
+#### Manual Testing Checklist
+
+- [ ] Admin resets user password
+- [ ] Check email includes expiration time
+- [ ] Login with temp password within expiration period
+- [ ] Verify time remaining shown in flash message
+- [ ] Change password successfully
+- [ ] Verify temp password fields cleared in database
+- [ ] Create new temp password with short expiration (1 hour)
+- [ ] Wait for expiration
+- [ ] Attempt login with expired password
+- [ ] Verify login denied with appropriate error message
+- [ ] Check audit logs for expiration information
+- [ ] Verify foreign key to admin user working
+
+#### Configuration Testing
+
+```bash
+# Test with 1-hour expiration
+export TEMP_PASSWORD_EXPIRATION_HOURS=1
+
+# Test with 48-hour expiration
+export TEMP_PASSWORD_EXPIRATION_HOURS=48
+
+# Test without expiration set (should use default)
+unset TEMP_PASSWORD_EXPIRATION_HOURS
+```
+
+#### Automated Testing
+
+```python
+def test_temp_password_expiration(client, admin_user, test_user):
+    """Test temporary password expiration"""
+    # Admin resets password
+    login(client, admin_user)
+    response = client.post('/auth/admin/reset-user-password', data={
+        'user_id': test_user.id
+    })
+    
+    # Check temp password fields set
+    test_user = User.query.get(test_user.id)
+    assert test_user.has_temp_password()
+    assert test_user.temp_password_expires_at is not None
+    assert test_user.temp_password_created_by == admin_user.id
+    
+def test_expired_temp_password_denied(client, test_user):
+    """Test login denied with expired temp password"""
+    from datetime import datetime, timedelta
+    
+    # Set expired temp password
+    test_user.temp_password_expires_at = datetime.now() - timedelta(hours=1)
+    test_user.force_password_change = True
+    db.session.commit()
+    
+    # Attempt login
+    response = client.post('/auth/login', data={
+        'username_or_email': test_user.username,
+        'password': 'temp_password'
+    })
+    
+    assert b'temporary password has expired' in response.data
+    
+def test_temp_password_cleared_after_change(client, test_user):
+    """Test temp password fields cleared after password change"""
+    # Setup temp password
+    test_user.set_temp_password('TempPass123!', 'token123', 1, 24)
+    test_user.force_password_change = True
+    db.session.commit()
+    
+    # Login and change password
+    login(client, test_user, password='TempPass123!')
+    client.post('/auth/forced-password-change', data={
+        'new_password': 'NewPassword123!',
+        'confirm_password': 'NewPassword123!'
+    })
+    
+    # Verify cleared
+    test_user = User.query.get(test_user.id)
+    assert not test_user.has_temp_password()
+    assert test_user.temp_password_token is None
+    assert test_user.temp_password_expires_at is None
+```
+
+### Troubleshooting
+
+#### Temp Password Not Expiring
+
+**Issue**: User can login even after expiration time
+
+**Possible Causes**:
+1. System time incorrect on server
+2. Expiration not set properly
+3. Login logic not checking expiration
+
+**Solution**:
+```python
+# Check user's temp password status
+user = User.query.filter_by(username='username').first()
+print(f"Current time: {datetime.now()}")
+print(f"Expires at: {user.temp_password_expires_at}")
+print(f"Is expired: {user.is_temp_password_expired()}")
+```
+
+#### User Locked Out Immediately
+
+**Issue**: Temp password expires too quickly
+
+**Causes**:
+- `TEMP_PASSWORD_EXPIRATION_HOURS` set too low
+- System timezone misconfigured
+
+**Solution**:
+```bash
+# Check configuration
+echo $TEMP_PASSWORD_EXPIRATION_HOURS
+
+# Extend user's expiration
+python
+>>> from app import db
+>>> from app.models import User
+>>> from datetime import datetime, timedelta
+>>> user = User.query.filter_by(username='username').first()
+>>> user.temp_password_expires_at = datetime.now() + timedelta(hours=24)
+>>> db.session.commit()
+```
+
+#### Migration Errors
+
+**Issue**: Foreign key constraint fails
+
+**Solution**:
+```sql
+-- Check for orphaned references
+SELECT id, temp_password_created_by FROM user 
+WHERE temp_password_created_by IS NOT NULL 
+AND temp_password_created_by NOT IN (SELECT id FROM user);
+
+-- Fix orphaned references
+UPDATE user SET temp_password_created_by = NULL 
+WHERE temp_password_created_by IS NOT NULL 
+AND temp_password_created_by NOT IN (SELECT id FROM user);
+```
+
+### Best Practices
+
+#### For Administrators
+
+1. **Choose Appropriate Expiration Time**:
+   - Standard users: 24 hours (default)
+   - Executive/critical accounts: 4-8 hours
+   - External contractors: 1-2 hours
+   - Adjust based on organization policy
+
+2. **Communicate Expiration**:
+   - Inform user when resetting password
+   - Mention expiration time in any verbal communication
+   - Ensure user has access to email
+
+3. **Monitor Expired Passwords**:
+   - Review audit logs for expired password attempts
+   - May indicate phishing or social engineering
+   - Contact user if multiple expired attempts
+
+4. **Plan for After-Hours**:
+   - Consider longer expiration for resets done outside business hours
+   - Have procedure for emergency extensions
+   - Document who can extend expirations
+
+#### For Security Teams
+
+1. **Set Policy-Based Expiration**:
+   - Define different expiration times for different user types
+   - Document rationale for each setting
+   - Review and adjust based on security incidents
+
+2. **Audit Regular Reviews**:
+   - Monthly review of temp password usage
+   - Identify users with frequent resets
+   - Look for patterns indicating issues
+
+3. **Automated Cleanup**:
+   - Implement scheduled job to clear expired passwords
+   - Alert on accounts with very old temp passwords
+   - Monitor for accounts stuck in forced-change state
+
+### Configuration Examples
+
+#### High Security Environment
+
+```env
+# Very short expiration for maximum security
+TEMP_PASSWORD_EXPIRATION_HOURS=4
+
+# Shorter session timeout
+SESSION_TIMEOUT=1800  # 30 minutes
+
+# Stricter password requirements
+PASSWORD_HISTORY_LENGTH=10
+```
+
+#### Standard Environment
+
+```env
+# Default balanced settings
+TEMP_PASSWORD_EXPIRATION_HOURS=24
+
+# Normal session timeout
+SESSION_TIMEOUT=3600  # 1 hour
+
+# Standard password requirements
+PASSWORD_HISTORY_LENGTH=5
+```
+
+#### Development/Testing
+
+```env
+# Longer expiration for testing
+TEMP_PASSWORD_EXPIRATION_HOURS=168  # 7 days
+
+# Extended session for development
+SESSION_TIMEOUT=28800  # 8 hours
+
+# Minimal password history
+PASSWORD_HISTORY_LENGTH=3
+```
+
+### Performance Considerations
+
+The temporary password expiration feature has minimal performance impact:
+
+1. **Database Queries**:
+   - One additional check during login (< 1ms)
+   - Index on `temp_password_expires_at` recommended for large databases
+
+2. **Memory Usage**:
+   - Three additional columns per user (negligible)
+   - No additional caching required
+
+3. **Email Delivery**:
+   - No additional email overhead
+   - Same email template, just includes expiration time
+
+**Optimization Tips**:
+- Create index for faster expiration queries:
+  ```sql
+  CREATE INDEX idx_temp_password_expires ON user(temp_password_expires_at);
+  ```
+- Periodic cleanup of old temp password data (optional)
 
 ## Related Documentation
 

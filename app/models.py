@@ -62,11 +62,21 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime)
     login_count = db.Column(db.Integer, default=0)
     
+    # Email change verification fields
+    pending_email = db.Column(db.String(120))  # New email awaiting verification
+    email_change_token_hash = db.Column(db.String(255))  # Hashed token for security
+    email_change_requested_at = db.Column(db.DateTime)  # When change was requested
+    
     # Additional security fields
     last_ip_address = db.Column(db.String(45))
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime)
     force_password_change = db.Column(db.Boolean, default=False, nullable=False)  # Admin can force password change
+    
+    # Temporary password expiration fields (for admin-reset passwords)
+    temp_password_token = db.Column(db.String(255))  # Token for temporary password validation
+    temp_password_expires_at = db.Column(db.DateTime)  # Expiration time for temporary password
+    temp_password_created_by = db.Column(db.Integer, db.ForeignKey('user.id'))  # Admin who created temp password
     
     # Account lockout fields for password reset abuse
     failed_reset_attempts = db.Column(db.Integer, default=0, nullable=False)  # Track failed password reset attempts
@@ -197,6 +207,91 @@ class User(UserMixin, db.Model):
         self.reset_locked_until = None
         self.reset_locked_by_admin = False
         self.failed_reset_attempts = 0
+    
+    # Email Change Methods
+    def request_email_change(self, new_email: str, token_hash: str):
+        """
+        Request email change - stores pending email and token hash
+        
+        Args:
+            new_email: The new email address to change to
+            token_hash: Hashed verification token
+        """
+        self.pending_email = new_email
+        self.email_change_token_hash = token_hash
+        self.email_change_requested_at = datetime.datetime.now()
+    
+    def cancel_email_change(self):
+        """Cancel pending email change"""
+        self.pending_email = None
+        self.email_change_token_hash = None
+        self.email_change_requested_at = None
+    
+    def has_pending_email_change(self) -> bool:
+        """Check if there's a pending email change"""
+        return self.pending_email is not None
+    
+    def complete_email_change(self):
+        """Complete the email change - moves pending email to email"""
+        if self.pending_email:
+            old_email = self.email
+            self.email = self.pending_email
+            self.pending_email = None
+            self.email_change_token_hash = None
+            self.email_change_requested_at = None
+            return old_email
+        return None
+    
+    # Temporary Password Methods
+    def set_temp_password(self, password: str, token: str, admin_id: int, expiration_hours: int = 24):
+        """
+        Set temporary password with expiration
+        
+        Args:
+            password: The temporary password (plain text)
+            token: Unique token for this temporary password
+            admin_id: ID of admin who created the temp password
+            expiration_hours: Hours until password expires (default: 24)
+        """
+        from werkzeug.security import generate_password_hash
+        self.password_hash = generate_password_hash(password)
+        self.temp_password_token = token
+        self.temp_password_expires_at = datetime.datetime.now() + datetime.timedelta(hours=expiration_hours)
+        self.temp_password_created_by = admin_id
+        self.force_password_change = True
+    
+    def is_temp_password_expired(self) -> bool:
+        """Check if temporary password has expired"""
+        if not self.temp_password_expires_at:
+            return False  # No temp password set
+        return datetime.datetime.now() > self.temp_password_expires_at
+    
+    def has_temp_password(self) -> bool:
+        """Check if user has a temporary password set"""
+        return self.temp_password_token is not None and self.temp_password_expires_at is not None
+    
+    def clear_temp_password(self):
+        """Clear temporary password fields after successful password change"""
+        self.temp_password_token = None
+        self.temp_password_expires_at = None
+        self.temp_password_created_by = None
+    
+    def get_temp_password_time_remaining(self) -> str:
+        """Get human-readable time remaining for temp password"""
+        if not self.temp_password_expires_at:
+            return "No expiration"
+        
+        remaining = self.temp_password_expires_at - datetime.datetime.now()
+        if remaining.total_seconds() <= 0:
+            return "Expired"
+        
+        hours = int(remaining.total_seconds() // 3600)
+        minutes = int((remaining.total_seconds() % 3600) // 60)
+        
+        if hours > 0:
+            return f"{hours} hour{'s' if hours != 1 else ''} {minutes} min"
+        else:
+            return f"{minutes} minute{'s' if minutes != 1 else ''}"
     
     def get_timezone(self):
         """Get user's preferred timezone"""

@@ -130,10 +130,17 @@
    - Create `password_reset_tokens` table
    - Mark tokens as used after password change
    - Prevents token reuse if intercepted
-- **Suspicious Activity Detection**:
+- ✅ IMPLEMENTED: **Suspicious Activity Detection**: 13/10/2025
    - Alert on multiple reset attempts
    - Geographic anomaly detection
    - Time-based pattern analysis
+- ✅ IMPLEMENTED: **Email Change Verification**: 13/10/2025
+   - Verify new email when user changes it
+   - Keep old email active until verified
+- ✅ IMPLEMENTED: **Temporary Password Expiration**: 13/10/2025
+   - Set expiration time for temp password
+   - More secure than indefinite validity
+   - Requires token-like system
 - **Two-Factor Authentication**: Enhanced login security with 2FA
 - **OAuth Integration**: Login with Google, GitHub, and other providers
 - **Hardware Security Modules**: HSM integration for key storage
