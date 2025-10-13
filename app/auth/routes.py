@@ -1160,3 +1160,133 @@ def verify_status():
         return redirect(url_for('auth.profile'))
     
     return render_template('auth/verify_status.html')
+
+
+# ============================================================================
+# PASSWORD RESET ROUTES
+# ============================================================================
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit("3 per hour")
+def forgot_password():
+    """Request password reset email"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Please enter your email address.', 'error')
+            return render_template('auth/forgot_password.html')
+        
+        # Find user by email
+        user = User.query.filter_by(email=email).first()
+        
+        if not user:
+            # Don't reveal if email exists or not (security best practice)
+            flash('If the email exists in our system, a password reset link has been sent.', 'info')
+            AuditService.log_action(
+                action_type=AuditActionType.ACCOUNT_ACTION,
+                action_description=f"Password reset attempted for non-existent email: {email}",
+                resource_type="user",
+                resource_id="unknown"
+            )
+            return render_template('auth/forgot_password.html')
+        
+        # Send password reset email
+        from ..email_service import email_service
+        email_sent = email_service.send_password_reset_email(user.email, user.get_full_name() or user.username)
+        
+        if email_sent:
+            AuditService.log_action(
+                action_type=AuditActionType.ACCOUNT_ACTION,
+                action_description=f"Password reset email sent to {email}",
+                resource_type="user",
+                resource_id=user.username
+            )
+            flash('If the email exists in our system, a password reset link has been sent.', 'info')
+        else:
+            flash('Failed to send password reset email. Please try again later.', 'error')
+        
+        return render_template('auth/forgot_password.html')
+    
+    return render_template('auth/forgot_password.html')
+
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+@limiter.limit("5 per hour")
+def reset_password(token):
+    """Reset password using token"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    
+    from ..email_service import email_service
+    
+    # Verify the token
+    email = email_service.verify_token(
+        token, 
+        salt='password-reset',
+        max_age=current_app.config.get('PASSWORD_RESET_TOKEN_MAX_AGE', 3600)
+    )
+    
+    if not email:
+        flash('The password reset link is invalid or has expired.', 'error')
+        return redirect(url_for('auth.forgot_password'))
+    
+    # Find user by email
+    user = User.query.filter_by(email=email.lower()).first()
+    
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('auth.forgot_password'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # Validation
+        errors = []
+        
+        if not password:
+            errors.append("Password is required")
+        else:
+            valid, message = validate_password(password)
+            if not valid:
+                errors.append(message)
+        
+        if password != confirm_password:
+            errors.append("Passwords do not match")
+        
+        if errors:
+            for error in errors:
+                flash(error, 'error')
+            return render_template('auth/reset_password.html', token=token)
+        
+        # Update password
+        try:
+            user.set_password(password)
+            db.session.commit()
+            
+            # Log successful password reset
+            AuditService.log_action(
+                action_type=AuditActionType.ACCOUNT_ACTION,
+                action_description=f"Password reset completed for user: {user.username}",
+                resource_type="user",
+                resource_id=user.username,
+                details={
+                    "email": user.email,
+                    "reset_timestamp": datetime.datetime.now().isoformat()
+                }
+            )
+            
+            flash('Your password has been reset successfully! You can now log in.', 'success')
+            return redirect(url_for('auth.login'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error resetting password: {e}")
+            flash('An error occurred while resetting your password. Please try again.', 'error')
+            return render_template('auth/reset_password.html', token=token)
+    
+    return render_template('auth/reset_password.html', token=token)
