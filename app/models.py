@@ -653,12 +653,33 @@ class SuspiciousActivity(db.Model):
         """
         current_hour = datetime.datetime.now().hour
         
-        # Check all patterns
+        # Check rule-based patterns
         multiple_attempts, attempts_reason, attempts_count = SuspiciousActivity.detect_multiple_attempts(email)
         geo_anomaly, geo_reason = SuspiciousActivity.detect_geographic_anomaly(email, ip_address, country)
         time_anomaly, time_reason = SuspiciousActivity.detect_time_pattern_anomaly(email, current_hour)
         
-        is_suspicious = multiple_attempts or geo_anomaly or time_anomaly
+        # Check ML-based anomaly detection (if enabled and model available)
+        ml_anomaly = False
+        ml_score = 0.0
+        ml_reason = ""
+        
+        try:
+            from flask import current_app
+            if current_app.config.get('ML_ANOMALY_DETECTION_ENABLED', False):
+                from app.ml_anomaly_detector import ml_detector
+                
+                # Extract features and predict
+                features = ml_detector.extract_features(
+                    email, ip_address, user_id, country, db.session
+                )
+                ml_anomaly, ml_score, ml_reason = ml_detector.predict_anomaly(features)
+        except Exception as e:
+            # ML detection is optional, don't fail if it errors
+            import logging
+            logging.getLogger(__name__).warning(f"ML anomaly detection error: {e}")
+        
+        # Combine all detection results
+        is_suspicious = multiple_attempts or geo_anomaly or time_anomaly or ml_anomaly
         
         reasons = []
         if attempts_reason:
@@ -667,6 +688,8 @@ class SuspiciousActivity(db.Model):
             reasons.append(geo_reason)
         if time_reason:
             reasons.append(time_reason)
+        if ml_reason and ml_anomaly:
+            reasons.append(ml_reason)
         
         return {
             'is_suspicious': is_suspicious,
@@ -674,7 +697,9 @@ class SuspiciousActivity(db.Model):
             'multiple_attempts': multiple_attempts,
             'attempts_count': attempts_count,
             'geo_anomaly': geo_anomaly,
-            'time_anomaly': time_anomaly
+            'time_anomaly': time_anomaly,
+            'ml_anomaly': ml_anomaly,
+            'ml_score': ml_score
         }
     
     @staticmethod

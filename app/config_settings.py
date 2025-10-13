@@ -30,6 +30,10 @@ class Config:
     SUSPICIOUS_ACTIVITY_TIME_WINDOW = int(os.getenv('SUSPICIOUS_ACTIVITY_TIME_WINDOW', '1'))  # Hours for multiple attempt detection
     SUSPICIOUS_ACTIVITY_RETENTION_DAYS = int(os.getenv('SUSPICIOUS_ACTIVITY_RETENTION_DAYS', '90'))  # Days to keep records
     
+    # ML-based Anomaly Detection Configuration
+    ML_ANOMALY_DETECTION_ENABLED = os.getenv('ML_ANOMALY_DETECTION_ENABLED', 'False').lower() == 'true'
+    ML_ANOMALY_CONTAMINATION = float(os.getenv('ML_ANOMALY_CONTAMINATION', '0.1'))  # Expected proportion of anomalies (0.05-0.15)
+    
     # Enhanced Session Configuration
     MAX_CONCURRENT_SESSIONS = int(os.getenv('MAX_CONCURRENT_SESSIONS', '5'))
     SESSION_ROTATION_INTERVAL = int(os.getenv('SESSION_ROTATION_INTERVAL', '1800'))  # 30 minutes
