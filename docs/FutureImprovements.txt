@@ -92,11 +92,11 @@
     - Automatic merge for non-conflicting changes
     - Manual review mode for all changes
   - **Export System**:
-    - Excel format with multiple sheets (genes, metadata, version history)
+    - ✅ Excel format with multiple sheets (genes, metadata, version history) - IMPLEMENTED 13/10/2025
     - CSV/TSV with configurable column selection
     - JSON format for programmatic access
     - BED format for genomic coordinate data
-    - Batch export functionality for multiple panels
+    - ✅ Batch export functionality for multiple panels - IMPLEMENTED 13/10/2025
 
 ### Security & Privacy
 - ✅ IMPLEMENTED: **User Accounts**: Full user registration and authentication system - 26/07/2025
@@ -242,10 +242,10 @@
     - Sharing link generation with expiration options
     - Activity feed showing who accessed/modified shared panels
   - **Export Wizard**: 
-    - Format selection (Excel, CSV, TSV, JSON, BED)
-    - Column customization and filtering options
+    - ✅ IMPLEMENTED: Format selection (Excel, CSV, TSV, JSON) - 13/10/2025
+    - ✅ IMPLEMENTED: Column customization with metadata and version options - 13/10/2025
     - Template creation for recurring export needs
-    - Batch export for multiple panels
+    - ✅ IMPLEMENTED: Batch export for multiple panels - 13/10/2025
   - **Import Interface**: 
     - Drag-and-drop file upload with format detection
     - Column mapping for non-standard formats

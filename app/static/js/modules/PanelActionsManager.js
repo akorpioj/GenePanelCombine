@@ -91,8 +91,179 @@ class PanelActionsManager {
     }
 
     async exportPanel(panelId) {
-        console.log('Exporting panel:', panelId);
-        alert('Export panel functionality coming soon!');
+        // Show export wizard for single panel
+        this.showExportWizardSingle(panelId);
+    }
+    
+    showExportWizardSingle(panelId) {
+        // Get panel info for display
+        const panel = this.panelLibrary.panels.find(p => p.id === panelId);
+        const panelName = panel ? panel.name : 'panel';
+        
+        // Create modal HTML
+        const modalHTML = `
+            <div id="exportWizardModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Export Panel</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500 mb-4">
+                                Exporting "${panelName}". Choose your export format:
+                            </p>
+                            
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" name="exportFormat" value="excel" checked class="mr-3">
+                                    <div>
+                                        <div class="font-medium">Excel (.xlsx)</div>
+                                        <div class="text-xs text-gray-500">Multiple sheets with genes, metadata, and versions</div>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" name="exportFormat" value="csv" class="mr-3">
+                                    <div>
+                                        <div class="font-medium">CSV (.csv)</div>
+                                        <div class="text-xs text-gray-500">Comma-separated values, single file</div>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" name="exportFormat" value="tsv" class="mr-3">
+                                    <div>
+                                        <div class="font-medium">TSV (.tsv)</div>
+                                        <div class="text-xs text-gray-500">Tab-separated values, single file</div>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" name="exportFormat" value="json" class="mr-3">
+                                    <div>
+                                        <div class="font-medium">JSON (.json)</div>
+                                        <div class="text-xs text-gray-500">Structured data for programmatic access</div>
+                                    </div>
+                                </label>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <label class="flex items-center text-sm">
+                                    <input type="checkbox" id="includeMetadata" checked class="mr-2">
+                                    Include panel metadata
+                                </label>
+                                <label class="flex items-center text-sm mt-2">
+                                    <input type="checkbox" id="includeVersions" checked class="mr-2">
+                                    Include version history
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button id="cancelExport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                                Cancel
+                            </button>
+                            <button id="confirmExport" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                <i class="fas fa-download mr-2"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Get references
+        const modal = document.getElementById('exportWizardModal');
+        const cancelBtn = document.getElementById('cancelExport');
+        const confirmBtn = document.getElementById('confirmExport');
+        
+        // Cancel button
+        cancelBtn.addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        // Confirm button
+        confirmBtn.addEventListener('click', async () => {
+            const format = document.querySelector('input[name="exportFormat"]:checked').value;
+            const includeMetadata = document.getElementById('includeMetadata').checked;
+            const includeVersions = document.getElementById('includeVersions').checked;
+            
+            // Disable buttons and show loading
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+            cancelBtn.disabled = true;
+            
+            try {
+                await this.performSingleExport(panelId, format, includeMetadata, includeVersions);
+                modal.remove();
+            } catch (error) {
+                // Re-enable buttons on error
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-download mr-2"></i>Export';
+                cancelBtn.disabled = false;
+            }
+        });
+    }
+    
+    async performSingleExport(panelId, format, includeMetadata, includeVersions) {
+        try {
+            console.log('Exporting panel:', panelId, 'Format:', format);
+            
+            // Get panel info for filename
+            const panel = this.panelLibrary.panels.find(p => p.id === panelId);
+            const panelName = panel ? panel.name : 'panel';
+            
+            // Build query parameters
+            const params = new URLSearchParams({
+                format: format,
+                include_metadata: includeMetadata,
+                include_versions: includeVersions,
+                include_genes: true
+            });
+            
+            // Make request to export endpoint
+            const response = await fetch(`/api/user/panels/${panelId}/export?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Failed to export panel');
+            }
+            
+            // Get the filename from the response headers
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `${panelName}_export.${format}`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+            
+            // Create blob and download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            this.panelLibrary.showSuccess(`Panel "${panelName}" exported successfully as ${format.toUpperCase()}!`);
+            
+        } catch (error) {
+            console.error('Error exporting panel:', error);
+            this.panelLibrary.showError(error.message || 'Failed to export panel. Please try again.');
+            throw error; // Re-throw to handle in caller
+        }
     }
 
     async deletePanel(panelId) {
@@ -735,15 +906,177 @@ class PanelActionsManager {
         console.log('Comparing panels:', selectedIds);
     }
 
-    exportSelected() {
+    async exportSelected() {
         const selectedIds = Array.from(this.panelLibrary.selectedPanels);
         if (selectedIds.length === 0) {
             alert('Please select panels to export');
             return;
         }
-        // Coming soon functionality
-        alert('Panel export feature is coming soon!');
-        console.log('Exporting panels:', selectedIds);
+        
+        // Show export wizard modal
+        this.showExportWizard(selectedIds);
+    }
+    
+    showExportWizard(panelIds) {
+        // Create modal HTML
+        const modalHTML = `
+            <div id="exportWizardModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Export Panels</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500 mb-4">
+                                Exporting ${panelIds.length} panel(s). Choose your export format:
+                            </p>
+                            
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" name="exportFormat" value="excel" checked class="mr-3">
+                                    <div>
+                                        <div class="font-medium">Excel (.xlsx)</div>
+                                        <div class="text-xs text-gray-500">Multiple sheets with genes, metadata, and versions</div>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" name="exportFormat" value="csv" class="mr-3">
+                                    <div>
+                                        <div class="font-medium">CSV (.csv)</div>
+                                        <div class="text-xs text-gray-500">Comma-separated values, single file</div>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" name="exportFormat" value="tsv" class="mr-3">
+                                    <div>
+                                        <div class="font-medium">TSV (.tsv)</div>
+                                        <div class="text-xs text-gray-500">Tab-separated values, single file</div>
+                                    </div>
+                                </label>
+                                
+                                <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" name="exportFormat" value="json" class="mr-3">
+                                    <div>
+                                        <div class="font-medium">JSON (.json)</div>
+                                        <div class="text-xs text-gray-500">Structured data for programmatic access</div>
+                                    </div>
+                                </label>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <label class="flex items-center text-sm">
+                                    <input type="checkbox" id="includeMetadata" checked class="mr-2">
+                                    Include panel metadata
+                                </label>
+                                <label class="flex items-center text-sm mt-2">
+                                    <input type="checkbox" id="includeVersions" checked class="mr-2">
+                                    Include version history
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button id="cancelExport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                                Cancel
+                            </button>
+                            <button id="confirmExport" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                <i class="fas fa-download mr-2"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Get references
+        const modal = document.getElementById('exportWizardModal');
+        const cancelBtn = document.getElementById('cancelExport');
+        const confirmBtn = document.getElementById('confirmExport');
+        
+        // Cancel button
+        cancelBtn.addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        // Confirm button
+        confirmBtn.addEventListener('click', async () => {
+            const format = document.querySelector('input[name="exportFormat"]:checked').value;
+            const includeMetadata = document.getElementById('includeMetadata').checked;
+            const includeVersions = document.getElementById('includeVersions').checked;
+            
+            // Disable buttons and show loading
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+            cancelBtn.disabled = true;
+            
+            try {
+                await this.performExport(panelIds, format, includeMetadata, includeVersions);
+                modal.remove();
+            } catch (error) {
+                // Re-enable buttons on error
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-download mr-2"></i>Export';
+                cancelBtn.disabled = false;
+            }
+        });
+    }
+    
+    async performExport(panelIds, format, includeMetadata, includeVersions) {
+        try {
+            console.log('Exporting panels:', panelIds, 'Format:', format);
+            
+            // Make request to export endpoint
+            const response = await fetch('/api/user/panels/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    panel_ids: panelIds,
+                    format: format,
+                    include_metadata: includeMetadata,
+                    include_versions: includeVersions,
+                    include_genes: true
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Failed to export panels');
+            }
+            
+            // Get the filename from the response headers
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `panels_export.${format}`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+            
+            // Create blob and download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            this.panelLibrary.showSuccess(`Successfully exported ${panelIds.length} panel(s) as ${format.toUpperCase()}!`);
+            
+        } catch (error) {
+            console.error('Error exporting panels:', error);
+            this.panelLibrary.showError(error.message || 'Failed to export panels. Please try again.');
+            throw error; // Re-throw to handle in caller
+        }
     }
 
     // UI helpers

@@ -846,3 +846,110 @@ class SharedPanelList(Resource):
         except Exception as e:
             current_app.logger.error(f"Error retrieving shared panels: {str(e)}")
             ns.abort(500, "Internal server error")
+
+
+@ns.route('/export')
+class PanelExportMultiple(Resource):
+    @ns.doc('export_panels')
+    @ns.response(200, 'Excel file generated successfully')
+    @ns.response(400, 'Invalid input', error_response_model)
+    @ns.response(401, 'Authentication required', error_response_model)
+    @ns.response(403, 'Access denied', error_response_model)
+    @ns.response(404, 'Panels not found', error_response_model)
+    @ns.response(500, 'Internal server error', error_response_model)
+    @api_login_required
+    @limiter.limit("10 per minute")
+    def post(self):
+        """Export one or more panels to Excel format with genes, metadata, and version history"""
+        try:
+            from ..main.panel_excel_export import generate_panel_excel
+            
+            data = request.get_json()
+            
+            # Validate input
+            if not data or 'panel_ids' not in data:
+                ns.abort(400, "panel_ids required")
+            
+            panel_ids = data['panel_ids']
+            if not isinstance(panel_ids, list) or len(panel_ids) == 0:
+                ns.abort(400, "panel_ids must be a non-empty list")
+            
+            # Validate access to all panels
+            accessible_panels = []
+            for panel_id in panel_ids:
+                try:
+                    panel = SavedPanelResource()._get_accessible_panel(panel_id, SharePermission.VIEW)
+                    accessible_panels.append(panel)
+                except Exception:
+                    ns.abort(403, f"Access denied to panel ID {panel_id}")
+            
+            if not accessible_panels:
+                ns.abort(404, "No accessible panels found")
+            
+            # Generate filename
+            filename = data.get('filename')
+            if not filename:
+                if len(accessible_panels) == 1:
+                    filename = f"{accessible_panels[0].name}_export_{datetime.now().strftime('%Y%m%d')}.xlsx"
+                else:
+                    filename = f"panels_export_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            
+            # Log export action
+            AuditService.log_action(
+                action_type=AuditActionType.PANEL_DOWNLOAD,
+                action_description=f"Exported {len(panel_ids)} panels to Excel via API",
+                details={
+                    "panel_ids": panel_ids,
+                    "panel_names": [p.name for p in accessible_panels],
+                    "filename": filename
+                }
+            )
+            
+            # Generate and return Excel file
+            return generate_panel_excel(panel_ids, filename=filename)
+            
+        except Exception as e:
+            current_app.logger.error(f"Error exporting panels: {str(e)}")
+            ns.abort(500, f"Internal server error: {str(e)}")
+
+
+@ns.route('/<int:panel_id>/export')
+class PanelExportSingle(Resource):
+    @ns.doc('export_single_panel')
+    @ns.response(200, 'Excel file generated successfully')
+    @ns.response(401, 'Authentication required', error_response_model)
+    @ns.response(403, 'Access denied', error_response_model)
+    @ns.response(404, 'Panel not found', error_response_model)
+    @ns.response(500, 'Internal server error', error_response_model)
+    @api_login_required
+    @limiter.limit("10 per minute")
+    def get(self, panel_id):
+        """Export a single panel to Excel format with genes, metadata, and version history"""
+        try:
+            from ..main.panel_excel_export import generate_panel_excel
+            
+            # Check access
+            panel = SavedPanelResource()._get_accessible_panel(panel_id, SharePermission.VIEW)
+            
+            # Get filename from query params or use default
+            filename = request.args.get('filename')
+            if not filename:
+                filename = f"{panel.name}_export_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            
+            # Log export action
+            AuditService.log_action(
+                action_type=AuditActionType.PANEL_DOWNLOAD,
+                action_description=f"Exported panel '{panel.name}' to Excel via API",
+                details={
+                    "panel_id": panel.id,
+                    "panel_name": panel.name,
+                    "filename": filename
+                }
+            )
+            
+            # Generate and return Excel file
+            return generate_panel_excel([panel_id], filename=filename)
+            
+        except Exception as e:
+            current_app.logger.error(f"Error exporting panel {panel_id}: {str(e)}")
+            ns.abort(500, f"Internal server error: {str(e)}")

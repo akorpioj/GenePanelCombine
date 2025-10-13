@@ -161,3 +161,151 @@ def api_user_panel_version_details(panel_id, version_number):
     except Exception as e:
         logger.error(f"Error getting panel version details: {e}")
         return jsonify({'error': 'Failed to get version details'}), 500
+
+
+@main_bp.route('/api/user/panels/<int:panel_id>/export')
+@login_required
+@limiter.limit("10 per minute")
+def api_user_panel_export_single(panel_id):
+    """Export a single panel in specified format (Excel, CSV, TSV, JSON)"""
+    try:
+        from .panel_excel_export import (
+            generate_panel_excel, generate_panel_csv,
+            generate_panel_tsv, generate_panel_json
+        )
+        
+        # Check panel ownership (exclude deleted panels)
+        panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).filter(SavedPanel.status != PanelStatus.DELETED).first()
+        if not panel:
+            logger.error(f"Panel {panel_id} not found or access denied for user {current_user.id}")
+            return jsonify({'error': 'Panel not found or access denied'}), 404
+        
+        # Get export parameters
+        export_format = request.args.get('format', 'excel').lower()
+        filename = request.args.get('filename')
+        include_metadata = request.args.get('include_metadata', 'true').lower() == 'true'
+        include_versions = request.args.get('include_versions', 'true').lower() == 'true'
+        include_genes = request.args.get('include_genes', 'true').lower() == 'true'
+        
+        # Validate format
+        valid_formats = ['excel', 'csv', 'tsv', 'json']
+        if export_format not in valid_formats:
+            return jsonify({'error': f'Invalid format. Must be one of: {", ".join(valid_formats)}'}), 400
+        
+        # Log export action
+        AuditService.log_action(
+            action_type=AuditActionType.PANEL_DOWNLOAD,
+            action_description=f"Exported panel '{panel.name}' to {export_format.upper()}",
+            user_id=current_user.id,
+            resource_id=panel.id,
+            resource_type='panel',
+            details={
+                "panel_id": panel.id,
+                "panel_name": panel.name,
+                "format": export_format,
+                "filename": filename
+            }
+        )
+        
+        # Generate and return file in requested format
+        if export_format == 'excel':
+            return generate_panel_excel([panel_id], filename=filename)
+        elif export_format == 'csv':
+            return generate_panel_csv([panel_id], filename=filename, 
+                                     include_metadata=include_metadata,
+                                     include_versions=include_versions)
+        elif export_format == 'tsv':
+            return generate_panel_tsv([panel_id], filename=filename,
+                                     include_metadata=include_metadata,
+                                     include_versions=include_versions)
+        elif export_format == 'json':
+            return generate_panel_json([panel_id], filename=filename,
+                                      include_genes=include_genes,
+                                      include_versions=include_versions)
+        
+    except Exception as e:
+        logger.error(f"Error exporting panel {panel_id}: {e}")
+        return jsonify({'error': f'Failed to export panel: {str(e)}'}), 500
+
+
+@main_bp.route('/api/user/panels/export', methods=['POST'])
+@login_required
+@limiter.limit("10 per minute")
+def api_user_panels_export_multiple():
+    """Export multiple panels in specified format (Excel, CSV, TSV, JSON)"""
+    try:
+        from .panel_excel_export import (
+            generate_panel_excel, generate_panel_csv,
+            generate_panel_tsv, generate_panel_json
+        )
+        
+        data = request.get_json()
+        
+        # Validate input
+        if not data or 'panel_ids' not in data:
+            logger.error(f"Panel IDs not provided in request")
+            return jsonify({'error': 'panel_ids required'}), 400
+        
+        panel_ids = data['panel_ids']
+        if not isinstance(panel_ids, list) or len(panel_ids) == 0:
+            logger.error(f"Invalid panel_ids format: {panel_ids}")
+            return jsonify({'error': 'panel_ids must be a non-empty list'}), 400
+        
+        # Get export parameters
+        export_format = data.get('format', 'excel').lower()
+        filename = data.get('filename')
+        include_metadata = data.get('include_metadata', True)
+        include_versions = data.get('include_versions', True)
+        include_genes = data.get('include_genes', True)
+        
+        # Validate format
+        valid_formats = ['excel', 'csv', 'tsv', 'json']
+        if export_format not in valid_formats:
+            return jsonify({'error': f'Invalid format. Must be one of: {", ".join(valid_formats)}'}), 400
+        
+        # Validate access to all panels
+        accessible_panels = []
+        for panel_id in panel_ids:
+            panel = SavedPanel.query.filter_by(id=panel_id, owner_id=current_user.id).filter(SavedPanel.status != PanelStatus.DELETED).first()
+            if not panel:
+                logger.error(f"Panel {panel_id} not found or access denied for user {current_user.id}")
+                return jsonify({'error': f'Panel ID {panel_id} not found or access denied'}), 403
+            accessible_panels.append(panel)
+        
+        if not accessible_panels:
+            logger.error(f"No accessible panels found for user {current_user.id}")
+            return jsonify({'error': 'No accessible panels found'}), 404
+        
+        # Log export action
+        AuditService.log_action(
+            action_type=AuditActionType.PANEL_DOWNLOAD,
+            action_description=f"Exported {len(panel_ids)} panels to {export_format.upper()}",
+            user_id=current_user.id,
+            resource_type='panel',
+            details={
+                "panel_ids": panel_ids,
+                "panel_names": [p.name for p in accessible_panels],
+                "format": export_format,
+                "filename": filename
+            }
+        )
+        
+        # Generate and return file in requested format
+        if export_format == 'excel':
+            return generate_panel_excel(panel_ids, filename=filename)
+        elif export_format == 'csv':
+            return generate_panel_csv(panel_ids, filename=filename,
+                                     include_metadata=include_metadata,
+                                     include_versions=include_versions)
+        elif export_format == 'tsv':
+            return generate_panel_tsv(panel_ids, filename=filename,
+                                     include_metadata=include_metadata,
+                                     include_versions=include_versions)
+        elif export_format == 'json':
+            return generate_panel_json(panel_ids, filename=filename,
+                                      include_genes=include_genes,
+                                      include_versions=include_versions)
+        
+    except Exception as e:
+        logger.error(f"Error exporting panels: {e}")
+        return jsonify({'error': f'Failed to export panels: {str(e)}'}), 500
