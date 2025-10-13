@@ -61,12 +61,12 @@ class PanelRenderer {
         const visibility = this.panelLibrary.backendToFrontend(panel.visibility);
         const statusColor = this.getStatusColor(status);
         const sharingIcon = this.getSharingIcon(visibility);
-        console.log("tags: ", panel.tags);
 
         // Generate tags HTML
-        const tagsHtml = (panel.tags || []).slice(0, 3).map(tag => 
-            `<span class="tag">${tag}</span>`
-        ).join('') + ((panel.tags || []).length > 3 ? `<span class="tag-more">+${(panel.tags || []).length - 3}</span>` : '');
+        const tagsHtml = (panel.tags || []).slice(0, 3).map(tag => {
+            const cleanTag = String(tag).replace(/^[{\s]+|[}\s]+$/g, '').trim();
+            return `<span class="tag">${cleanTag}</span>`;
+        }).join('') + ((panel.tags || []).length > 3 ? `<span class="tag-more">+${(panel.tags || []).length - 3}</span>` : '');
 
         // Use external template if available, otherwise use inline template
         if (window.panelCardTemplate) {

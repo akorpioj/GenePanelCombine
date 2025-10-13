@@ -445,26 +445,71 @@ class SavedPanelResource(Resource):
                 except ValueError:
                     ns.abort(400, f"Invalid visibility: {data['visibility']}")
             
+            # Handle gene updates if provided
+            genes_updated = False
+            if 'genes' in data and isinstance(data['genes'], list):
+                # Get current genes for comparison
+                current_genes = {g.gene_symbol: g for g in panel.genes}
+                new_gene_symbols = {g.get('gene_symbol', '') for g in data['genes']}
+                
+                # Check if genes have changed
+                if set(current_genes.keys()) != new_gene_symbols:
+                    genes_updated = True
+                    old_gene_count = panel.gene_count
+                    
+                    # Delete existing genes
+                    PanelGene.query.filter_by(panel_id=panel.id).delete()
+                    
+                    # Add new genes
+                    for gene_data in data['genes']:
+                        gene = PanelGene(
+                            panel_id=panel.id,
+                            gene_symbol=gene_data.get('gene_symbol', ''),
+                            gene_name=gene_data.get('gene_name', ''),
+                            ensembl_id=gene_data.get('ensembl_id', ''),
+                            hgnc_id=gene_data.get('hgnc_id', ''),
+                            confidence_level=gene_data.get('confidence_level', ''),
+                            mode_of_inheritance=gene_data.get('mode_of_inheritance', ''),
+                            phenotype=gene_data.get('phenotype', ''),
+                            evidence_level=gene_data.get('evidence_level', ''),
+                            source_panel_id=gene_data.get('source_panel_id', ''),
+                            source_list_type=gene_data.get('source_list_type', ''),
+                            added_by_id=current_user.id,
+                            user_notes=gene_data.get('user_notes', ''),
+                            custom_confidence=gene_data.get('custom_confidence', '')
+                        )
+                        db.session.add(gene)
+                    
+                    # Update gene count
+                    panel.gene_count = len(data['genes'])
+                    old_values['gene_count'] = old_gene_count
+                    new_values['gene_count'] = panel.gene_count
+            
             # Update timestamp
             panel.updated_at = datetime.datetime.now()
             
             # Create new version if significant changes
-            if old_values:
+            if old_values or genes_updated:
+                change_keys = list(old_values.keys())
+                if genes_updated and 'gene_count' not in change_keys:
+                    change_keys.append('genes')
+                    
                 version = panel.create_new_version(
                     current_user.id,
                     comment=data.get('version_comment'),
-                    changes_summary=f"Updated: {', '.join(old_values.keys())}"
+                    changes_summary=f"Updated: {', '.join(change_keys)}"
                 )
                                 
                 # Record change
+                change_type = ChangeType.GENES_MODIFIED if genes_updated else ChangeType.METADATA_CHANGED
                 change = PanelChange(
                     panel_id=panel.id,
                     version_id=version.id,
-                    change_type=ChangeType.METADATA_CHANGED,
+                    change_type=change_type,
                     target_type='panel',
                     target_id=str(panel.id),
                     changed_by_id=current_user.id,
-                    change_reason=data.get('version_comment', 'Panel metadata updated')
+                    change_reason=data.get('version_comment', 'Panel updated')
                 )
                 change.old_value = old_values
                 change.new_value = new_values

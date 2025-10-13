@@ -110,7 +110,7 @@ class PanelLibraryGrid {
                 // If no panels and it's the first page with no active filters, show demo data for testing
                 if (this.panels.length === 0 && page === 1 && !hasActiveFilters) {
                     console.log('No panels found - truly empty state');
-                    this.panels = []; //this.generateDemoData();
+                    this.panels = [];
                     this.useServerPagination = false;
                     this.filterManager.applyFilters();
                 } else {
@@ -126,72 +126,10 @@ class PanelLibraryGrid {
         } catch (error) {
             console.error('Error loading panels:', error);
             PanelUtilities.showError('Failed to load panels.');
-            this.panels = []; //this.generateDemoData();
+            this.panels = [];
             this.useServerPagination = false;
             this.filterManager.applyFilters();
         }
-    }
-
-    generateDemoData() {
-        const now = new Date();
-        return [
-            {
-                id: 1,
-                name: "Solid tumours",
-                description: "Comprehensive panel for solid tumor analysis including oncogenes and tumor suppressor genes",
-                gene_count: 127,
-                status: "ACTIVE",
-                visibility: "PRIVATE",
-                version_count: 3,
-                tags: ["cancer", "solid-tumor", "oncogenes"],
-                owner: { id: 1, username: "admin", full_name: "Admin User" },
-                created_at: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                updated_at: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-                accessed: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString()
-            },
-            {
-                id: 2,
-                name: "Combined: 2 panels (2025-08-07 17:08)",
-                description: "Combined panel created from multiple sources for comprehensive genetic analysis",
-                gene_count: 95,
-                status: "ACTIVE",
-                visibility: "PRIVATE",
-                version_count: 1,
-                tags: ["combined", "multi-source"],
-                owner: { id: 1, username: "admin", full_name: "Admin User" },
-                created_at: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-                updated_at: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-                accessed: new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString()
-            },
-            {
-                id: 3,
-                name: "Combined: 2 panels (2025-08-07 14:53)",
-                description: "Earlier combined panel version for testing and validation purposes",
-                gene_count: 4,
-                status: "DRAFT",
-                visibility: "PRIVATE",
-                version_count: 1,
-                tags: ["test", "validation"],
-                owner: { id: 1, username: "admin", full_name: "Admin User" },
-                created_at: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-                updated_at: new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString(),
-                accessed: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
-            },
-            {
-                id: 4,
-                name: "Breast Cancer Panel",
-                description: "Targeted panel for breast cancer genetic analysis",
-                gene_count: 85,
-                status: "ACTIVE",
-                visibility: "SHARED",
-                version_count: 2,
-                tags: ["breast-cancer", "oncology"],
-                owner: { id: 1, username: "admin", full_name: "Admin User" },
-                created_at: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-                updated_at: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-                accessed: new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString()
-            }
-        ];
     }
 
     setupEventListeners() {
@@ -550,4 +488,14 @@ class PanelLibraryGrid {
 
 console.log('Enhanced panel library initialized successfully');
 const panelLibrary = new PanelLibraryGrid();
+
+// Expose functions globally for HTML onclick handlers
+window.panelLibrary = panelLibrary;
+window.toggleActionsMenu = () => panelLibrary.toggleActionsMenu();
+window.setViewMode = (mode) => panelLibrary.setViewMode(mode);
+window.compareSelected = () => panelLibrary.compareSelected();
+window.exportSelected = () => panelLibrary.exportSelected();
+window.deleteSelected = () => panelLibrary.deleteSelected();
+window.selectAll = () => panelLibrary.selectAll();
+window.clearSelection = () => panelLibrary.clearSelection();
 

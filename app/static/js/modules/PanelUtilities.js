@@ -28,13 +28,44 @@ class PanelUtilities {
         const date = new Date(dateString);
         const now = new Date();
         const diffTime = Math.abs(now - date);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
+        // Calculate time units
+        const diffMinutes = Math.floor(diffTime / (1000 * 60));
+        const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Less than 1 minute
+        if (diffMinutes < 1) return 'Just now';
+        
+        // Less than 1 hour - show minutes
+        if (diffMinutes < 60) {
+            return diffMinutes === 1 ? '1 minute ago' : `${diffMinutes} minutes ago`;
+        }
+        
+        // Less than 24 hours - show hours
+        if (diffHours < 24) {
+            return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+        }
+        
+        // Yesterday (between 24 and 48 hours)
         if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays} days ago`;
-        if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
-        if (diffDays < 365) return `${Math.ceil(diffDays / 30)} months ago`;
         
+        // Less than 7 days - show days
+        if (diffDays < 7) return `${diffDays} days ago`;
+        
+        // Less than 30 days - show weeks
+        if (diffDays < 30) {
+            const weeks = Math.floor(diffDays / 7);
+            return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
+        }
+        
+        // Less than 365 days - show months
+        if (diffDays < 365) {
+            const months = Math.floor(diffDays / 30);
+            return months === 1 ? '1 month ago' : `${months} months ago`;
+        }
+        
+        // More than a year - show formatted date
         return date.toLocaleDateString();
     }
 
@@ -91,11 +122,11 @@ class PanelUtilities {
     static parseTags(tagsText) {
         if (!tagsText.trim()) return [];
         
-        console.log("parsing tags: ", tagsText);
+        console.log("Parsing tags: ", tagsText);
         // Split by comma and clean up
         return tagsText
             .split(',')
-            .map(tag => tag.trim())
+            .map(tag => tag.trim(""))
             .filter(tag => tag.length > 0);
     }
     

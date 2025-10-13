@@ -1,0 +1,38 @@
+<!-- Panel Overview Section Template -->
+<div class="bg-gray-50 rounded-lg p-4">
+    <h4 class="text-lg font-medium text-gray-900 mb-3">Panel Overview</h4>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+            <dt class="text-sm font-medium text-gray-500">Panel Name</dt>
+            <dd class="mt-1 text-sm text-gray-900">{{PANEL_NAME}}</dd>
+        </div>
+        <div>
+            <dt class="text-sm font-medium text-gray-500">Version</dt>
+            <dd class="mt-1 text-sm text-gray-900">{{VERSION_COUNT}}</dd>
+        </div>
+        <div>
+            <dt class="text-sm font-medium text-gray-500">Total Genes</dt>
+            <dd class="mt-1 text-sm text-gray-900">{{GENE_COUNT}}</dd>
+        </div>
+        <div>
+            <dt class="text-sm font-medium text-gray-500">Created Date</dt>
+            <dd class="mt-1 text-sm text-gray-900">{{CREATED_DATE}}</dd>
+        </div>
+        <div>
+            <dt class="text-sm font-medium text-gray-500">Status</dt>
+            <dd class="mt-1">
+                <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {{STATUS_BADGE_CLASS}}">
+                    {{STATUS}}
+                </span>
+            </dd>
+        </div>
+        <div>
+            <dt class="text-sm font-medium text-gray-500">Visibility</dt>
+            <dd class="mt-1">
+                <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {{VISIBILITY_BADGE_CLASS}}">
+                    {{VISIBILITY}}
+                </span>
+            </dd>
+        </div>
+    </dl>
+</div>

@@ -24,7 +24,8 @@
             </div>
         </div>
         
-        <form class="mt-8 space-y-6" method="POST" id="registerForm">
+        <div class="flex justify-center items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <form class="mt-4" method="POST" id="registerForm">
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -98,7 +99,7 @@
             </div>
 
             <!-- GDPR Consent and Privacy Notice -->
-            <div class="border-t border-gray-200 pt-6">
+            <div class="mt-2 border-t border-gray-200 pt-4">
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div class="flex items-start">
                         <div class="flex-shrink-0">
@@ -112,7 +113,7 @@
                                 <p class="mb-2">
                                     By creating an account, you acknowledge that:
                                 </p>
-                                <ul class="list-disc list-inside space-y-1 ml-2">
+                                <ul class="list-disc space-y-1 ml-2">
                                     <li>Your personal data will be processed in accordance with GDPR</li>
                                     <li>We will store your name, email, and encrypted password</li>
                                     <li>Your data will be encrypted and securely stored</li>
@@ -156,7 +157,7 @@
                     </div>
                 </div>
 
-                <div class="mt-4 text-xs text-gray-600 bg-gray-50 p-3 rounded-md">
+                <div class="mt-4 mb-4 text-xs text-gray-600 bg-gray-200 p-3 rounded-md">
                     <p class="font-semibold mb-1">Your Rights under GDPR:</p>
                     <ul class="list-disc list-inside space-y-0.5 ml-2">
                         <li>Right to access your personal data</li>
@@ -184,6 +185,7 @@
                 </button>
             </div>
         </form>
+        </div>  
         
         <div class="text-center">
             <a href="{{ url_for('main.index') }}" class="text-blue-600 hover:text-blue-500">

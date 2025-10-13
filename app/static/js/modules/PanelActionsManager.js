@@ -5,6 +5,51 @@
 class PanelActionsManager {
     constructor(panelLibrary) {
         this.panelLibrary = panelLibrary;
+        this.panelOverviewTemplate = null;
+        this.panelTechnicalInfoTemplate = null;
+        this.panelDetailsSectionsTemplate = null;
+        this.loadTemplates();
+    }
+
+    async loadTemplates() {
+        // Load panel overview template
+        try {
+            const response = await fetch('/static/partials/_panel_overview.html');
+            if (response.ok) {
+                this.panelOverviewTemplate = await response.text();
+                console.log('Panel overview template loaded successfully');
+            } else {
+                console.warn('Failed to load panel overview template, will use inline fallback');
+            }
+        } catch (error) {
+            console.warn('Error loading panel overview template:', error);
+        }
+
+        // Load panel technical info template
+        try {
+            const response = await fetch('/static/partials/_panel_technical_info.html');
+            if (response.ok) {
+                this.panelTechnicalInfoTemplate = await response.text();
+                console.log('Panel technical info template loaded successfully');
+            } else {
+                console.warn('Failed to load panel technical info template, will use inline fallback');
+            }
+        } catch (error) {
+            console.warn('Error loading panel technical info template:', error);
+        }
+
+        // Load panel details sections template
+        try {
+            const response = await fetch('/static/partials/_panel_details_sections.html');
+            if (response.ok) {
+                this.panelDetailsSectionsTemplate = await response.text();
+                console.log('Panel details sections template loaded successfully');
+            } else {
+                console.warn('Failed to load panel details sections template, will use inline fallback');
+            }
+        } catch (error) {
+            console.warn('Error loading panel details sections template:', error);
+        }
     }
 
     // Panel action methods
@@ -93,6 +138,7 @@ class PanelActionsManager {
 
     async showVersionTimeline(panelId) {
         console.log('Showing version timeline for panel:', panelId);
+        alert('Showing version timeline for panel functionality coming soon!');
         if (typeof showVersionTimeline === 'function') {
             showVersionTimeline(panelId);
         }
@@ -152,125 +198,98 @@ class PanelActionsManager {
         }, 100);
     }
 
-    renderPanelDetailsContent(panel) {
-        const formatDate = this.formatDate.bind(this);
+    renderPanelOverview(panel) {
+        // Use external template if available, otherwise fallback to inline
+        if (this.panelOverviewTemplate) {
+            return this.panelOverviewTemplate
+                .replace(/\{\{PANEL_NAME\}\}/g, panel.name || 'N/A')
+                .replace(/\{\{VERSION_COUNT\}\}/g, panel.version_count || '1')
+                .replace(/\{\{GENE_COUNT\}\}/g, panel.gene_count || 0)
+                .replace(/\{\{CREATED_DATE\}\}/g, this.formatDate(panel.created_at))
+                .replace(/\{\{STATUS_BADGE_CLASS\}\}/g, this.getStatusBadgeClass(panel.status))
+                .replace(/\{\{STATUS\}\}/g, this.panelLibrary.backendToFrontend(panel.status || 'ACTIVE'))
+                .replace(/\{\{VISIBILITY_BADGE_CLASS\}\}/g, this.getVisibilityBadgeClass(panel.visibility))
+                .replace(/\{\{VISIBILITY\}\}/g, this.panelLibrary.backendToFrontend(panel.visibility || 'PRIVATE'));
+        }        
+    }
+
+    renderPanelTechnicalInfo(panel) {
+        // Use external template if available, otherwise fallback to inline
+        if (this.panelTechnicalInfoTemplate) {
+            return this.panelTechnicalInfoTemplate
+                .replace(/\{\{PANEL_ID\}\}/g, panel.id || 'N/A')
+                .replace(/\{\{LAST_UPDATED\}\}/g, this.formatDate(panel.updated_at))
+                .replace(/\{\{LAST_ACCESSED\}\}/g, this.formatDate(panel.last_accessed_at) || 'Never')
+                .replace(/\{\{VERSION_COUNT\}\}/g, panel.version_count || 1);
+        }
+    }
+
+    renderPanelDetailsSections(panel) {
         const formatTags = this.formatTags.bind(this);
+        
+        // Render individual sections
+        const descriptionSection = panel.description ? `
+            <div>
+                <h4 class="text-lg font-medium text-gray-900 mb-3">Description</h4>
+                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                    <p class="text-sm text-gray-700 whitespace-pre-wrap">${panel.description}</p>
+                </div>
+            </div>
+        ` : '';
+
+        const tagsSection = panel.tags && panel.tags.length > 0 ? `
+            <div>
+                <h4 class="text-lg font-medium text-gray-900 mb-3">Tags</h4>
+                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                    ${formatTags(panel.tags)}
+                </div>
+            </div>
+        ` : '';
+
+        const sourceInfoSection = panel.source_type || panel.source_reference ? `
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-lg font-medium text-gray-900 mb-3">Source Information</h4>
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    ${panel.source_type ? `
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Source Type</dt>
+                        <dd class="mt-1 text-sm text-gray-900">${panel.source_type}</dd>
+                    </div>
+                    ` : ''}
+                    ${panel.source_reference ? `
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Source Reference</dt>
+                        <dd class="mt-1 text-sm text-gray-900">${panel.source_reference}</dd>
+                    </div>
+                    ` : ''}
+                </dl>
+            </div>
+        ` : '';
+
+        const geneListContent = this.renderGeneList(panel.genes || []);
+
+        // Use external template if available
+        if (this.panelDetailsSectionsTemplate) {
+            return this.panelDetailsSectionsTemplate
+                .replace(/\{\{DESCRIPTION_SECTION\}\}/g, descriptionSection)
+                .replace(/\{\{TAGS_SECTION\}\}/g, tagsSection)
+                .replace(/\{\{SOURCE_INFO_SECTION\}\}/g, sourceInfoSection)
+                .replace(/\{\{GENE_COUNT\}\}/g, panel.gene_count || 0)
+                .replace(/\{\{GENE_LIST_CONTENT\}\}/g, geneListContent);
+        }
+    }
+
+    renderPanelDetailsContent(panel) {
+        // Render sections from templates
+        const panelOverviewHtml = this.renderPanelOverview(panel);
+        const panelDetailsSectionsHtml = this.renderPanelDetailsSections(panel);
+        const panelTechnicalInfoHtml = this.renderPanelTechnicalInfo(panel);
         
         return `
             <div class="space-y-6">
-                <!-- Panel Overview -->
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <h4 class="text-lg font-medium text-gray-900 mb-3">Panel Overview</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Panel Name</dt>
-                            <dd class="mt-1 text-sm text-gray-900">${panel.name || 'N/A'}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Version</dt>
-                            <dd class="mt-1 text-sm text-gray-900">${panel.version_count || '1'}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Total Genes</dt>
-                            <dd class="mt-1 text-sm text-gray-900">${panel.gene_count || 0}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Created Date</dt>
-                            <dd class="mt-1 text-sm text-gray-900">${formatDate(panel.created_at)}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Status</dt>
-                            <dd class="mt-1">
-                                <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full ${this.getStatusBadgeClass(panel.status)}">
-                                    ${this.panelLibrary.backendToFrontend(panel.status || 'ACTIVE')}
-                                </span>
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Visibility</dt>
-                            <dd class="mt-1">
-                                <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full ${this.getVisibilityBadgeClass(panel.visibility)}">
-                                    ${this.panelLibrary.backendToFrontend(panel.visibility || 'PRIVATE')}
-                                </span>
-                            </dd>
-                        </div>
-                    </dl>
-                </div>
-
-                <!-- Description -->
-                ${panel.description ? `
-                <div>
-                    <h4 class="text-lg font-medium text-gray-900 mb-3">Description</h4>
-                    <div class="bg-white border border-gray-200 rounded-lg p-4">
-                        <p class="text-sm text-gray-700 whitespace-pre-wrap">${panel.description}</p>
-                    </div>
-                </div>
-                ` : ''}
-
-                <!-- Tags -->
-                ${panel.tags && panel.tags.length > 0 ? `
-                <div>
-                    <h4 class="text-lg font-medium text-gray-900 mb-3">Tags</h4>
-                    <div class="bg-white border border-gray-200 rounded-lg p-4">
-                        ${formatTags(panel.tags)}
-                    </div>
-                </div>
-                ` : ''}
-
-                <!-- Source Information -->
-                ${panel.source_type || panel.source_reference ? `
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <h4 class="text-lg font-medium text-gray-900 mb-3">Source Information</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        ${panel.source_type ? `
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Source Type</dt>
-                            <dd class="mt-1 text-sm text-gray-900">${panel.source_type}</dd>
-                        </div>
-                        ` : ''}
-                        ${panel.source_reference ? `
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Source Reference</dt>
-                            <dd class="mt-1 text-sm text-gray-900">${panel.source_reference}</dd>
-                        </div>
-                        ` : ''}
-                    </dl>
-                </div>
-                ` : ''}
-
-                <!-- Gene List -->
-                <div>
-                    <h4 class="text-lg font-medium text-gray-900 mb-3">
-                        Gene List 
-                        <span class="text-sm font-normal text-gray-500">(${panel.gene_count || 0} genes)</span>
-                    </h4>
-                    <div class="bg-white border border-gray-200 rounded-lg">
-                        ${this.renderGeneList(panel.genes || [])}
-                    </div>
-                </div>
-
-                <!-- Technical Information -->
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <h4 class="text-lg font-medium text-gray-900 mb-3">Technical Information</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Panel ID</dt>
-                            <dd class="mt-1 text-sm text-gray-900 font-mono">${panel.id || 'N/A'}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
-                            <dd class="mt-1 text-sm text-gray-900">${formatDate(panel.updated_at)}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Last Accessed</dt>
-                            <dd class="mt-1 text-sm text-gray-900">${formatDate(panel.last_accessed_at) || 'Never'}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Version Count</dt>
-                            <dd class="mt-1 text-sm text-gray-900">${panel.version_count || 1}</dd>
-                        </div>
-                    </dl>
-                </div>
+                ${panelOverviewHtml}
+                ${panelDetailsSectionsHtml}
+                ${panelTechnicalInfoHtml}
             </div>
         `;
     }
@@ -405,17 +424,6 @@ class PanelActionsManager {
         }
     }
 
-    formatTags(tags) {
-        if (!tags || tags.length === 0) return '<span class="text-gray-500">No tags</span>';
-        
-        return tags.map(tag => `
-            <span class="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200 mr-2 mb-2">
-                <i class="fas fa-tag mr-1"></i>
-                ${tag}
-            </span>
-        `).join('');
-    }
-
     // Modal management
     async loadPanelGenes(panelId) {
         try {
@@ -487,9 +495,11 @@ class PanelActionsManager {
         if (panelName) panelName.value = panelData.name || '';
         if (panelDescription) panelDescription.value = panelData.description || '';
         if (panelTags) {
-            console.log(panelTags);
             if (Array.isArray(panelData.tags)) {
-                panelTags.value = panelData.tags.join(', ');
+                panelTags.value = panelData.tags.map(tag => {
+                    const cleanTag = String(tag).replace(/^[{\s]+|[}\s]+$/g, '').trim();
+                    return `${cleanTag}`;
+                }).join(', ');
             } else if (typeof panelData.tags === 'string') {
                 panelTags.value = panelData.tags;
             } else {
@@ -547,6 +557,24 @@ class PanelActionsManager {
         this._saving = true;
         console.log('Starting savePanelData()');
         
+        // Get button references
+        const saveButton = document.getElementById('save-panel');
+        const cancelButton = document.getElementById('cancel-panel');
+        
+        // Store original button content
+        const originalSaveContent = saveButton?.innerHTML;
+        
+        // Disable buttons and update text
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+            saveButton.classList.add('opacity-75', 'cursor-not-allowed');
+        }
+        if (cancelButton) {
+            cancelButton.disabled = true;
+            cancelButton.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        
         const panelId = document.getElementById('panel-id')?.value;
         const isEdit = panelId !== '';
         
@@ -562,8 +590,13 @@ class PanelActionsManager {
         
         try {
             console.log('Saving panel data:', data);
-            const response = await fetch('/api/user/panels', {
-                method: 'POST',
+            
+            // Use different endpoints for create vs update
+            const url = isEdit ? `/api/user/panels/${panelId}` : '/api/user/panels';
+            const method = isEdit ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -583,6 +616,17 @@ class PanelActionsManager {
             console.error('Error saving panel:', error);
             this.panelLibrary.showError(error.message || 'Failed to save panel. Please try again.');
         } finally {
+            // Re-enable buttons and restore text
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.innerHTML = originalSaveContent;
+                saveButton.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+            if (cancelButton) {
+                cancelButton.disabled = false;
+                cancelButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+            
             this._saving = false;
             console.log('Finished savePanelData()');
         }
@@ -666,7 +710,8 @@ class PanelActionsManager {
             alert('Please select exactly 2 panels to compare');
             return;
         }
-        // Implementation for comparison
+        // Coming soon functionality
+        alert('Panel comparison feature is coming soon!');
         console.log('Comparing panels:', selectedIds);
     }
 
@@ -676,7 +721,8 @@ class PanelActionsManager {
             alert('Please select panels to export');
             return;
         }
-        // Implementation for export
+        // Coming soon functionality
+        alert('Panel export feature is coming soon!');
         console.log('Exporting panels:', selectedIds);
     }
 
@@ -797,11 +843,16 @@ class PanelActionsManager {
             return '<span class="text-gray-500 text-sm">No tags</span>';
         }
         
-        return tags.map(tag => `
-            <span class="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200 mr-2 mb-2">
-                <i class="fas fa-tag mr-1"></i>
-                ${tag}
-            </span>
-        `).join('');
+        return tags.map(tag => {
+            // Clean up tag by removing leading/trailing curly braces and whitespace
+            const cleanTag = String(tag).replace(/^[{\s]+|[}\s]+$/g, '').trim();
+            
+            return `
+                <span class="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200 mr-2 mb-2">
+                    <i class="fas fa-tag mr-1"></i>
+                    ${cleanTag}
+                </span>
+            `;
+        }).join('');
     }
 }
