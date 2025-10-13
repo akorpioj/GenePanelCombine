@@ -557,9 +557,17 @@ class PanelActionsManager {
         this._saving = true;
         console.log('Starting savePanelData()');
         
-        // Get button references
+        // Get button and form field references
         const saveButton = document.getElementById('save-panel');
         const cancelButton = document.getElementById('cancel-panel');
+        const formFields = [
+            document.getElementById('panel-name'),
+            document.getElementById('panel-description'),
+            document.getElementById('panel-tags'),
+            document.getElementById('panel-status'),
+            document.getElementById('panel-visibility'),
+            document.getElementById('panel-genes')
+        ].filter(field => field !== null); // Remove null entries
         
         // Store original button content
         const originalSaveContent = saveButton?.innerHTML;
@@ -574,6 +582,12 @@ class PanelActionsManager {
             cancelButton.disabled = true;
             cancelButton.classList.add('opacity-50', 'cursor-not-allowed');
         }
+        
+        // Disable all form fields
+        formFields.forEach(field => {
+            field.disabled = true;
+            field.classList.add('opacity-60', 'cursor-not-allowed');
+        });
         
         const panelId = document.getElementById('panel-id')?.value;
         const isEdit = panelId !== '';
@@ -626,6 +640,12 @@ class PanelActionsManager {
                 cancelButton.disabled = false;
                 cancelButton.classList.remove('opacity-50', 'cursor-not-allowed');
             }
+            
+            // Re-enable all form fields
+            formFields.forEach(field => {
+                field.disabled = false;
+                field.classList.remove('opacity-60', 'cursor-not-allowed');
+            });
             
             this._saving = false;
             console.log('Finished savePanelData()');

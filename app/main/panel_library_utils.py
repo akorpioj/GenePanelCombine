@@ -524,11 +524,12 @@ def update_panel_data(panel, request):
             new_values['description'] = data['description']
             panel.description = data['description']
         
-        if 'tags' in data and data['tags'] != panel.tags:
-            print("tags:", data['tags'])
-            old_values['tags'] = panel.tags
-            new_values['tags'] = data['tags']
-            panel.tags = data['tags']
+        if 'tags' in data:
+            new_tags = ','.join(data['tags']) if isinstance(data['tags'], list) else data['tags']
+            if new_tags != panel.tags:
+                old_values['tags'] = panel.tags
+                new_values['tags'] = data['tags']
+                panel.tags = new_tags
         
         if 'status' in data:
             try:
@@ -569,20 +570,23 @@ def update_panel_data(panel, request):
         if changed['updated'] and n_updated > 0:
             genes = [ gene.get('gene_symbol', '') for gene in changed['updated'] ]
             changed_str += f"Updated genes: {', '.join(genes)}. "
-        logger.info(changed_str)
+        logger.info("Changed genes: %s", changed_str)
     
         # Create new version if significant changes
-        if old_values or n_added > 0 or n_removed > 0 or n_updated > 0:
+        if len(old_values) > 0 or n_added > 0 or n_removed > 0 or n_updated > 0:
+            logger.info("Significant changes detected, creating new version")
             panel.updated_at = datetime.datetime.now()
             panel.last_accessed_at = datetime.datetime.now()
             version_comment = ''
             change_summary = 'Updated: '
-            if old_values: 
+            if len(old_values) > 0: 
                 version_comment += "Panel metadata updated. "
                 change_summary += ', '.join(old_values.keys())
             if n_added > 0 or n_removed > 0 or n_updated > 0:
                 version_comment += changed_str
                 change_summary += f"Added: {n_added} genes, removed: {n_removed} genes, updated: {n_updated} genes"
+            logger.info("Version comment: %s", version_comment)
+            logger.info("Change summary: %s", change_summary)
             version = panel.create_new_version(
                 user_id=current_user.id,
                 comment=data.get('version_comment', version_comment),
@@ -598,12 +602,10 @@ def update_panel_data(panel, request):
                 target_id=str(panel.id),
                 changed_by_id=current_user.id,
                 change_reason=data.get('version_comment', 'Panel metadata updated')
-            )
-        
+            )        
             change.old_value = old_values
             change.new_value = new_values
             db.session.add(change)
-        
             db.session.commit()
         
             # Log update
@@ -616,9 +618,24 @@ def update_panel_data(panel, request):
                     "changes": list(old_values.keys())
                 }
             )
+        else:
+            logger.info("No significant changes detected, no new version created")
+            panel.last_accessed_at = datetime.datetime.now()
+            db.session.commit()
+            AuditService.log_action(
+                action_type=AuditActionType.PANEL_UPDATE,
+                action_description=f"Accessed saved panel '{panel.name}' via web (no changes)",
+                details={
+                    "panel_id": panel.id,
+                    "panel_name": panel.name,
+                    "changes": []
+                }
+            )
+            return jsonify({'message': 'No changes detected, panel not updated.'}), 200
+
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error updating saved panel {panel.id}: {str(e)}")
+        logger.error(f"Error updating saved panel {panel.id}: {str(e)}.")
             
         # Provide specific error messages based on the type of constraint violation
         error_msg = str(e)
@@ -650,6 +667,6 @@ def update_panel_data(panel, request):
     }
         
     return jsonify({
-        'message': f'Panel updated successfully',
+        'message': f'Panel updated successfully.',
         'panel': response_data
         }), 200      

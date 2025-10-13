@@ -491,11 +491,11 @@ const panelLibrary = new PanelLibraryGrid();
 
 // Expose functions globally for HTML onclick handlers
 window.panelLibrary = panelLibrary;
-window.toggleActionsMenu = () => panelLibrary.toggleActionsMenu();
+window.toggleActionsMenu = () => panelLibrary.actionsManager.toggleActionsMenu();
 window.setViewMode = (mode) => panelLibrary.setViewMode(mode);
-window.compareSelected = () => panelLibrary.compareSelected();
-window.exportSelected = () => panelLibrary.exportSelected();
-window.deleteSelected = () => panelLibrary.deleteSelected();
+window.compareSelected = () => panelLibrary.actionsManager.compareSelected();
+window.exportSelected = () => panelLibrary.actionsManager.exportSelected();
+window.deleteSelected = () => panelLibrary.actionsManager.deleteSelected();
 window.selectAll = () => panelLibrary.selectAll();
 window.clearSelection = () => panelLibrary.clearSelection();
 
