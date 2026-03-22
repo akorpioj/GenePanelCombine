@@ -29,7 +29,7 @@ This guide provides step-by-step instructions for migrating between different ve
 
 | From → To | Complexity | Database Changes | Config Changes | Downtime |
 |-----------|------------|------------------|----------------|----------|
-| 1.5.0 → 1.5.1 | Low | Minimal | No | ~2-5 min |
+| 1.5.0 → 1.5.1 | Low | 4 new tables | No | ~2-5 min |
 | 1.4.x → 1.5.x | High | Major (5 new tables) | Minimal | ~10-20 min |
 | 1.4.0 → 1.4.1 | Low | Yes | No | ~2-5 min |
 | 1.3.x → 1.4.x | Medium | Yes | Yes | ~5-10 min |
@@ -68,6 +68,83 @@ This guide provides step-by-step instructions for migrating between different ve
 ---
 
 ## 🚀 Version-Specific Migrations
+
+## v1.5.1 Migration (Literature Review Foundation)
+
+#### From v1.5.0 to v1.5.1
+
+**Major Changes**:
+- New `litreview` Flask blueprint at `/litreview` (login required)
+- 4 new database tables for the LitReview Phase 1 schema
+- New Python dependencies: `biopython>=1.81`, `xmltodict>=0.13.0`
+
+**Migration Steps**:
+
+1. **Backup Current System**
+   ```bash
+   mkdir -p backups/v1.5.0-$(date +%Y%m%d-%H%M%S)
+   pg_dump panelmerge > backups/v1.5.0-$(date +%Y%m%d-%H%M%S)/database.sql
+   ```
+
+2. **Update Application Code**
+   ```bash
+   git fetch origin
+   git checkout v1.5.1
+   
+   # Install new LitReview dependencies
+   pip install -r requirements.txt
+   
+   npm run build:css
+   ```
+
+3. **Run Database Migration**
+   ```bash
+   # Apply LitReview tables migration
+   flask db upgrade
+   
+   # Verify migration status
+   flask db current
+   # Should show: a1b2c3d4e5f6 (head)
+   
+   # Verify all 4 LitReview tables
+   python -c "
+   from app import create_app, db
+   from sqlalchemy import inspect
+   app = create_app()
+   with app.app_context():
+       inspector = inspect(db.engine)
+       tables = inspector.get_table_names()
+       litreview_tables = ['literature_searches', 'literature_articles', 'search_results', 'user_article_actions']
+       print('LitReview Tables:')
+       for table in litreview_tables:
+           if table in tables:
+               cols = len(inspector.get_columns(table))
+               idxs = len(inspector.get_indexes(table))
+               print(f'  ✅ {table} ({cols} columns, {idxs} indexes)')
+           else:
+               print(f'  ❌ {table} - MISSING')
+   "
+   ```
+
+4. **Verify LitReview Models and Blueprint**
+   ```bash
+   python -c "
+   from app import create_app
+   from app.models import LiteratureSearch, LiteratureArticle, SearchResult, UserArticleAction
+   app = create_app()
+   with app.app_context():
+       print('✅ LitReview Models:', LiteratureSearch.__tablename__, LiteratureArticle.__tablename__)
+       print('✅ Blueprint registered at /litreview')
+   "
+   ```
+
+5. **Restart Services**
+   ```bash
+   systemctl restart panelmerge
+   # No Redis restart needed
+   ```
+
+---
 
 ## v1.5.0 Migration (Saved Panels System)
 
@@ -639,6 +716,109 @@ The v1.5.0 release includes user-configurable time format preference (12-hour vs
    ```
    
    **Note:** PostgreSQL does not support removing enum values. If you need to downgrade, the enum values will remain in the database but will not be used.
+
+#### v1.5.1 Migration Scripts (LitReview Foundation)
+
+1. **LitReview Tables Migration** - IMPLEMENTED 22/03/2026
+   ```bash
+   # Apply LitReview tables migration
+   flask db upgrade
+   
+   # Verify migration status
+   flask db current
+   # Should show: a1b2c3d4e5f6 (head)
+   
+   # Verify all 4 LitReview tables
+   python -c "
+   from app import create_app, db
+   from sqlalchemy import inspect
+   app = create_app()
+   with app.app_context():
+       inspector = inspect(db.engine)
+       tables = inspector.get_table_names()
+       litreview_tables = ['literature_searches', 'literature_articles', 'search_results', 'user_article_actions']
+       for t in litreview_tables:
+           if t in tables:
+               cols = len(inspector.get_columns(t))
+               idxs = len(inspector.get_indexes(t))
+               print(f'  \u2705 {t} ({cols} columns, {idxs} indexes)')
+           else:
+               print(f'  \u274c {t} - MISSING')
+   "
+   ```
+
+   **Migration creates 4 new tables:**
+   - `literature_articles` — PubMed article metadata cache (pubmed_id, title, abstract, authors, mesh_terms, gene_mentions, doi, cache_expires_at)
+   - `literature_searches` — Per-user PubMed search history (user_id, query, filters, result_count)
+   - `search_results` — Junction table linking searches ↔ articles with result rank
+   - `user_article_actions` — Per-user article interactions: save flag, view count, personal notes
+
+   **Key constraints:**
+   - `literature_articles.pubmed_id` has a unique constraint for cache deduplication
+   - Cascade deletes on all user-owned rows
+   - Composite unique constraints: `uq_search_article`, `uq_user_article_action`
+
+   **Migration file:** `a1b2c3d4e5f6_add_litreview_tables.py`
+
+   **SQL equivalent:**
+   ```sql
+   CREATE TABLE literature_articles (
+       id SERIAL PRIMARY KEY,
+       pubmed_id VARCHAR(20) NOT NULL,
+       pmc_id VARCHAR(20),
+       doi VARCHAR(255),
+       title TEXT NOT NULL,
+       abstract TEXT,
+       authors JSON,
+       journal VARCHAR(500),
+       publication_date DATE,
+       publication_types JSON,
+       mesh_terms JSON,
+       keywords JSON,
+       gene_mentions JSON,
+       cached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       cache_expires_at TIMESTAMP,
+       CONSTRAINT uq_literature_articles_pubmed_id UNIQUE (pubmed_id)
+   );
+   
+   CREATE TABLE literature_searches (
+       id SERIAL PRIMARY KEY,
+       user_id INTEGER NOT NULL,
+       query TEXT NOT NULL,
+       filters JSON,
+       result_count INTEGER NOT NULL DEFAULT 0,
+       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
+   );
+   
+   CREATE TABLE search_results (
+       id SERIAL PRIMARY KEY,
+       search_id INTEGER NOT NULL,
+       article_id INTEGER NOT NULL,
+       rank INTEGER,
+       FOREIGN KEY (search_id) REFERENCES literature_searches(id) ON DELETE CASCADE,
+       FOREIGN KEY (article_id) REFERENCES literature_articles(id) ON DELETE CASCADE,
+       CONSTRAINT uq_search_article UNIQUE (search_id, article_id)
+   );
+   
+   CREATE TABLE user_article_actions (
+       id SERIAL PRIMARY KEY,
+       user_id INTEGER NOT NULL,
+       article_id INTEGER NOT NULL,
+       is_saved BOOLEAN NOT NULL DEFAULT false,
+       is_viewed BOOLEAN NOT NULL DEFAULT false,
+       view_count INTEGER NOT NULL DEFAULT 0,
+       notes TEXT,
+       first_viewed_at TIMESTAMP,
+       last_viewed_at TIMESTAMP,
+       saved_at TIMESTAMP,
+       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE,
+       FOREIGN KEY (article_id) REFERENCES literature_articles(id) ON DELETE CASCADE,
+       CONSTRAINT uq_user_article_action UNIQUE (user_id, article_id)
+   );
+   ```
 
 #### Manual Database Migration
 
@@ -1627,8 +1807,8 @@ After migration completion:
 
 ---
 
-**Last Updated**: 2025-08-02  
-**Document Version**: 1.1  
+**Last Updated**: 2026-03-22  
+**Document Version**: 1.2  
 **Maintainer**: Development Team
 
 > This migration guide should be updated with each new version release to ensure accurate migration paths and procedures.

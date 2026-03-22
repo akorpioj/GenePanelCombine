@@ -1798,6 +1798,170 @@ class ExportTemplate(db.Model):
         self.updated_at = datetime.datetime.now()
 
 
+# ===== LITERATURE REVIEW SYSTEM MODELS =====
+
+class LiteratureSearch(db.Model):
+    """Stores user's PubMed search history"""
+    __tablename__ = 'literature_searches'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    user = db.relationship('User', backref=db.backref('literature_searches', lazy='dynamic'))
+
+    # Search parameters
+    search_query = db.Column('query', db.Text, nullable=False)
+    filters = db.Column(db.JSON)            # date range, publication types, etc.
+    result_count = db.Column(db.Integer, default=0, nullable=False)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False, index=True)
+
+    # Relationships
+    results = db.relationship('SearchResult', backref='search', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.Index('idx_lit_searches_user', 'user_id'),
+        db.Index('idx_lit_searches_created', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f'<LiteratureSearch {self.id}: "{self.search_query[:40]}" by user {self.user_id}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'query': self.search_query,
+            'filters': self.filters,
+            'result_count': self.result_count,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class LiteratureArticle(db.Model):
+    """Cached PubMed article metadata"""
+    __tablename__ = 'literature_articles'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # PubMed identifiers
+    pubmed_id = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    pmc_id = db.Column(db.String(20), index=True)
+    doi = db.Column(db.String(255), index=True)
+
+    # Article metadata
+    title = db.Column(db.Text, nullable=False)
+    abstract = db.Column(db.Text)
+    authors = db.Column(db.JSON)            # list of author name strings
+    journal = db.Column(db.String(500))
+    publication_date = db.Column(db.Date)
+    publication_types = db.Column(db.JSON)  # e.g. ["Journal Article", "Review"]
+    mesh_terms = db.Column(db.JSON)         # list of MeSH term strings
+    keywords = db.Column(db.JSON)           # author keywords
+    gene_mentions = db.Column(db.JSON)      # gene symbols extracted from title/abstract
+
+    # Cache management
+    cached_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    cache_expires_at = db.Column(db.DateTime, index=True)
+
+    # Relationships
+    search_results = db.relationship('SearchResult', backref='article', lazy='dynamic', cascade='all, delete-orphan')
+    user_actions = db.relationship('UserArticleAction', backref='article', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.Index('idx_lit_articles_pubmed', 'pubmed_id'),
+        db.Index('idx_lit_articles_cache_expires', 'cache_expires_at'),
+    )
+
+    def __repr__(self):
+        return f'<LiteratureArticle {self.pubmed_id}: {self.title[:60] if self.title else ""}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'pubmed_id': self.pubmed_id,
+            'pmc_id': self.pmc_id,
+            'doi': self.doi,
+            'title': self.title,
+            'abstract': self.abstract,
+            'authors': self.authors,
+            'journal': self.journal,
+            'publication_date': self.publication_date.isoformat() if self.publication_date else None,
+            'publication_types': self.publication_types,
+            'mesh_terms': self.mesh_terms,
+            'keywords': self.keywords,
+            'gene_mentions': self.gene_mentions,
+            'cached_at': self.cached_at.isoformat() if self.cached_at else None,
+            'cache_expires_at': self.cache_expires_at.isoformat() if self.cache_expires_at else None,
+        }
+
+
+class SearchResult(db.Model):
+    """Junction table linking searches to articles (with rank)"""
+    __tablename__ = 'search_results'
+
+    id = db.Column(db.Integer, primary_key=True)
+    search_id = db.Column(db.Integer, db.ForeignKey('literature_searches.id', ondelete='CASCADE'), nullable=False, index=True)
+    article_id = db.Column(db.Integer, db.ForeignKey('literature_articles.id', ondelete='CASCADE'), nullable=False, index=True)
+    rank = db.Column(db.Integer)            # position in PubMed result list
+
+    __table_args__ = (
+        db.UniqueConstraint('search_id', 'article_id', name='uq_search_article'),
+        db.Index('idx_search_results_search', 'search_id'),
+        db.Index('idx_search_results_article', 'article_id'),
+    )
+
+    def __repr__(self):
+        return f'<SearchResult search:{self.search_id} article:{self.article_id} rank:{self.rank}>'
+
+
+class UserArticleAction(db.Model):
+    """Tracks per-user actions on articles (save, view, export)"""
+    __tablename__ = 'user_article_actions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    article_id = db.Column(db.Integer, db.ForeignKey('literature_articles.id', ondelete='CASCADE'), nullable=False, index=True)
+    user = db.relationship('User', backref=db.backref('article_actions', lazy='dynamic'))
+
+    # Action tracking
+    is_saved = db.Column(db.Boolean, default=False, nullable=False)
+    is_viewed = db.Column(db.Boolean, default=False, nullable=False)
+    view_count = db.Column(db.Integer, default=0, nullable=False)
+    notes = db.Column(db.Text)             # user's personal notes on the article
+
+    # Timestamps
+    first_viewed_at = db.Column(db.DateTime)
+    last_viewed_at = db.Column(db.DateTime)
+    saved_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'article_id', name='uq_user_article_action'),
+        db.Index('idx_user_article_actions_user', 'user_id'),
+        db.Index('idx_user_article_actions_article', 'article_id'),
+        db.Index('idx_user_article_actions_saved', 'user_id', 'is_saved'),
+    )
+
+    def __repr__(self):
+        return f'<UserArticleAction user:{self.user_id} article:{self.article_id}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'article_id': self.article_id,
+            'is_saved': self.is_saved,
+            'is_viewed': self.is_viewed,
+            'view_count': self.view_count,
+            'notes': self.notes,
+            'first_viewed_at': self.first_viewed_at.isoformat() if self.first_viewed_at else None,
+            'last_viewed_at': self.last_viewed_at.isoformat() if self.last_viewed_at else None,
+            'saved_at': self.saved_at.isoformat() if self.saved_at else None,
+        }
+
+
 def db_init(app):
     """
     Initializes database connection. For testing, uses SQLite in-memory database.

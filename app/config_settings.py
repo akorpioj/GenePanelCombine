@@ -110,6 +110,12 @@ class Config:
     ALLOW_FAST_FORWARD_MERGE = os.getenv('ALLOW_FAST_FORWARD_MERGE', 'True').lower() == 'true'
     REQUIRE_MERGE_COMMENT = os.getenv('REQUIRE_MERGE_COMMENT', 'True').lower() == 'true'
 
+    # PubMed Configuration
+    PUBMED_EMAIL = os.getenv('PUBMED_EMAIL', 'default@example.com')
+    PUBMED_API_KEY = os.getenv('PUBMED_API_KEY', None)
+    PUBMED_TOOL_NAME = os.getenv('PUBMED_TOOL_NAME', 'PanelMerge-LitReview')
+    PUBMED_MAX_RESULTS = int(os.getenv('PUBMED_MAX_RESULTS', 200))
+
 # Add other application-wide configurations here
 class DevelopmentConfig(Config):
     DEBUG = True

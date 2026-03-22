@@ -17,6 +17,30 @@
     </header>
 
     <div class="space-y-6">
+        <!-- Version 1.5.1 -->
+        <div class="border-l-4 border-indigo-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-indigo-700">Version 1.5.1</h2>
+                <span class="text-sm text-gray-500">March 2026</span>
+            </div>
+            <p class="text-gray-600 text-sm mb-2 italic">Literature Review — PubMed Search</p>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>• <strong>LitReview Module:</strong> New blueprint at <code>/litreview</code> — PubMed-powered literature review integrated into PanelMerge</li>
+                <li>• <strong>PubMed Gene Search:</strong> Search PubMed by gene name or free-text term via the NCBI Entrez API (Biopython); configurable result count</li>
+                <li>• <strong>Search Results Page:</strong> Ranked article cards showing title, authors, journal, year, abstract preview, PMID badge, and DOI links</li>
+                <li>• <strong>Article Detail View:</strong> Full abstract, complete author list, MeSH terms, publication types, and external PubMed/DOI links</li>
+                <li>• <strong>Search History:</strong> Paginated history of all your past searches with result counts and quick re-open links</li>
+                <li>• <strong>Two-Layer Caching:</strong> Redis cache (1-hour TTL) for search PMID lists; database cache (7-day rolling TTL) for article metadata — minimises repeat API calls</li>
+                <li>• <strong>Search Progress Overlay:</strong> Spinner shown during long searches with a Cancel button (uses <code>AbortController</code>)</li>
+                <li>• <strong>Excel Export:</strong> Download search results as a formatted <code>.xlsx</code> with styled header row, column widths, and text-wrapped abstract column</li>
+                <li>• <strong>CSV Export:</strong> Download search results as a UTF-8 CSV (Rank, PMID, Title, Authors, Journal, Year, DOI, Abstract, MeSH Terms)</li>
+                <li>• <strong>Swagger/OpenAPI Documentation:</strong> Flask-RESTX API docs at <code>/api/v1/docs</code> covering search, results, and article detail endpoints</li>
+                <li>• <strong>Per-Article View Tracking:</strong> <code>UserArticleAction</code> records view counts and last-viewed timestamps per user</li>
+                <li>• <strong>Database Schema:</strong> New tables — <code>literature_articles</code>, <code>literature_searches</code>, <code>search_results</code>, <code>user_article_actions</code></li>
+                <li>• <strong>New Dependencies:</strong> <code>biopython</code>, <code>xmltodict</code>, <code>flask-restx</code></li>
+            </ul>
+        </div>
+
         <!-- Version 1.5.0 -->
         <div class="border-l-4 border-purple-500 pl-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
@@ -169,7 +193,7 @@
             <p><strong>Frontend:</strong> JavaScript, Tailwind CSS, Bootstrap (admin)</p>
             <p><strong>Security:</strong> Enterprise encryption, audit logging, threat detection, session management, account lockout</p>
             <p><strong>Storage:</strong> Google Cloud Storage (primary), Local file system (backup), Multi-backend architecture</p>
-            <p><strong>APIs:</strong> Genomics England PanelApp, PanelApp Australia, Saved Panel Management API</p>
+            <p><strong>APIs:</strong> Genomics England PanelApp, PanelApp Australia, Saved Panel Management API, NCBI PubMed Entrez (LitReview)</p>
             <p><strong>Database:</strong> PostgreSQL (production), SQLite (local), Redis (caching/sessions)</p>
             <p><strong>Deployment:</strong> Google Cloud Platform with Cloud SQL and Cloud Storage</p>
             <p><strong>Testing:</strong> pytest, unittest, comprehensive database and API testing</p>

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Search History - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">
+
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-sky-700">Search History</h1>
+            <p class="text-gray-600 mt-1">Your past literature searches</p>
+        </div>
+        <a
+            href="{{ url_for('litreview.search') }}"
+            class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition"
+        >
+            New Search
+        </a>
+    </header>
+
+    <!-- Search list -->
+    {% if searches.items %}
+    <div class="space-y-3">
+        {% for search in searches.items %}
+        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+            <div class="flex justify-between items-start">
+                <div>
+                    <a
+                        href="{{ url_for('litreview.search_results', search_id=search.id) }}"
+                        class="text-lg font-medium text-sky-700 hover:underline"
+                    >
+                        {{ search.search_query }}
+                    </a>
+                    <div class="text-sm text-gray-500 mt-1">
+                        {{ search.result_count }} result{{ 's' if search.result_count != 1 else '' }}
+                        &middot;
+                        {{ search.created_at.strftime('%d %b %Y %H:%M') }}
+                    </div>
+                    {% if search.filters %}
+                    <div class="flex flex-wrap gap-1 mt-2">
+                        {% for key, val in search.filters.items() %}
+                        <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">{{ key }}: {{ val }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <a
+                    href="{{ url_for('litreview.search_results', search_id=search.id) }}"
+                    class="ml-4 px-3 py-1 text-sm border border-sky-300 text-sky-600 rounded hover:bg-sky-50 transition whitespace-nowrap"
+                >
+                    View results &rarr;
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if searches.pages > 1 %}
+    <nav class="mt-6 flex justify-between items-center text-sm">
+        <span class="text-gray-500">
+            Page {{ searches.page }} of {{ searches.pages }}
+            &middot; {{ searches.total }} searches total
+        </span>
+        <div class="flex gap-2">
+            {% if searches.has_prev %}
+            <a
+                href="{{ url_for('litreview.search_history', page=searches.prev_num) }}"
+                class="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition"
+            >
+                &larr; Previous
+            </a>
+            {% endif %}
+            {% if searches.has_next %}
+            <a
+                href="{{ url_for('litreview.search_history', page=searches.next_num) }}"
+                class="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition"
+            >
+                Next &rarr;
+            </a>
+            {% endif %}
+        </div>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-16">
+        <p class="text-gray-500 text-lg mb-4">No searches yet.</p>
+        <a
+            href="{{ url_for('litreview.search') }}"
+            class="px-6 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition"
+        >
+            Start your first search
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

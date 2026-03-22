@@ -3,15 +3,15 @@ PanelMerge Version Information
 """
 
 # Application version
-VERSION = "1.5.0"
-VERSION_NAME = "Saved Panel Library & Security Enhanced"
+VERSION = "1.5.1"
+VERSION_NAME = "Literature Review Foundation"
 RELEASE_DATE = "2026-03-22"
 
 # Version details
 VERSION_INFO = {
     "major": 1,
     "minor": 5,
-    "patch": 0,
+    "patch": 1,
     "version": VERSION,
     "name": VERSION_NAME,
     "release_date": RELEASE_DATE,
@@ -34,7 +34,8 @@ VERSION_INFO = {
         "Advanced Password Security Features",
         "Account Lockout Protection",
         "Enhanced Audit Log Viewer",
-        "Database Testing Suite"
+        "Database Testing Suite",
+        "LitReview Module (Phase 1 Foundation)"
     ]
 }
 

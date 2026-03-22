@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-03-22 - Literature Review Foundation
+
+### 🚀 New Features
+
+#### LitReview Module (Phase 1)
+- **LitReview Blueprint**: New `/litreview` section with `litreview` Flask blueprint
+  - Placeholder index page accessible via Tools menu (login required)
+  - Foundation for PubMed search integration (Phase 1)
+  - Audit trail integration on page access
+
+#### Literature Review Database Schema
+- **New Tables** (migration `a1b2c3d4e5f6_add_litreview_tables.py`):
+  - `literature_articles` — Cached PubMed article metadata (pubmed_id, title, abstract, authors, MeSH terms, gene mentions, DOI, cache expiry)
+  - `literature_searches` — Per-user PubMed search history (query, filters, result count)
+  - `search_results` — Junction table linking searches ↔ articles with result rank
+  - `user_article_actions` — Per-user article interactions: save, view count, personal notes
+- All 4 tables cascade-delete on user removal
+- Composite unique constraints prevent duplicate rows
+- Performance indexes on all foreign keys and frequently queried columns
+
+### 📦 Dependencies
+- Added `biopython>=1.81` for PubMed Entrez API access
+- Added `xmltodict>=0.13.0` for XML response parsing
+
+### 🗃️ Database Changes
+- **New Tables**: `literature_articles`, `literature_searches`, `search_results`, `user_article_actions`
+- **Migration**: `a1b2c3d4e5f6_add_litreview_tables.py` (chains from `d24f652d1a59`)
+
+### 🔄 Migration Notes
+- Run `flask db upgrade` to apply the LitReview schema migration
+- No configuration changes required
+- Backward compatible with v1.5.0
+
+---
+
 ## [1.5.0] - 2026-03-22 - Saved Panel Library & Security Enhanced
 
 ### 🚀 Major Features Added

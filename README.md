@@ -1,24 +1,55 @@
-# PanelMerge v1.4.1
+# PanelMerge v1.5.0
 
-PanelMerge is a secure, enterprise-grade web application for researchers and clinicians to easily combine, filter, and download gene lists from multiple sources, including Genomics England PanelApp, PanelApp Australia, and user-uploaded custom gene panels.
+PanelMerge is a secure, enterprise-grade web application for researchers and clinicians to easily combine, filter, and download gene lists from multiple sources, including Genomics England PanelApp, PanelApp Australia, and user-uploaded custom gene panels. Features comprehensive panel library management with version control, multi-format export capabilities, and advanced security features.
 
-## 🚀 New in v1.4.1 (August 2025)
+## 🚀 New in v1.5.0 (March 2026)
 
-- **Interactive API Documentation:**
-  - Swagger/OpenAPI documentation with live testing capabilities
-  - Comprehensive endpoint documentation with examples
-  - Interactive request/response testing interface
+- **Saved Panel Library System:**
+  - Personal panel storage with modifications for future use
+  - Git-like version control with configurable retention (default: 10 versions)
+  - Tag system for important versions (e.g., "v1.0-production")
+  - Branch/merge capabilities for panel evolution tracking
+  - Visual version timeline with branch visualization
+  - Google Cloud Storage integration with multi-backend support
 
-- **Comprehensive Unit Testing Framework:**
-  - Full pytest and unittest integration
-  - Automated testing for all core functionality
-  - Test coverage analysis and reporting
+- **My Panels Profile Tab:**
+  - Comprehensive panel management interface with sortable grid
+  - Advanced filtering by name, date, source, gene count, and sharing status
+  - Quick actions for edit, export, share, and delete operations
+  - Inline editing of panel metadata and gene lists
+  - Real-time validation and error highlighting
 
-- **Enhanced Timezone Support:**
-  - User timezone preferences with automatic detection
-  - Timezone-aware datetime display throughout the application
-  - Profile integration for timezone management
-  - Real-time current time display
+- **Multi-Format Export System:**
+  - Export panels in Excel (.xlsx), CSV, TSV, and JSON formats
+  - Excel exports include multiple sheets (genes, metadata, version history)
+  - Batch export functionality for multiple panels
+  - Export Wizard with custom filenames and column selection
+  - Export template creation for recurring export needs
+  - Template management in user profile
+
+- **Enhanced Security Features:**
+  - Password history tracking to prevent password reuse
+  - Account lockout protection after multiple failed attempts
+  - Single-use password reset tokens with expiration
+  - Admin password override with secure temporary passwords
+  - Email change verification system
+  - Suspicious activity detection with geographic anomaly analysis
+
+- **Advanced Filtering:**
+  - Multi-criteria panel filtering by status, version, date, and gene count
+  - Save and reuse filter configurations
+  - Filter presets for common search patterns
+
+- **Database Testing Suite:**
+  - Comprehensive 50+ test suite for schema validation
+  - Data integrity and security testing
+  - Migration testing for schema evolution
+  - Multi-environment support (SQLite/PostgreSQL)
+
+- **LitReview Module (Preview):**
+  - New Literature Review blueprint for future development
+  - Placeholder for PubMed integration and literature analysis
+  - Accessible via Tools menu in navigation
 
 ## 🔒 Security Features (v1.4)
 
@@ -75,18 +106,41 @@ PanelMerge is a secure, enterprise-grade web application for researchers and cli
   - Responsive design using Tailwind CSS and Bootstrap (for admin pages).
   - Header navigation with version history tracking.
 
+- **Saved Panel Library:**
+  - Personal panel storage with complete version control
+  - Share panels with other users and manage permissions
+  - Comprehensive panel metadata tracking
+  - Google Cloud Storage backend with local file system backup
+  - Automatic versioning with optional commit messages
+
+- **My Panels Management:**
+  - Dedicated profile tab for managing saved panels
+  - Visual version timeline with branch visualization
+  - Advanced search and filtering capabilities
+  - Inline editing with real-time validation
+  - Quick actions for common operations
+
+- **Multi-Format Export:**
+  - Export panels in Excel, CSV, TSV, and JSON formats
+  - Customizable export templates for recurring needs
+  - Batch export for multiple panels simultaneously
+  - Include metadata and version history in exports
+
 - **Admin Dashboard:**
-  - Login-protected admin area for managing users and viewing download logs.
+  - Login-protected admin area for managing users and viewing download logs
   - **Site Messages System**: Create and manage announcements displayed on the main page
     - Support for Info, Success, Warning, and Error message types with color coding
     - Optional expiration dates for automatic message removal
     - Live preview when creating messages
     - Toggle active/inactive status for immediate control
     - Full audit logging for all administrative actions
+  - **Account Management**: Unlock locked accounts and manage security settings
+  - **Enhanced Audit Log Viewer**: Advanced filtering and search capabilities
 
 - **Flexible Database Support:**
-  - Can run with or without database (set WITHOUT_DB=True in .env).
-  - SQLite (local development) or Cloud SQL (production) supported.
+  - Can run with or without database (set WITHOUT_DB=True in .env)
+  - SQLite (local development) or Cloud SQL (production) supported
+  - Support for multiple storage backends (GCS, local file system)
 
 ## Usage
 
@@ -112,21 +166,49 @@ PanelMerge is a secure, enterprise-grade web application for researchers and cli
 ## Technologies Used
 - **Backend**: Python, Flask, SQLAlchemy, Pandas, openpyxl, Redis
 - **Frontend**: JavaScript, Tailwind CSS, Bootstrap (admin UI)
-- **Security**: Enterprise encryption service, comprehensive audit logging, threat detection
-- **APIs**: Genomics England PanelApp, PanelApp Australia
-- **Database**: PostgreSQL (production), SQLite (local), Redis (caching/sessions)
+- **Security**: Enterprise encryption service, comprehensive audit logging, threat detection, account lockout
+- **Storage**: Google Cloud Storage (primary), Local file system (backup), Multi-backend architecture
+- **APIs**: Genomics England PanelApp, PanelApp Australia, Saved Panel Management API
+- **Database**: PostgreSQL (production), SQLite (local/testing), Redis (caching/sessions)
 - **Build Tools**: npm, Tailwind CSS compiler
-- **Deployment**: Google Cloud Platform with Cloud SQL
+- **Testing**: pytest, unittest, comprehensive database and API testing
+- **Deployment**: Google Cloud Platform with Cloud SQL and Cloud Storage
 
 ## API Endpoints
+
+### Panel Discovery
 - `/api/panels?source={uk|aus}` - Get all panels from specified source
 - `/api/genes/{entity_name}?source={uk|aus}` - Find panels containing specific gene
+
+### User Panel Upload
 - `/upload_user_panel` - Upload custom gene panels
 - `/uploaded_user_panels` - List uploaded panels in session
 - `/remove_user_panel` - Remove uploaded panel from session
+
+### Saved Panel Library (15 new endpoints)
+- `/api/user/panels` - List user's saved panels
+- `/api/user/panels` (POST) - Save new panel
+- `/api/user/panels/{id}` - Get specific panel
+- `/api/user/panels/{id}` (PUT) - Update panel
+- `/api/user/panels/{id}` (DELETE) - Delete panel
+- `/api/user/panels/{id}/versions` - List panel versions
+- `/api/user/panels/{id}/versions/{version}` - Get specific version
+- `/api/user/panels/{id}/versions/{version}/restore` - Restore version
+- `/api/user/panels/{id}/diff/{v1}/{v2}` - Compare versions
+- `/api/user/panels/{id}/merge` - Merge updates
+- `/api/user/panels/{id}/share` - Share panel
+- `/api/user/panels/{id}/duplicate` - Duplicate panel
+- `/api/user/panels/{id}/export/{format}` - Export panel
+- `/api/user/panels/import` - Import panel
+- `/api/shared/panels` - List shared panels
+
+### System
 - `/api/version` - Application version information
-- `/admin/messages` - Admin message management (admin only)
-- `/admin/messages/create` - Create new site messages (admin only)
+
+### Admin (requires admin role)
+- `/admin/messages` - Admin message management
+- `/admin/messages/create` - Create new site messages
+- `/admin/unlock-account` - Unlock locked user accounts
 
 ## Development
 ```bash
@@ -149,14 +231,42 @@ python run.py
 
 ### Database Setup
 - **Google Cloud PostgreSQL**: See [`docs/GOOGLE_CLOUD_POSTGRESQL_SETUP.md`](docs/GOOGLE_CLOUD_POSTGRESQL_SETUP.md) for complete setup instructions
+- **Google Cloud Storage**: See [`docs/GOOGLE_CLOUD_STORAGE_SETUP.md`](docs/GOOGLE_CLOUD_STORAGE_SETUP.md) for storage backend configuration
 - **Quick Reference**: See [`docs/POSTGRESQL_QUICK_REFERENCE.md`](docs/POSTGRESQL_QUICK_REFERENCE.md) for daily operations
-- **Testing**: Comprehensive database testing framework with 32 test cases
+- **Storage Reference**: See [`docs/STORAGE_QUICK_REFERENCE.md`](docs/STORAGE_QUICK_REFERENCE.md) for storage operations
+- **Testing**: Comprehensive database testing framework with 50+ test cases
 
 ## Documentation
+
+### Core Documentation
+- [`CHANGELOG.md`](CHANGELOG.md) - Complete version history and changes
 - [`docs/FutureImprovements.txt`](docs/FutureImprovements.txt) - Feature roadmap and implementation status
+- [`docs/UPDATE_CHECKLIST.md`](docs/UPDATE_CHECKLIST.md) - Version update checklist and procedures
+
+### Feature Documentation
+- [`docs/LITREVIEW_FEATURES.md`](docs/LITREVIEW_FEATURES.md) - Literature Review feature specification
+- [`docs/PROFILE_TEMPLATES_IMPLEMENTATION.md`](docs/PROFILE_TEMPLATES_IMPLEMENTATION.md) - Export template system
+- [`docs/MY_PANELS_PROFILE_TAB.md`](docs/MY_PANELS_PROFILE_TAB.md) - Panel library management
+- [`docs/PANEL_EXPORT_SYSTEM.md`](docs/PANEL_EXPORT_SYSTEM.md) - Multi-format export system
+- [`docs/EXPORT_WIZARD.md`](docs/EXPORT_WIZARD.md) - Export wizard documentation
+
+### Security Documentation
+- [`docs/SECURITY_GUIDE.md`](docs/SECURITY_GUIDE.md) - Security implementation guide
+- [`docs/PASSWORD_HISTORY_IMPLEMENTATION.md`](docs/PASSWORD_HISTORY_IMPLEMENTATION.md) - Password security features
+- [`docs/ACCOUNT_LOCKOUT_SYSTEM.md`](docs/ACCOUNT_LOCKOUT_SYSTEM.md) - Account lockout protection
+- [`docs/PASSWORD_RESET_SYSTEM.md`](docs/PASSWORD_RESET_SYSTEM.md) - Password reset security
+- [`docs/EMAIL_CHANGE_VERIFICATION_IMPLEMENTATION.md`](docs/EMAIL_CHANGE_VERIFICATION_IMPLEMENTATION.md) - Email verification
+
+### Database & Storage
 - [`docs/GOOGLE_CLOUD_POSTGRESQL_SETUP.md`](docs/GOOGLE_CLOUD_POSTGRESQL_SETUP.md) - PostgreSQL database setup guide
+- [`docs/GOOGLE_CLOUD_STORAGE_SETUP.md`](docs/GOOGLE_CLOUD_STORAGE_SETUP.md) - Cloud Storage setup guide
 - [`docs/POSTGRESQL_QUICK_REFERENCE.md`](docs/POSTGRESQL_QUICK_REFERENCE.md) - Database quick reference
+- [`docs/STORAGE_QUICK_REFERENCE.md`](docs/STORAGE_QUICK_REFERENCE.md) - Storage quick reference
+
+### Testing
 - [`docs/TESTING_FRAMEWORK.md`](docs/TESTING_FRAMEWORK.md) - Testing framework documentation
+- Database testing suite with 50+ comprehensive tests
+- API testing with authentication and authorization tests
 
 ## License
 MIT License

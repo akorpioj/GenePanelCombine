@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Literature Search - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-6xl">
+    <header class="mb-6 sm:mb-8">
+        <h1 class="text-3xl sm:text-4xl font-bold text-sky-700 mb-2">Literature Search</h1>
+        <p class="text-gray-600">Search PubMed for gene-related publications</p>
+    </header>
+    
+    <!-- Search Form -->
+    <form id="searchForm" method="POST" action="{{ url_for('litreview.search') }}" class="mb-8">
+        {{ form.hidden_tag() if form }}
+        
+        <div class="space-y-4">
+            <!-- Search Term -->
+            <div>
+                <label for="search_term" class="block text-sm font-medium text-gray-700 mb-2">
+                    Gene Name or Search Term
+                </label>
+                <input 
+                    type="text" 
+                    name="search_term" 
+                    id="search_term"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                    placeholder="e.g., BRCA1, TP53, CFTR"
+                    required
+                    autofocus
+                >
+                <p class="text-sm text-gray-500 mt-1">
+                    Enter a gene symbol to search for related literature
+                </p>
+            </div>
+            
+            <!-- Search Type -->
+            <div>
+                <label for="search_type" class="block text-sm font-medium text-gray-700 mb-2">
+                    Search Type
+                </label>
+                <select 
+                    name="search_type" 
+                    id="search_type"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                >
+                    <option value="gene">Gene Name</option>
+                    <option value="keyword">Keyword</option>
+                    <option value="author">Author</option>
+                </select>
+            </div>
+            
+            <!-- Max Results -->
+            <div>
+                <label for="max_results" class="block text-sm font-medium text-gray-700 mb-2">
+                    Maximum Results
+                </label>
+                <select 
+                    name="max_results" 
+                    id="max_results"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                >
+                    <option value="25">25</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                </select>
+            </div>
+            
+            <!-- Submit Button -->
+            <div class="flex items-center space-x-4">
+                <button 
+                    type="submit"
+                    id="searchSubmitBtn"
+                    class="px-6 py-3 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition font-medium"
+                >
+                    <svg class="inline-block w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Search PubMed
+                </button>
+                
+                <a 
+                    href="{{ url_for('litreview.index') }}"
+                    class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
+                >
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </form>
+    
+    <!-- Recent Searches -->
+    {% if recent_searches %}
+    <div class="mt-8 pt-8 border-t border-gray-200">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Recent Searches</h2>
+        <div class="space-y-2">
+            {% for search in recent_searches[:5] %}
+            <a 
+                href="{{ url_for('litreview.search_results', search_id=search.id) }}"
+                class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+            >
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="font-medium text-gray-800">{{ search.search_query }}</span>
+                        <span class="text-sm text-gray-600 ml-2">({{ search.result_count }} results)</span>
+                    </div>
+                    <span class="text-sm text-gray-500">
+                        {{ search.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Search-in-progress overlay -->
+<div id="searchOverlay" class="fixed inset-0 z-50 flex items-center justify-center hidden"
+     style="background: rgba(0,0,0,0.45);">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+        <!-- Spinner -->
+        <div class="flex justify-center mb-5">
+            <svg class="animate-spin h-12 w-12 text-sky-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-800 mb-1">Searching PubMed&hellip;</h2>
+        <p id="searchOverlayTerm" class="text-gray-500 text-sm mb-6"></p>
+        <p class="text-gray-400 text-xs mb-6">This may take a few seconds while we fetch and cache results.</p>
+        <button 
+            id="cancelSearchBtn"
+            class="px-6 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition font-medium"
+        >
+            Cancel Search
+        </button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var form        = document.getElementById('searchForm');
+    var overlay     = document.getElementById('searchOverlay');
+    var overlayTerm = document.getElementById('searchOverlayTerm');
+    var cancelBtn   = document.getElementById('cancelSearchBtn');
+
+    var controller  = null;   // AbortController for the in-flight request
+    var cancelled   = false;
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        var searchTerm = document.getElementById('search_term').value.trim();
+        if (!searchTerm) return;
+
+        cancelled = false;
+        controller = new AbortController();
+
+        // Show overlay
+        overlayTerm.textContent = '"' + searchTerm + '"';
+        overlay.classList.remove('hidden');
+
+        // Collect form data
+        var data = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: data,
+            redirect: 'follow',
+            signal: controller.signal
+        })
+        .then(function (response) {
+            if (cancelled) return;           // user cancelled — discard response
+            // Flask returns a redirect; fetch follows it automatically.
+            // The final response URL is the results page.
+            window.location.href = response.url;
+        })
+        .catch(function (err) {
+            overlay.classList.add('hidden');
+            if (err.name === 'AbortError') return;  // expected when cancelled
+            // Surface any genuine network errors
+            alert('Search failed: ' + err.message);
+        });
+    });
+
+    cancelBtn.addEventListener('click', function () {
+        cancelled = true;
+        if (controller) controller.abort();
+        overlay.classList.add('hidden');
+    });
+})();
+</script>
+{% endblock %}
