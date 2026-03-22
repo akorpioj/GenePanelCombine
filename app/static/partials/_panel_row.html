@@ -1,48 +1,58 @@
 <!-- Panel Row Template - Used by PanelRenderer.js -->
-<div class="panel-row" data-panel-id="">
+<div class="panel-row {{SELECTED_CLASS}}" data-panel-id="{{PANEL_ID}}">
     <div class="list-column list-select">
-        <input type="checkbox" onchange="" />
+        <input type="checkbox" {{CHECKED}} 
+               onchange="panelLibrary.togglePanelSelection({{PANEL_ID}})" />
     </div>
     <div class="list-column list-name">
-        <div class="panel-name-cell">
-            <span class="status-dot" style="background-color: "></span>
-            <div class="name-info">
-                <h4 class="panel-name"></h4>
-                <p class="panel-description-short"></p>
-            </div>
+        <div class="row-title" onclick="panelLibrary.openPanel({{PANEL_ID}})">
+            {{PANEL_NAME}}
+        </div>
+        <div class="row-description">
+            {{PANEL_DESCRIPTION}}
         </div>
     </div>
     <div class="list-column list-genes">
-        <span class="gene-count"></span>
+        <i class="fas fa-dna"></i>
+        <span>{{GENE_COUNT}}</span>
     </div>
     <div class="list-column list-source">
-        <span class="source-badge"></span>
+        {{SOURCE_TYPE}}
     </div>
     <div class="list-column list-updated">
-        <span class="updated-date"></span>
-        <small class="version-info"></small>
+        {{UPDATED_DATE}}
     </div>
     <div class="list-column list-sharing">
-        <i class="fas" title=""></i>
+        <i class="fas {{SHARING_ICON}}" title="{{VISIBILITY}}"></i>
     </div>
     <div class="list-column list-actions">
-        <button class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded focus:outline-none focus:ring-1 focus:ring-blue-500" onclick="">
-            Details
+        <button class="btn btn-sm" onclick="panelLibrary.showPanelDetails({{PANEL_ID}})">
+            <i class="fas fa-eye"></i>
         </button>
-        <button class="px-2 py-1 border border-gray-300 text-gray-700 text-xs font-medium rounded bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 ml-1" onclick="">
-            History
+        <button class="btn btn-sm" onclick="panelLibrary.showVersionTimeline({{PANEL_ID}})">
+            <i class="fas fa-history"></i>
         </button>
-        <div class="dropdown relative z-1000">
-            <button class="px-2 py-1 border border-gray-300 text-gray-700 text-xs font-medium rounded bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500" onclick="">
+        <div class="dropdown">
+            <button class="btn btn-sm" onclick="panelLibrary.toggleDropdown(this)">
                 <i class="fas fa-ellipsis-v"></i>
             </button>
-            <ul class="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 hidden z-1000">
-                <li><a class="dropdown-item block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" href="#" onclick="">Edit</a></li>
-                <li><a class="dropdown-item block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" href="#" onclick="">Duplicate</a></li>
-                <li><a class="dropdown-item block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" href="#" onclick="">Share</a></li>
-                <li><a class="dropdown-item block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" href="#" onclick="">Export</a></li>
-                <li><hr class="border-gray-200 my-1"></li>
-                <li><a class="dropdown-item block px-4 py-2 text-sm text-red-600 hover:bg-red-50" href="#" onclick="">Delete</a></li>
+            <ul class="dropdown-menu hidden">
+                <li><a class="dropdown-item" href="#" onclick="panelLibrary.editPanel({{PANEL_ID}})">
+                    <i class="fas fa-edit"></i> Edit
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="panelLibrary.duplicatePanel({{PANEL_ID}})">
+                    <i class="fas fa-copy"></i> Duplicate
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="panelLibrary.sharePanel({{PANEL_ID}})">
+                    <i class="fas fa-share"></i> Share
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="panelLibrary.exportPanel({{PANEL_ID}})">
+                    <i class="fas fa-download"></i> Export
+                </a></li>
+                <li><hr class="my-1"></li>
+                <li><a class="dropdown-item text-red-600" href="#" onclick="panelLibrary.deletePanel({{PANEL_ID}})">
+                    <i class="fas fa-trash"></i> Delete
+                </a></li>
             </ul>
         </div>
     </div>

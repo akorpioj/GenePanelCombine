@@ -447,13 +447,22 @@ class PanelLibraryGrid {
         this.viewMode = mode;
         this.render();
         
-        // Update button states
-        const gridBtn = document.querySelector('[onclick="panelLibrary.setViewMode(\'grid\')"]');
-        const listBtn = document.querySelector('[onclick="panelLibrary.setViewMode(\'list\')"]');
+        // Update button states using IDs
+        const gridBtn = document.getElementById('grid-view-btn');
+        const listBtn = document.getElementById('list-view-btn');
         
         if (gridBtn && listBtn) {
-            gridBtn.classList.toggle('bg-gray-200', mode === 'grid');
-            listBtn.classList.toggle('bg-gray-200', mode === 'list');
+            if (mode === 'grid') {
+                gridBtn.classList.remove('bg-white');
+                gridBtn.classList.add('bg-gray-200');
+                listBtn.classList.remove('bg-gray-200');
+                listBtn.classList.add('bg-white');
+            } else {
+                gridBtn.classList.remove('bg-gray-200');
+                gridBtn.classList.add('bg-white');
+                listBtn.classList.remove('bg-white');
+                listBtn.classList.add('bg-gray-200');
+            }
         }
     }
 

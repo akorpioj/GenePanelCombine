@@ -68,7 +68,7 @@ class PanelRenderer {
             return `<span class="tag">${cleanTag}</span>`;
         }).join('') + ((panel.tags || []).length > 3 ? `<span class="tag-more">+${(panel.tags || []).length - 3}</span>` : '');
 
-        // Use external template if available, otherwise use inline template
+        // Use external template
         if (window.panelCardTemplate) {
             return window.panelCardTemplate
                 .replace(/{{SELECTED_CLASS}}/g, isSelected ? 'selected' : '')
@@ -96,7 +96,7 @@ class PanelRenderer {
         const statusColor = this.getStatusColor(status);
         const sharingIcon = this.getSharingIcon(visibility);
 
-        // Use external template if available, otherwise use inline template
+        // Use external template
         if (window.panelRowTemplate) {
             return window.panelRowTemplate
                 .replace(/{{SELECTED_CLASS}}/g, isSelected ? 'selected' : '')
