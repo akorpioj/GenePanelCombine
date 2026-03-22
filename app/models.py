@@ -1962,6 +1962,81 @@ class UserArticleAction(db.Model):
         }
 
 
+class KnowhowCategory(db.Model):
+    """Dynamic KnowHow category, managed by admins"""
+    __tablename__ = 'knowhow_categories'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    slug        = db.Column(db.String(64), unique=True, nullable=False)
+    label       = db.Column(db.String(128), nullable=False)
+    color       = db.Column(db.String(32), nullable=False, default='#0369a1')
+    description = db.Column(db.Text, nullable=True)
+    position    = db.Column(db.Integer, nullable=False, default=0)
+    created_at  = db.Column(db.DateTime, default=datetime.datetime.now)
+
+    subcategories = db.relationship(
+        'KnowhowSubcategory', backref='category',
+        cascade='all, delete-orphan',
+        order_by='KnowhowSubcategory.position'
+    )
+
+    def __repr__(self):
+        return f'<KnowhowCategory {self.slug}>'
+
+
+class KnowhowSubcategory(db.Model):
+    """Folder within a KnowHow category"""
+    __tablename__ = 'knowhow_subcategories'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('knowhow_categories.id', ondelete='CASCADE'), nullable=False)
+    label       = db.Column(db.String(128), nullable=False)
+    position    = db.Column(db.Integer, nullable=False, default=0)
+    created_at  = db.Column(db.DateTime, default=datetime.datetime.now)
+
+    def __repr__(self):
+        return f'<KnowhowSubcategory {self.id}: {self.label}>'
+
+
+class KnowhowLink(db.Model):
+    """Community-contributed links for KnowHow sections"""
+    __tablename__ = 'knowhow_links'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    category       = db.Column(db.String(64), nullable=False, index=True)
+    url            = db.Column(db.String(2048), nullable=False)
+    description    = db.Column(db.String(512), nullable=False)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    subcategory_id = db.Column(db.Integer, db.ForeignKey('knowhow_subcategories.id', ondelete='SET NULL'), nullable=True)
+    created_at     = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+
+    user        = db.relationship('User', backref=db.backref('knowhow_links', lazy='dynamic'))
+    subcategory = db.relationship('KnowhowSubcategory', backref=db.backref('links', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<KnowhowLink {self.category}: {self.url[:60]}>'
+
+
+class KnowhowArticle(db.Model):
+    """User-authored articles for KnowHow sections"""
+    __tablename__ = 'knowhow_articles'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    title          = db.Column(db.String(256), nullable=False)
+    category       = db.Column(db.String(64), nullable=False, index=True)
+    content        = db.Column(db.Text, nullable=False, default='')
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    subcategory_id = db.Column(db.Integer, db.ForeignKey('knowhow_subcategories.id', ondelete='SET NULL'), nullable=True)
+    created_at     = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    updated_at     = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now, nullable=False)
+
+    user        = db.relationship('User', backref=db.backref('knowhow_articles', lazy='dynamic'))
+    subcategory = db.relationship('KnowhowSubcategory', backref=db.backref('articles', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<KnowhowArticle {self.id}: {self.title[:60]}>'
+
+
 def db_init(app):
     """
     Initializes database connection. For testing, uses SQLite in-memory database.

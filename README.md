@@ -1,8 +1,16 @@
-# PanelMerge v1.5.0
+# PanelMerge v1.5.2
 
 PanelMerge is a secure, enterprise-grade web application for researchers and clinicians to easily combine, filter, and download gene lists from multiple sources, including Genomics England PanelApp, PanelApp Australia, and user-uploaded custom gene panels. Features comprehensive panel library management with version control, multi-format export capabilities, and advanced security features.
 
-## 🚀 New in v1.5.0 (March 2026)
+## 🚀 New in v1.5.2 (March 2026)
+
+- **Dynamic KnowHow Categories:** Admin-managed categories replace hardcoded sections — add/edit/remove categories with custom colours, descriptions, and ordering
+- **KnowHow Subcategories (Folders):** Optional folder nesting within categories; articles and links assignable to subcategories
+- **KnowHow Admin UI:** New `/knowhow/admin` page with hex colour picker and full CRUD for categories and subcategories
+- **Logout Fix:** Session cookie now correctly cleared on logout (fixed ordering of `destroy_session()` / `logout_user()`)
+- **Link Delete Button:** Hover-reveal × button on all KnowHow links (owner or admin only)
+
+## 🚀 Previously in v1.5.0 (March 2026)
 
 - **Saved Panel Library System:**
   - Personal panel storage with modifications for future use

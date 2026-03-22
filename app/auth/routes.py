@@ -286,12 +286,12 @@ def logout():
         import traceback
         current_app.logger.error(f"🚪 LOGOUT ROUTE: Traceback: {traceback.format_exc()}")
     
+    # Destroy enhanced session FIRST so session.clear() doesn't wipe the
+    # _remember="clear" flag that logout_user() needs to set for cookie deletion.
+    session_service.destroy_session()
+
     current_app.logger.info("🚪 LOGOUT ROUTE: Calling logout_user()")
     logout_user()
-    
-    # Destroy enhanced session
-    session_service.destroy_session()
-    
     current_app.logger.info("🚪 LOGOUT ROUTE: logout_user() completed")
     
     flash('You have been logged out successfully.', 'info')

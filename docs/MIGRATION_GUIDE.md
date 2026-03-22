@@ -29,6 +29,7 @@ This guide provides step-by-step instructions for migrating between different ve
 
 | From → To | Complexity | Database Changes | Config Changes | Downtime |
 |-----------|------------|------------------|----------------|----------|
+| 1.5.1 → 1.5.2 | Low | 2 new tables, 2 FK cols | No | ~2-5 min |
 | 1.5.0 → 1.5.1 | Low | 4 new tables | No | ~2-5 min |
 | 1.4.x → 1.5.x | High | Major (5 new tables) | Minimal | ~10-20 min |
 | 1.4.0 → 1.4.1 | Low | Yes | No | ~2-5 min |
@@ -68,6 +69,62 @@ This guide provides step-by-step instructions for migrating between different ve
 ---
 
 ## 🚀 Version-Specific Migrations
+
+## v1.5.2 Migration (Dynamic KnowHow & Session Fix)
+
+#### From v1.5.1 to v1.5.2
+
+**Major Changes**:
+- Dynamic KnowHow category system (replaces 10 hardcoded sections)
+- New `KnowhowCategory` and `KnowhowSubcategory` models
+- `subcategory_id` FK added to `knowhow_articles` and `knowhow_links`
+- Logout session ordering fix (no config changes required)
+
+**Migration Steps**:
+
+1. **Backup Current System**
+   ```bash
+   mkdir -p backups/v1.5.1-$(date +%Y%m%d-%H%M%S)
+   pg_dump panelmerge > backups/v1.5.1-$(date +%Y%m%d-%H%M%S)/database.sql
+   ```
+
+2. **Update Application Code**
+   ```bash
+   git fetch origin
+   git checkout v1.5.2
+   pip install -r requirements.txt
+   npm run build:css
+   ```
+
+3. **Run Database Migration**
+   ```bash
+   flask db upgrade
+   # Should show: (head)
+   ```
+
+4. **Verify New Tables**
+   ```bash
+   python -c "
+   from app import create_app, db
+   from sqlalchemy import inspect
+   app = create_app()
+   with app.app_context():
+       inspector = inspect(db.engine)
+       tables = inspector.get_table_names()
+       for t in ['knowhow_categories', 'knowhow_subcategories']:
+           print('OK' if t in tables else 'MISSING', t)
+   "
+   ```
+
+5. **First-visit auto-seed**
+   - Navigate to `/knowhow/` while logged in — the 10 default categories are created automatically if the table is empty.
+
+6. **Restart Services**
+   ```bash
+   systemctl restart panelmerge
+   ```
+
+---
 
 ## v1.5.1 Migration (Literature Review Foundation)
 

@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Manage KnowHow Categories - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">
+
+    <header class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-sky-700">Manage KnowHow Categories</h1>
+            <p class="text-gray-500 text-sm mt-1">Add, edit or remove categories and subcategories.</p>
+        </div>
+        <a href="{{ url_for('knowhow.index') }}" class="text-sm text-gray-500 hover:text-sky-700 transition">← Back to KnowHow</a>
+    </header>
+
+    <!-- ── Add New Category ───────────────────────────────────────────────── -->
+    <section class="mb-8 bg-gray-50 rounded-xl border border-gray-200 p-5">
+        <h2 class="text-base font-semibold text-gray-700 mb-4">Add New Category</h2>
+        <form method="POST" action="{{ url_for('knowhow.create_category') }}" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Label <span class="text-red-500">*</span></label>
+                    <input name="label" required maxlength="128" placeholder="e.g. Genetic Counselling"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Slug <span class="text-red-500">*</span>
+                        <span class="text-xs text-gray-400 font-normal ml-1">lowercase_with_underscores</span>
+                    </label>
+                    <input name="slug" required maxlength="64" placeholder="e.g. genetic_counselling"
+                           pattern="[a-z0-9_]+" title="Lowercase letters, digits and underscores only"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Colour <span class="text-red-500">*</span></label>
+                    <div class="flex items-center gap-3">
+                        <div id="newPreview" class="w-8 h-8 rounded-full border border-gray-300 flex-shrink-0 transition-colors" style="background-color:#0369a1"></div>
+                        <select name="color" onchange="syncPreview('newPreview',this.value)"
+                                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                            {% for hex, name in palette %}
+                            <option value="{{ hex }}" {% if hex == '#0369a1' %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description <span class="text-xs text-gray-400 font-normal">(optional)</span></label>
+                    <input name="description" maxlength="512" placeholder="Shown as a note under the section header"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+            </div>
+            <button type="submit" class="px-5 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition">
+                + Create Category
+            </button>
+        </form>
+    </section>
+
+    <!-- ── Existing Categories ────────────────────────────────────────────── -->
+    <section>
+        <h2 class="text-base font-semibold text-gray-700 mb-3">
+            Existing Categories
+            <span class="text-gray-400 font-normal text-sm">({{ categories|length }})</span>
+        </h2>
+
+        {% if not categories %}
+        <p class="text-gray-400 text-sm italic">No categories yet — create one above.</p>
+        {% endif %}
+
+        <div class="space-y-4">
+        {% for cat in categories %}
+        <div class="border border-gray-200 rounded-xl overflow-hidden">
+
+            <!-- Category header bar -->
+            <div class="px-4 py-3 flex items-center justify-between" style="background-color: {{ cat.color }}">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="text-white font-semibold truncate">{{ cat.label }}</span>
+                    <span class="text-white/60 text-xs font-mono flex-shrink-0">{{ cat.slug }}</span>
+                    <span class="text-white/50 text-xs flex-shrink-0">pos: {{ cat.position }}</span>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button type="button" onclick="togglePanel('cat-edit-{{ cat.id }}')"
+                            class="text-white/80 hover:text-white text-xs px-2.5 py-1 rounded border border-white/30 hover:border-white/70 transition">
+                        Edit
+                    </button>
+                    <form method="POST" action="{{ url_for('knowhow.delete_category', cat_id=cat.id) }}" class="inline"
+                          onsubmit="return confirm('Delete {{ cat.label | e }}?\n\nArticles and links in this category will be hidden until reassigned.')">
+                        <button type="submit"
+                                class="text-white/70 hover:text-white text-xs px-2.5 py-1 rounded border border-white/20 hover:border-red-400 hover:bg-red-500/20 transition">
+                            Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Edit form (collapsed by default) -->
+            <div id="cat-edit-{{ cat.id }}" style="display:none" class="px-4 py-4 bg-amber-50 border-b border-amber-200">
+                <form method="POST" action="{{ url_for('knowhow.update_category', cat_id=cat.id) }}" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Label</label>
+                            <input name="label" required maxlength="128" value="{{ cat.label }}"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Colour</label>
+                            <div class="flex items-center gap-2">
+                                <div id="editPreview{{ cat.id }}" class="w-7 h-7 rounded-full border border-gray-300 flex-shrink-0 transition-colors" style="background-color: {{ cat.color }}"></div>
+                                <select name="color" onchange="syncPreview('editPreview{{ cat.id }}',this.value)"
+                                        class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                                    {% for hex, name in palette %}
+                                    <option value="{{ hex }}" {% if hex == cat.color %}selected{% endif %}>{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Position</label>
+                            <input name="position" type="number" min="0" value="{{ cat.position }}"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                        <input name="description" maxlength="512" value="{{ cat.description or '' }}"
+                               placeholder="Optional intro text shown under the section header"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" class="px-4 py-1.5 bg-sky-600 text-white text-sm rounded-lg hover:bg-sky-700 transition">Save</button>
+                        <button type="button" onclick="togglePanel('cat-edit-{{ cat.id }}')"
+                                class="px-4 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Subcategories section -->
+            <div class="px-4 py-3 bg-white">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Subcategories</p>
+
+                {% if cat.subcategories %}
+                <ul class="space-y-1.5 mb-3">
+                    {% for sub in cat.subcategories %}
+                    <li>
+                        <div class="flex items-center justify-between py-1.5 px-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                </svg>
+                                <span class="text-sm text-gray-700 truncate">{{ sub.label }}</span>
+                                <span class="text-xs text-gray-400">pos: {{ sub.position }}</span>
+                            </div>
+                            <div class="flex gap-1 flex-shrink-0">
+                                <button type="button" onclick="togglePanel('sub-edit-{{ sub.id }}')"
+                                        class="text-xs text-sky-600 hover:text-sky-800 px-2 py-0.5 rounded border border-sky-200 hover:border-sky-400 transition">Edit</button>
+                                <form method="POST" action="{{ url_for('knowhow.delete_subcategory', sub_id=sub.id) }}" class="inline"
+                                      onsubmit="return confirm('Delete subcategory \'{{ sub.label | e }}\'?')">
+                                    <button type="submit"
+                                            class="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded border border-red-200 hover:border-red-400 transition">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div id="sub-edit-{{ sub.id }}" style="display:none" class="mt-1 px-3 py-2 bg-amber-50 rounded-lg border border-amber-200">
+                            <form method="POST" action="{{ url_for('knowhow.update_subcategory', sub_id=sub.id) }}" class="flex gap-2">
+                                <input name="label" required maxlength="128" value="{{ sub.label }}"
+                                       class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                                <button type="submit" class="px-3 py-1.5 bg-sky-600 text-white text-sm rounded-lg hover:bg-sky-700 transition">Save</button>
+                                <button type="button" onclick="togglePanel('sub-edit-{{ sub.id }}')"
+                                        class="px-3 py-1.5 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                            </form>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-xs text-gray-400 italic mb-3">No subcategories yet.</p>
+                {% endif %}
+
+                <!-- Add subcategory inline form -->
+                <form method="POST" action="{{ url_for('knowhow.create_subcategory', cat_id=cat.id) }}" class="flex gap-2">
+                    <input name="label" required maxlength="128" placeholder="New subcategory name"
+                           class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    <button type="submit" class="px-4 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition flex-shrink-0">
+                        + Add
+                    </button>
+                </form>
+            </div>
+
+        </div>
+        {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePanel(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function syncPreview(previewId, hex) {
+    document.getElementById(previewId).style.backgroundColor = hex;
+}
+</script>
+{% endblock %}

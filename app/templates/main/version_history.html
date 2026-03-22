@@ -17,6 +17,25 @@
     </header>
 
     <div class="space-y-6">
+        <!-- Version 1.5.2 -->
+        <div class="border-l-4 border-sky-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-sky-700">Version 1.5.2</h2>
+                <span class="text-sm text-gray-500">March 2026</span>
+            </div>
+            <p class="text-gray-600 text-sm mb-2 italic">Dynamic KnowHow Categories &amp; Session Fix</p>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>• <strong>Dynamic KnowHow Categories:</strong> DB-driven categories replace 10 hardcoded sections; admin CRUD with hex colour picker and custom ordering</li>
+                <li>• <strong>Subcategories (Folders):</strong> Optional folder nesting within any category; articles and links are assignable to a subcategory</li>
+                <li>• <strong>KnowHow Admin UI:</strong> New <code>/knowhow/admin</code> page — add/edit/delete categories and subcategories with live colour preview swatch</li>
+                <li>• <strong>Dynamic index rendering:</strong> Loop-driven KnowHow index uses inline hex colour for section headers; subcategory sections show a folder icon</li>
+                <li>• <strong>Auto-seed:</strong> First visit to <code>/knowhow/</code> creates the 10 default categories automatically if the table is empty</li>
+                <li>• <strong>Logout fix:</strong> Reversed <code>destroy_session</code>/<code>logout_user</code> call order so the remember-me cookie is properly expired on logout</li>
+                <li>• <strong>Link delete button:</strong> Hover-reveal × button on KnowHow index links (owner or admin only)</li>
+                <li>• <strong>New DB tables:</strong> <code>knowhow_categories</code>, <code>knowhow_subcategories</code>; added <code>subcategory_id</code> FK to <code>knowhow_articles</code> and <code>knowhow_links</code></li>
+            </ul>
+        </div>
+
         <!-- Version 1.5.1 -->
         <div class="border-l-4 border-indigo-500 pl-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">

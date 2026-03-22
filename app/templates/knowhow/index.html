@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}KnowHow - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-6xl">
+    <header class="mb-6 sm:mb-8 text-center">
+        <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">KnowHow</h1>
+        <p class="text-gray-600 mt-2">
+            Knowledge base and guides for working as a clinical geneticist.
+        </p>
+        <div class="mt-4">
+            <a href="{{ url_for('main.index') }}" class="inline-flex items-center px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition">
+                ← Back to Main Page
+            </a>
+        </div>
+    </header>
+
+    <!-- Actions bar -->
+    <div class="mb-6 flex items-center justify-between flex-wrap gap-3">
+        <a href="{{ url_for('knowhow.new_article') }}"
+           class="inline-flex items-center gap-2 px-5 py-2.5 bg-sky-600 text-white font-semibold rounded-xl hover:bg-sky-700 active:scale-95 transition shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            New Article
+        </a>
+        {% if current_user.is_authenticated and current_user.is_admin() %}
+        <a href="{{ url_for('knowhow.admin_categories') }}"
+           class="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            Manage Categories
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="space-y-8">
+
+        {% for category in categories %}
+        <div class="rounded-xl border border-gray-200 overflow-hidden" id="{{ category.slug }}">
+            <!-- Category header -->
+            <div class="px-5 py-3 flex items-center justify-between" style="background-color: {{ category.color }}">
+                <h2 class="text-lg font-semibold text-white">{{ category.label }}</h2>
+                <button onclick="openAddModal('{{ category.slug }}', '{{ category.label | e }}')"
+                        class="text-white/70 hover:text-white hover:bg-white/20 rounded-full w-7 h-7 flex items-center justify-center transition text-xl font-light"
+                        title="Add a link">+</button>
+            </div>
+
+            {% set root_articles = articles_map.get(category.slug, {}).get(none, []) %}
+            {% set root_links = links_map.get(category.slug, {}).get(none, []) %}
+
+            {% if root_articles or root_links %}
+            <ul class="divide-y divide-gray-100">
+                {% for article in root_articles %}
+                <li class="px-5 py-3 flex items-start space-x-2 hover:bg-gray-50 transition">
+                    <span class="mt-1 text-lg font-bold flex-shrink-0" style="color: {{ category.color }}">›</span>
+                    <div class="flex-1 min-w-0">
+                        <a href="{{ url_for('knowhow.view_article', article_id=article.id) }}"
+                           class="font-medium text-gray-800 hover:underline">{{ article.title }}</a>
+                        {% if article.summary %}
+                        <p class="text-xs text-gray-500 mt-0.5 truncate">{{ article.summary }}</p>
+                        {% endif %}
+                    </div>
+                    {% if current_user.is_authenticated and current_user.is_admin() %}
+                    <a href="{{ url_for('knowhow.edit_article', article_id=article.id) }}"
+                       class="text-xs text-gray-400 hover:text-sky-600 flex-shrink-0 ml-2 mt-0.5">edit</a>
+                    {% endif %}
+                </li>
+                {% endfor %}
+                {% for link in root_links %}
+                <li class="px-5 py-3 flex items-center space-x-2 hover:bg-gray-50 transition group">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: {{ category.color }}">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                    <div class="flex-1 min-w-0">
+                        <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
+                           class="text-gray-700 hover:text-sky-700 hover:underline">{{ link.description }}</a>
+                    </div>
+                    {% if current_user.is_authenticated and (current_user.is_admin() or link.user_id == current_user.id) %}
+                    <form method="POST" action="{{ url_for('knowhow.delete_link', link_id=link.id) }}"
+                          onsubmit="return confirm('Delete this link?')"
+                          class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
+                        <button type="submit" class="text-gray-300 hover:text-red-500 transition" title="Delete link">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </form>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% for sub in category.subcategories %}
+            {% set sub_articles = articles_map.get(category.slug, {}).get(sub.id, []) %}
+            {% set sub_links = links_map.get(category.slug, {}).get(sub.id, []) %}
+            {% if sub_articles or sub_links %}
+            <div class="border-t border-gray-200">
+                <div class="px-5 py-2 bg-gray-50 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-600">{{ sub.label }}</span>
+                </div>
+                <ul class="divide-y divide-gray-100">
+                    {% for article in sub_articles %}
+                    <li class="pl-10 pr-5 py-3 flex items-start space-x-2 hover:bg-gray-50 transition">
+                        <span class="mt-1 text-lg font-bold flex-shrink-0" style="color: {{ category.color }}">›</span>
+                        <div class="flex-1 min-w-0">
+                            <a href="{{ url_for('knowhow.view_article', article_id=article.id) }}"
+                               class="font-medium text-gray-800 hover:underline">{{ article.title }}</a>
+                            {% if article.summary %}
+                            <p class="text-xs text-gray-500 mt-0.5 truncate">{{ article.summary }}</p>
+                            {% endif %}
+                        </div>
+                        {% if current_user.is_authenticated and current_user.is_admin() %}
+                        <a href="{{ url_for('knowhow.edit_article', article_id=article.id) }}"
+                           class="text-xs text-gray-400 hover:text-sky-600 flex-shrink-0 ml-2 mt-0.5">edit</a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                    {% for link in sub_links %}
+                    <li class="pl-10 pr-5 py-3 flex items-center space-x-2 hover:bg-gray-50 transition group">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: {{ category.color }}">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                            <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
+                               class="text-gray-700 hover:text-sky-700 hover:underline">{{ link.description }}</a>
+                        </div>
+                        {% if current_user.is_authenticated and (current_user.is_admin() or link.user_id == current_user.id) %}
+                        <form method="POST" action="{{ url_for('knowhow.delete_link', link_id=link.id) }}"
+                              onsubmit="return confirm('Delete this link?')"
+                              class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
+                            <button type="submit" class="text-gray-300 hover:text-red-500 transition" title="Delete link">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            {% endfor %}
+
+            {% if not root_articles and not root_links and not category.subcategories %}
+            <p class="px-5 py-4 text-sm text-gray-400 italic">No content yet. Add an article or link above.</p>
+            {% endif %}
+
+        </div>
+        {% else %}
+        <div class="text-center py-12 text-gray-400">
+            <p>No categories yet.
+            {% if current_user.is_authenticated and current_user.is_admin() %}
+            <a href="{{ url_for('knowhow.admin_categories') }}" class="text-sky-600 hover:underline">Create one</a>.
+            {% endif %}
+            </p>
+        </div>
+        {% endfor %}
+
+        <!-- Contribute note -->
+        <div class="bg-sky-50 border border-sky-200 rounded-lg p-5 flex items-start space-x-3">
+            <svg class="w-5 h-5 text-sky-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p class="text-sky-700 text-sm">
+                Click <strong>New Article</strong> to share your knowledge with colleagues. Use the <strong>+</strong> button on any section to add a useful external link.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+<!-- Add Link Modal -->
+<div id="addLinkModal" class="fixed inset-0 z-50 items-center justify-center bg-black/50" style="display:none">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="modalTitle" class="text-lg font-semibold text-gray-800">Add Link</h3>
+            <button onclick="closeAddModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="addLinkForm" method="POST" action="{{ url_for('knowhow.add_link') }}">
+            <input type="hidden" name="category" id="linkCategory">
+            <div class="space-y-4">
+                <div>
+                    <label for="linkUrl" class="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                    <input type="url" id="linkUrl" name="url" required
+                           placeholder="https://example.com"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label for="linkDesc" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <input type="text" id="linkDesc" name="description" required maxlength="512"
+                           placeholder="Short description of the resource"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div id="linkSubWrapper" style="display:none">
+                    <label for="linkSubcategory" class="block text-sm font-medium text-gray-700 mb-1">Folder (optional)</label>
+                    <select id="linkSubcategory" name="subcategory_id"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <option value="">— No folder —</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" onclick="closeAddModal()"
+                        class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit"
+                        class="px-4 py-2 text-sm text-white bg-sky-600 rounded-lg hover:bg-sky-700 transition">Add Link</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const _subsData = {{ subcategories_json | tojson }};
+
+function openAddModal(categorySlug, sectionTitle) {
+    document.getElementById('linkCategory').value = categorySlug;
+    document.getElementById('modalTitle').textContent = 'Add link \u2014 ' + sectionTitle;
+    const subs = _subsData.filter(s => s.category_slug === categorySlug);
+    const sel = document.getElementById('linkSubcategory');
+    sel.innerHTML = '<option value="">— No folder —</option>';
+    subs.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.label;
+        sel.appendChild(opt);
+    });
+    document.getElementById('linkSubWrapper').style.display = subs.length ? '' : 'none';
+    document.getElementById('addLinkModal').style.display = 'flex';
+    document.getElementById('linkUrl').focus();
+}
+
+function closeAddModal() {
+    document.getElementById('addLinkModal').style.display = 'none';
+    document.getElementById('addLinkForm').reset();
+    document.getElementById('linkSubWrapper').style.display = 'none';
+}
+
+document.getElementById('addLinkModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddModal();
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeAddModal();
+});
+</script>
+{% endblock %}

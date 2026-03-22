@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}{% if article %}Edit Article{% else %}New Article{% endif %} - KnowHow - PanelMerge{% endblock %}
+
+{% block head_extra %}
+<link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
+<style>
+/* Fix Tailwind Preflight overriding Quill's picker dropdown */
+.ql-snow .ql-picker-options {
+    background-color: #ffffff !important;
+    border: 1px solid #cccccc !important;
+    z-index: 100 !important;
+}
+.ql-snow .ql-picker-item,
+.ql-snow .ql-picker-label {
+    color: #444444 !important;
+}
+.ql-snow .ql-picker-item:hover {
+    color: #06c !important;
+}
+/* Make editor area tall enough */
+.ql-container.ql-snow {
+    font-size: 1rem;
+    font-family: inherit;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+}
+.ql-editor {
+    min-height: 380px;
+    font-size: 1rem;
+    font-family: inherit;
+    line-height: 1.6;
+}
+/* Toolbar radius to match form field */
+.ql-toolbar.ql-snow {
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    background-color: #f9fafb;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">
+    <header class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-sky-700">{% if article %}Edit Article{% else %}New Article{% endif %}</h1>
+            <p class="text-gray-500 text-sm mt-1">Write your article below. Use the toolbar to format text.</p>
+        </div>
+        <a href="{{ url_for('knowhow.index') }}" class="text-sm text-gray-500 hover:text-sky-700 transition">← Back to KnowHow</a>
+    </header>
+
+    <form method="POST"
+          action="{% if article %}{{ url_for('knowhow.update_article', article_id=article.id) }}{% else %}{{ url_for('knowhow.create_article') }}{% endif %}"
+          id="articleForm">
+
+        <div class="space-y-5">
+            <!-- Title -->
+            <div>
+                <label for="articleTitle" class="block text-sm font-medium text-gray-700 mb-1">Title <span class="text-red-500">*</span></label>
+                <input type="text" id="articleTitle" name="title" required maxlength="256"
+                       value="{{ article.title if article else '' }}"
+                       placeholder="Enter article title"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+            </div>
+
+            <!-- Category -->
+            <div>
+                <label for="articleCategory" class="block text-sm font-medium text-gray-700 mb-1">Category <span class="text-red-500">*</span></label>
+                <select id="articleCategory" name="category" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    <option value="">— Select a category —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.slug }}" {% if article and article.category == cat.slug %}selected{% endif %}>{{ cat.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Subcategory (populated dynamically when category is selected) -->
+            <div id="subcategoryWrapper" style="display:none">
+                <label for="articleSubcategory" class="block text-sm font-medium text-gray-700 mb-1">
+                    Subcategory
+                    <span class="text-xs text-gray-400 font-normal">(optional)</span>
+                </label>
+                <select id="articleSubcategory" name="subcategory_id"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    <option value="">— None / General —</option>
+                </select>
+            </div>
+
+            <!-- WYSIWYG editor -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Content <span class="text-red-500">*</span></label>
+                <!-- Quill mounts its own toolbar and editor; we just give it a container -->
+                <div id="quillEditor"></div>
+                <!-- Hidden input synced to Quill on submit -->
+                <input type="hidden" name="content" id="contentInput">
+            </div>
+        </div>
+
+        <div class="mt-6 flex items-center justify-between">
+            <div>
+                {% if article %}
+                <button type="button" onclick="confirmDelete()"
+                        class="text-sm text-red-500 hover:text-red-700 transition">Delete article</button>
+                {% endif %}
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('knowhow.index') }}"
+                   class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</a>
+                <button type="submit" id="saveBtn"
+                        class="px-5 py-2 text-sm text-white bg-sky-600 rounded-lg hover:bg-sky-700 transition font-medium">
+                    {% if article %}Save changes{% else %}Publish article{% endif %}
+                </button>
+            </div>
+        </div>
+    </form>
+
+    {% if article %}
+    <form id="deleteForm" method="POST"
+          action="{{ url_for('knowhow.delete_article', article_id=article.id) }}"
+          style="display:none;"></form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+<script>
+const _subsData = {{ subcategories_json | tojson }};
+const _currentSubId = {{ (article.subcategory_id if article and article.subcategory_id else 'null') }};
+
+const quill = new Quill('#quillEditor', {
+    theme: 'snow',
+    modules: {
+        toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            ['blockquote', 'code-block'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['link'],
+            ['clean']
+        ]
+    },
+    placeholder: 'Write your article here…',
+});
+
+{% if article and article.content %}
+quill.root.innerHTML = {{ article.content | tojson }};
+{% endif %}
+
+document.getElementById('articleForm').addEventListener('submit', function () {
+    document.getElementById('contentInput').value = quill.root.innerHTML;
+});
+
+function confirmDelete() {
+    if (confirm('Delete this article permanently?')) {
+        document.getElementById('deleteForm').submit();
+    }
+}
+
+// Dynamic subcategory population
+const _catSelect = document.getElementById('articleCategory');
+const _subSelect = document.getElementById('articleSubcategory');
+const _subWrapper = document.getElementById('subcategoryWrapper');
+
+function populateSubs() {
+    const slug = _catSelect.value;
+    const subs = _subsData.filter(s => s.category_slug === slug);
+    _subSelect.innerHTML = '<option value="">\u2014 None / General \u2014</option>';
+    subs.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = s.label;
+        if (_currentSubId === s.id) o.selected = true;
+        _subSelect.appendChild(o);
+    });
+    _subWrapper.style.display = subs.length > 0 ? 'block' : 'none';
+}
+_catSelect.addEventListener('change', populateSubs);
+if (_catSelect.value) populateSubs();
+</script>
+{% endblock %}

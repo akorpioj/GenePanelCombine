@@ -124,6 +124,9 @@ def create_app(config_name=None):
     from .litreview import litreview_bp  # Register the litreview blueprint
     app.register_blueprint(litreview_bp)
 
+    from .knowhow import knowhow_bp  # Register the knowhow blueprint
+    app.register_blueprint(knowhow_bp)
+
     # Register Flask-RESTX API (Swagger UI at /api/v1/docs)
     # litreview/__init__.py already imports api.py which registers the namespace.
     from .api import api as restx_api

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}PanelMerge v1.5.1 - Secure Gene Panel Management{% endblock %}</title>
+  <title>{% block title %}PanelMerge v1.5.2 - Secure Gene Panel Management{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/timezone.css') }}">
@@ -33,6 +33,7 @@
           <div id="toolsMenuDropdown" class="absolute left-0 top-full pt-1 w-48 z-50 hidden">
             <div class="bg-white rounded-md shadow-lg py-1 border border-gray-100">
               <a href="{{ url_for('litreview.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">LitReview</a>
+              <a href="{{ url_for('knowhow.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">Knowhow</a>
             </div>
           </div>
         </div>

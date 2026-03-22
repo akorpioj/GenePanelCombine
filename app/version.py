@@ -3,15 +3,15 @@ PanelMerge Version Information
 """
 
 # Application version
-VERSION = "1.5.1"
-VERSION_NAME = "Literature Review Foundation"
+VERSION = "1.5.2"
+VERSION_NAME = "Dynamic KnowHow & Session Fix"
 RELEASE_DATE = "2026-03-22"
 
 # Version details
 VERSION_INFO = {
     "major": 1,
     "minor": 5,
-    "patch": 1,
+    "patch": 2,
     "version": VERSION,
     "name": VERSION_NAME,
     "release_date": RELEASE_DATE,
@@ -35,7 +35,9 @@ VERSION_INFO = {
         "Account Lockout Protection",
         "Enhanced Audit Log Viewer",
         "Database Testing Suite",
-        "LitReview Module (Phase 1 Foundation)"
+        "LitReview Module (Phase 1 Foundation)",
+        "Dynamic KnowHow Categories & Subcategories",
+        "Logout Session Cookie Fix"
     ]
 }
 

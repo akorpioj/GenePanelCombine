@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-03-22 - Dynamic KnowHow & Session Fix
+
+### 🚀 New Features
+
+#### Dynamic KnowHow Categories
+- **Admin-managed categories**: replaced 10 hardcoded sections with DB-driven `KnowhowCategory` model (slug, label, hex colour, description, position)
+- **Subcategories (folders)**: new `KnowhowSubcategory` model allows optional folder nesting within any category; articles and links can be assigned to a subcategory
+- **Admin UI**: new `/knowhow/admin` page for full CRUD on categories (colour palette picker with live preview) and subcategories
+- **Dynamic index**: `index.html` fully rewritten to loop DB categories; per-category colour-coded headers via inline hex styles; subcategory sections with folder icon
+- **Add-link modal** now dynamically populates a "Folder" select based on the chosen category's subcategories
+- **Article editor** updated with dynamic category select and subcategory select (populated by JS)
+- **"Manage Categories"** button visible to admins in the KnowHow actions bar
+- Default 10 categories auto-seeded on first visit if table is empty
+
+### 🐛 Bug Fixes
+
+#### Logout not clearing session cookie
+- **Root cause**: `session_service.destroy_session()` called `session.clear()` after `logout_user()`, erasing the `_remember="clear"` flag Flask-Login uses to delete the remember-me cookie
+- **Fix**: reversed call order — `destroy_session()` first, then `logout_user()` — so the remember-me cookie is properly expired on logout
+
+#### Link delete button missing from KnowHow index
+- Added hover-reveal delete button (× icon, confirm dialog) to both root-level and subcategory link items
+- Visible only to link owner or admin
+
+### 🗃️ Database Changes
+- **New Tables**: `knowhow_categories`, `knowhow_subcategories`
+- **Updated Tables**: `knowhow_articles` and `knowhow_links` — added nullable `subcategory_id` FK
+- **Migration**: `a2b3c4d5e6f7_add_knowhow_categories_subcategories.py`
+
+### 🔄 Migration Notes
+- Run `flask db upgrade` to apply the KnowHow categories migration
+- Backward compatible with v1.5.1; existing articles and links remain in their categories with `subcategory_id = NULL`
+
+---
+
 ## [1.5.1] - 2026-03-22 - Literature Review Foundation
 
 ### 🚀 New Features
