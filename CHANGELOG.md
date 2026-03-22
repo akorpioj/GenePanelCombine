@@ -5,6 +5,160 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-03-22 - Saved Panel Library & Security Enhanced
+
+### 🚀 Major Features Added
+
+#### Saved Panel Library System
+- **Personal Panel Storage**: Users can now save downloaded panels with modifications for future use
+  - Complete database schema with `saved_panels`, `panel_versions`, `panel_genes`, `panel_shares`, and `panel_changes` tables
+  - Google Cloud Storage integration with multi-backend support (primary: GCS, backup: local file system)
+  - Three dedicated storage buckets: active panels, version history, and long-term backups
+  - Service account authentication with proper permissions and security
+  
+- **Version Control System**: Git-like versioning for saved panels
+  - Configurable retention policy (default: keep last 10 versions)
+  - Automatic versioning on save with optional commit messages
+  - Tag system for important versions (e.g., "v1.0-production")
+  - Branch/merge capabilities for panel evolution tracking
+  - Visual version timeline with branch visualization
+
+- **My Panels Profile Tab**: Comprehensive panel library management interface
+  - Sortable grid view with panel thumbnails and metadata
+  - Advanced filtering by name, date, source, gene count, and sharing status
+  - Quick actions for edit, export, share, and delete operations
+  - Inline editing of panel metadata and gene lists
+  - Real-time validation and error highlighting
+
+#### Export System Enhancements
+- **Multi-Format Export**: Export panels in multiple formats
+  - Excel (.xlsx) with multiple sheets (genes, metadata, version history)
+  - CSV/TSV with configurable column selection
+  - JSON format for programmatic access
+  - Batch export functionality for multiple panels
+  
+- **Export Wizard**: Intuitive export interface with advanced options
+  - Format selection with preview
+  - Column customization with metadata and version options
+  - Custom filename input for exports
+  - Export template creation for recurring export needs
+  - Template management in user profile
+
+#### Security Enhancements
+- **Advanced Password Security**:
+  - Password history tracking to prevent password reuse
+  - Configurable password history length
+  - Strong password requirements enforcement
+  - Secure password hashing with bcrypt
+  
+- **Account Lockout Protection**:
+  - Automatic account lockout after multiple failed login/reset attempts
+  - Configurable lockout threshold (default: 5 attempts)
+  - Configurable lockout duration (default: 24 hours)
+  - Email notifications to users and administrators
+  - Admin interface to unlock accounts with audit trail
+  - Automatic expiration for time-based locks
+  - Admin accounts exempt from lockout but receive alerts
+  
+- **Password Reset Security**:
+  - Single-use password reset tokens to prevent token reuse
+  - Token expiration and validation
+  - Suspicious activity detection and alerting
+  - Geographic anomaly detection
+  - Time-based pattern analysis
+  
+- **Admin Password Override**:
+  - Admin can reset user passwords with proper authentication
+  - Forces password change on next login
+  - Generates secure temporary passwords with expiration
+  - Terminates all user sessions on password reset
+  - Email notification with temporary password
+  - Complete audit trail for compliance
+  
+- **Email Change Verification**:
+  - Verification required when users change email addresses
+  - Old email remains active until new email is verified
+  - Prevents unauthorized email hijacking
+  - Email notifications to both old and new addresses
+
+#### Advanced Search & Filtering
+- **Enhanced Filtering Options**:
+  - Filter panels by status, version, creation date, and gene count
+  - Multi-criteria filtering with logical operators
+  - Save and reuse filter configurations
+  - Filter presets for common search patterns
+
+#### API Enhancements
+- **Saved Panel API Endpoints** (15 new endpoints):
+  - `GET /api/user/panels` - List user's saved panels
+  - `POST /api/user/panels` - Save new panel
+  - `GET /api/user/panels/{id}` - Get specific panel
+  - `PUT /api/user/panels/{id}` - Update panel
+  - `DELETE /api/user/panels/{id}` - Delete panel
+  - `GET /api/user/panels/{id}/versions` - List panel versions
+  - `GET /api/user/panels/{id}/versions/{version}` - Get specific version
+  - `POST /api/user/panels/{id}/versions/{version}/restore` - Restore version
+  - `GET /api/user/panels/{id}/diff/{v1}/{v2}` - Compare versions
+  - `POST /api/user/panels/{id}/merge` - Merge updates
+  - `POST /api/user/panels/{id}/share` - Share panel
+  - `POST /api/user/panels/{id}/duplicate` - Duplicate panel
+  - `GET /api/user/panels/{id}/export/{format}` - Export panel
+  - `POST /api/user/panels/import` - Import panel
+  - `GET /api/shared/panels` - List shared panels
+  
+- **Enhanced Rate Limiting**:
+  - Sophisticated rate limiting with user tiers
+  - Per-endpoint rate limit configuration
+  - User-specific rate limit overrides
+  - Rate limit status in API responses
+
+### 🔧 Improvements
+- **Enhanced Audit Log Viewer**: Improved interface for reviewing security audit logs with advanced filtering
+- **Profile Integration**: Seamless integration of panel library with user profile system
+- **Data Versioning**: Complete tracking of panel evolution with diff capabilities
+- **Storage Abstraction**: Pluggable storage backend architecture for flexibility
+- **Performance Optimizations**: Improved query performance and caching strategies
+
+### 🧪 Testing & Quality Assurance
+- **Database Testing Suite**: Comprehensive testing infrastructure
+  - 50+ database tests covering all operations
+  - Schema validation and integrity testing
+  - Migration testing for schema evolution
+  - Performance testing for bulk operations
+  - Security testing for data encryption and SQL injection prevention
+  - Multi-environment support (SQLite for testing, PostgreSQL for production)
+  - SQLAlchemy 2.0 compatible test suite
+
+### 🗃️ Database Changes
+- **New Tables**:
+  - `saved_panels` - Panel metadata, ownership, and sharing permissions
+  - `panel_versions` - Version history with timestamps and changelogs
+  - `panel_genes` - Gene data with confidence levels and modifications
+  - `panel_shares` - Sharing permissions and team access
+  - `panel_changes` - Detailed change tracking for diff views
+  - `password_reset_tokens` - Single-use token management
+  - `password_history` - Historical password tracking
+  - `account_lockouts` - Account lockout tracking and management
+
+- **Enhanced Tables**:
+  - User table extended with password history settings
+  - Audit log enhancements for security events
+  - Session management improvements
+
+### 📚 Documentation
+- Created comprehensive documentation for saved panel library system
+- Updated security implementation guides
+- Added export system documentation with examples
+- Enhanced API documentation with new endpoints
+- Created database testing documentation
+- Updated configuration guides for new features
+
+### 🔄 Migration Notes
+- Automatic database migrations included
+- Backward compatible with version 1.4.1
+- No manual intervention required for standard deployments
+- Google Cloud Storage setup required for cloud storage backend
+
 ## [1.4.1] - 2025-08-02 - Developer Tools & Timezone Enhanced
 
 ### 🚀 Major Features Added

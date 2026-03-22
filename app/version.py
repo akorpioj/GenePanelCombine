@@ -3,15 +3,15 @@ PanelMerge Version Information
 """
 
 # Application version
-VERSION = "1.4.1"
-VERSION_NAME = "Developer Tools & Timezone Enhanced"
-RELEASE_DATE = "2025-08-02"
+VERSION = "1.5.0"
+VERSION_NAME = "Saved Panel Library & Security Enhanced"
+RELEASE_DATE = "2026-03-22"
 
 # Version details
 VERSION_INFO = {
     "major": 1,
-    "minor": 4,
-    "patch": 1,
+    "minor": 5,
+    "patch": 0,
     "version": VERSION,
     "name": VERSION_NAME,
     "release_date": RELEASE_DATE,
@@ -26,7 +26,15 @@ VERSION_INFO = {
         "Complete Audit Trail",
         "Interactive API Documentation",
         "Comprehensive Unit Testing Framework",
-        "Timezone Support with Profile Integration"
+        "Timezone Support with Profile Integration",
+        "Saved Panel Library with Version Control",
+        "My Panels Profile Tab",
+        "Multi-Format Export System (Excel, CSV, TSV, JSON)",
+        "Export Wizard with Custom Templates",
+        "Advanced Password Security Features",
+        "Account Lockout Protection",
+        "Enhanced Audit Log Viewer",
+        "Database Testing Suite"
     ]
 }
 
