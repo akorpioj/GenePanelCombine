@@ -1,108 +1,31 @@
-# Summary of Changes: Modularization, Loading States & File Validation
+# Summary of Changes: v1.5.3
 
-## 1. Modular JavaScript Architecture
+## Admin: Delete Old Audit Logs
 
-### Files Created:
-- `app/static/js/main.js` - New entry point replacing panels.js
-- `app/static/js/modules/state.js` - Global state management
-- `app/static/js/modules/utils.js` - Utility functions
-- `app/static/js/modules/api.js` - API communication
-- `app/static/js/modules/panelManager.js` - Panel management logic
-- `app/static/js/modules/autocomplete.js` - Search autocomplete
-- `app/static/js/modules/fileUpload.js` - File upload functionality
-- `app/static/js/modules/panelComparison.js` - Panel comparison modal
-- `app/static/js/README.md` - Documentation
-- `app/static/js/DEPENDENCIES.md` - Dependency mapping
+### What was added
 
-### Files Modified:
-- `app/templates/main/index.html` - Updated to use ES6 modules
-- `app/static/js/panels.js` - Backed up as panels.js.backup
+Admins can now delete audit log records older than a chosen time period directly from the Audit Logs page.
 
-## 2. Loading State Enhancement
+### New route
 
-### User Experience Improvements:
-- Panel dropdowns now show "Loading panels..." while data is being fetched
-- Visual distinction with grayed out, italic text for loading state
-- Automatic removal of loading state when real data arrives
-- Smart loading state management during API source switching
+- `POST /admin/audit-logs/delete-old` (`auth.delete_old_audit_logs`)
+  - Admin-only; validates the submitted `months` value against the allowed set `{1, 2, 3, 6}`
+  - Calculates a cutoff date (`now − months × 30 days`), bulk-deletes all `AuditLog` rows older than the cutoff, and commits the transaction
+  - Logs the deletion via `AuditService.log_admin_action` (records the period, cutoff date, and count deleted)
+  - Flashes a confirmation message with the number of records removed, then redirects back to the Audit Logs page
 
-### Files Modified:
-- `app/templates/main/panelapp.html` - Added initial loading option to selects
+### UI changes (Audit Logs page)
 
-## 3. File Validation Preview
+- **"Delete Old Logs" button** (red) added to the top-right action bar, next to the existing "Export CSV" button
+- Clicking the button opens a **modal overlay** containing:
+  - A warning that deletion is permanent and cannot be undone
+  - A 2×2 grid of radio buttons: **1 Month**, **2 Months**, **3 Months**, **6 Months**
+  - **Cancel** and **Delete Logs** buttons
+- Submitting without selecting a period is blocked with an alert
+- A browser `confirm()` dialog provides a final warning before the form is posted
 
-### New Feature Implementation:
-- Comprehensive file validation before upload
-- Detailed preview of file contents and structure
-- Real-time validation feedback with errors and warnings
-- Support for CSV, TSV, TXT, XLSX, XLS formats
-- Gene column detection and gene symbol validation
-- Interactive validation results with data preview
+### Other fixes
 
-### Files Modified:
-- `app/static/js/modules/fileUpload.js` - Added extensive validation functions
-- `app/templates/main/panelupload.html` - Added validation button
-- `app/static/css/custom.css` - Added validation preview styles
-- `docs/FutureImprovements.txt` - Marked feature as implemented
-- `FILE_VALIDATION_IMPLEMENTATION.md` - Detailed implementation documentation
-- `app/static/css/custom.css` - Added loading state styles
-- `app/static/js/modules/panelManager.js` - Added setLoadingState() function
-- `app/static/js/modules/api.js` - Integration with loading state
-- `app/static/js/main.js` - Initialize loading state on app start
+- Corrected a pre-existing bug in `export_audit_logs()` where `datetime.now()` was used instead of `datetime.datetime.now()` (the module is imported as `import datetime`, not `from datetime import datetime`)
 
-## 3. Technical Benefits
-
-### Code Organization:
-- **Separation of Concerns**: Each module has a single responsibility
-- **Dependency Management**: Clear import/export structure
-- **Maintainability**: Easier to locate and modify specific features
-- **Testing**: Individual modules can be unit tested
-- **Reusability**: Modules can be reused or replaced independently
-
-### User Experience:
-- **Loading Feedback**: Users see clear indication when data is loading
-- **Visual Polish**: Consistent styling for loading states
-- **Responsive Interface**: No more empty dropdowns during data fetch
-
-## 4. Backward Compatibility
-
-- All existing functionality preserved
-- Same API endpoints and data structures
-- Global functions still available for HTML onclick handlers
-- No changes to backend code required
-
-## 5. Module Structure Summary
-
-```
-main.js (entry point)
-├── state.js (foundation - no dependencies)
-├── utils.js (foundation - minimal dependencies)
-├── api.js (communication layer)
-├── panelManager.js (core panel logic)
-├── autocomplete.js (search features)
-├── fileUpload.js (upload functionality)
-└── panelComparison.js (comparison modal)
-```
-
-## 6. Loading State Flow
-
-1. **Page Load**: HTML includes `<option value="Loading">Loading panels...</option>`
-2. **Initialization**: `setLoadingState()` ensures loading state is visible
-3. **Data Fetch**: API calls fetch panel data in background
-4. **Population**: `populateAll()` replaces loading option with real data
-5. **API Switch**: Loading state shown again when switching sources
-
-## 7. CSS Enhancements
-
-```css
-/* Loading state visual styling */
-.form-select-custom option[value="Loading"] {
-    color: #9ca3af;
-    font-style: italic;
-}
-
-.form-select-custom:has(option[value="Loading"]:checked) {
-    color: #9ca3af;
-    background-color: #f9fafb;
-}
-```
+---

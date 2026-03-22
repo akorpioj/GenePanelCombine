@@ -1268,16 +1268,46 @@ def export_audit_logs():
     # Create response
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv'
-    response.headers['Content-Disposition'] = f'attachment; filename=audit_logs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=audit_logs_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
     
     # Log export action
     AuditService.log_data_export(
         export_type="audit_logs",
         record_count=len(audit_logs),
-        file_name=f"audit_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        file_name=f"audit_logs_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     )
     
     return response
+
+
+@auth_bp.route('/admin/audit-logs/delete-old', methods=['POST'])
+@login_required
+def delete_old_audit_logs():
+    """Delete audit logs older than a specified number of months"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+
+    from ..models import AuditLog
+
+    months = request.form.get('months', type=int)
+    if months not in (1, 2, 3, 6):
+        flash('Invalid time period selected. Choose 1, 2, 3, or 6 months.', 'error')
+        return redirect(url_for('auth.audit_logs'))
+
+    cutoff_date = datetime.datetime.now() - datetime.timedelta(days=months * 30)
+
+    count = AuditLog.query.filter(AuditLog.timestamp < cutoff_date).count()
+    AuditLog.query.filter(AuditLog.timestamp < cutoff_date).delete()
+    db.session.commit()
+
+    AuditService.log_admin_action(
+        action_description=f"Deleted {count} audit log record(s) older than {months} month(s)",
+        details={"months": months, "cutoff_date": cutoff_date.isoformat(), "deleted_count": count}
+    )
+
+    flash(f'Successfully deleted {count} audit log record(s) older than {months} month(s).', 'success')
+    return redirect(url_for('auth.audit_logs'))
 
 
 # Admin Message Management Routes
