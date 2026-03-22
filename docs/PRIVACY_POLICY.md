@@ -1,7 +1,7 @@
 # PanelMerge — GDPR Compliance and Data Protection Policy
 
-**Last Updated:** 12/10/2025  
-**Version:** 1.0  
+**Last Updated:** 22/03/2026  
+**Version:** 1.1 (LitReview and KnowHow data processing disclosed; retention periods added)  
 **Controller:** Anita Korpioja  
 **Contact:** anita.korpioja@gmail.com  
 
@@ -50,6 +50,27 @@ In limited circumstances, PanelMerge may process minimal personal data, such as:
 
 Such data is only collected to support core technical or administrative functions and is **never used for marketing or profiling**.
 
+### 3.3 LitReview: Literature Search Behaviour Data
+
+The **LitReview** feature processes the following personal data for registered users:
+
+- **Search history**: each PubMed search is stored with your search query text, filters (article type, date range, maximum results), result count, and creation timestamp. This data is linked to your user account and may indirectly reveal your clinical or research focus.
+- **Article interaction records**: your article-viewing activity (viewed/not viewed status, view count, first and last viewed timestamps) and save status are recorded. This constitutes limited behavioural profiling of your research activity.
+- **Personal notes** (planned feature, not yet available): a notes field is reserved in the database schema for future use. It is not currently exposed in the application interface. When implemented, a data minimisation warning will be shown at the point of entry.
+
+**Retention:** Search history and unsaved article interaction records are automatically deleted after **365 days** from creation. Explicitly saved article records are retained until you delete them or close your account. You can delete individual searches or your entire history at any time from your [Search History](/litreview/history) page.
+
+### 3.4 KnowHow: User-Attributed Content
+
+The **KnowHow** knowledge base processes:
+
+- **Authored articles**: articles you publish are attributed to you by first name or username and are visible to all logged-in users. Article title, content (HTML, sanitized server-side with `nh3`), category, and timestamps are stored alongside your user ID.
+- **Submitted links**: external links you contribute are attributed to your name and are visible to all logged-in users.
+
+**Content restriction**: KnowHow articles and links must not contain patient-identifiable or other sensitive personal data. A warning is displayed in the article editor before you write.
+
+**Retention:** KnowHow articles and links persist until deleted by you, an editor, or an administrator. No automated retention period currently applies to KnowHow content.
+
 ---
 
 ## 4. Purpose and Legal Basis for Processing
@@ -60,6 +81,9 @@ Such data is only collected to support core technical or administrative function
 | Uploaded gene panel files | Combine and analyze gene lists | Not personal data (outside GDPR scope) |
 | User account data (email, password hash) | Authentication, access control, app administration | Consent or performance of a contract (Art. 6(1)(a) or (b)) |
 | Logs and analytics (if enabled) | Performance monitoring and troubleshooting | Legitimate interest (Art. 6(1)(f)) |
+| LitReview search queries and search history | Recording searches to display past searches and support result re-use | Performance of a contract / legitimate interest (Art. 6(1)(b) and (f)) |
+| LitReview article interaction records (view status, save status, timestamps) | Supporting search result management and limited personalisation | Legitimate interest (Art. 6(1)(f)) |
+| KnowHow articles and links (attributed to author by name) | Enabling professional knowledge sharing among registered users | Performance of a contract / legitimate interest (Art. 6(1)(b) and (f)) |
 
 ---
 
@@ -70,6 +94,11 @@ Such data is only collected to support core technical or administrative function
 - User account data is stored only as long as the account remains active.  
 - Logs are retained for a maximum of **90 days**, after which they are automatically deleted or anonymized.  
 - Backups are encrypted and follow the same retention limits as the primary data.
+- **LitReview search history and unsaved article interactions**: retained for a maximum of **365 days** from the date of creation; deleted automatically by scheduled maintenance run via `flask litreview cleanup`.
+- **LitReview saved article records** (`is_saved=True`): retained until deleted by you or until account closure. Saving an article prevents automated deletion.
+- **PubMed article metadata cache**: each article is cached locally for **7 days** and refreshed automatically on access.
+- **KnowHow articles and links**: retained until deleted by the author, an editor, or an administrator.
+- **Self-service deletion**: you can delete individual LitReview searches or clear your entire search history from your [Search History](/litreview/history) page. Full account deletion cascades to remove all associated LitReview and interaction data.
 
 ---
 
@@ -108,12 +137,26 @@ PanelMerge implements a range of technical and organizational measures to ensure
 
 ## 8. Data Sharing and Third Parties
 
-PanelMerge interacts with external, publicly available APIs (e.g., PanelApp).  
-No personal data is transmitted to these services.  
+### 8.1 Genomics England PanelApp
+PanelMerge retrieves publicly available gene panel data from the Genomics England PanelApp API (United Kingdom). The UK benefits from an EU adequacy decision under Art. 45 GDPR. No personal data is transmitted in these requests.
 
-If future integrations involve data transfers outside the EEA, such transfers will comply with Chapter V of the GDPR through appropriate safeguards such as Standard Contractual Clauses (SCCs).  
+### 8.2 NCBI PubMed (USA) — International Data Transfer
+The **Literature Review (LitReview)** feature allows users to search the PubMed database operated by the **National Center for Biotechnology Information (NCBI)**, a division of the US National Institutes of Health (NIH), located in Bethesda, Maryland, **United States of America**.
 
-No data is sold or shared for commercial purposes.
+When you submit a literature search, the following data is transmitted to NCBI servers:
+- Your **search query** (gene name, keyword, or author name)
+- A **list of PubMed article IDs (PMIDs)** for article detail retrieval
+- A **tool identifier** (`PanelMerge-LitReview`) and an administrator **contact email address** required by the NCBI Entrez API terms of use
+- Your **IP address** (inherent in any HTTP request)
+
+**Legal basis for this transfer:** This transfer is necessary to perform the PubMed search service you have explicitly requested (Art. 49(1)(b) GDPR — transfer necessary for the performance of a contract between the data subject and the controller, or for the implementation of pre-contractual measures taken at the data subject's request).
+
+**Important:** The United States does not have a general EU adequacy decision. NCBI is a US federal government agency and is not subject to the EU–US Data Privacy Framework. NCBI's own privacy and data policies apply to data processed on their systems; see [https://www.nlm.nih.gov/web_policies.html](https://www.nlm.nih.gov/web_policies.html). PanelMerge transmits the minimum data required by the Entrez API; no account credentials, names, or other personal profile data are ever sent to NCBI.
+
+You may choose not to use the LitReview search feature to avoid this transfer.
+
+### 8.3 General
+No data is sold or shared for commercial purposes. No personal data is shared with any third party other than as described above.
 
 ---
 
@@ -210,6 +253,6 @@ Tietosuojavaltuutetun toimisto (Office of the Data Protection Ombudsman, Finland
 | Access Control | Role-based; hashed passwords |
 | DPIA | Required for clinical data processing |
 | Data Subject Rights | Email-based request handling |
-| Third Parties | Limited to public APIs (non-personal) |
+| Third Parties | PanelApp (UK, adequacy): no personal data. NCBI/PubMed (USA, Art. 49(1)(b)): search query + tool email transmitted when LitReview is used |
 | Cookies | Essential only; future consent mechanism |
 | Documentation | RoPA + privacy documentation maintained |

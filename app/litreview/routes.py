@@ -5,15 +5,20 @@ Routes for the LitReview blueprint
 import io
 import csv
 import re
-from datetime import datetime
+import click
+from datetime import datetime, timedelta
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 from flask import render_template, request, flash, redirect, url_for, jsonify, make_response, send_file
 from flask_login import login_required, current_user
 from . import litreview_bp
 from .pubmed_service import pubmed_service
-from ..models import db, LiteratureSearch, LiteratureArticle
+from ..models import db, LiteratureSearch, LiteratureArticle, UserArticleAction, AuditActionType
 from ..audit_service import AuditService
+
+# Retention period: searches and article interactions older than this are eligible
+# for automated deletion via the `flask litreview cleanup` CLI command / scheduled job.
+_RETENTION_DAYS = 365  # 12 months
 
 
 @litreview_bp.route('/', methods=['GET'])
@@ -314,3 +319,86 @@ def search_history():
     )
     
     return render_template('litreview/history.html', searches=searches)
+
+
+# ── Self-service search history deletion ──────────────────────────────────────
+
+@litreview_bp.route('/search/<int:search_id>/delete', methods=['POST'])
+@login_required
+def delete_search(search_id):
+    """Delete a single search record (and its results via cascade)."""
+    search = LiteratureSearch.query.get_or_404(search_id)
+    if search.user_id != current_user.id:
+        flash('Unauthorized', 'error')
+        return redirect(url_for('litreview.search_history'))
+
+    query_text = search.search_query
+    db.session.delete(search)
+    db.session.commit()
+
+    AuditService.log_action(
+        action_type=AuditActionType.USER_DELETE,
+        action_description=f'User deleted LitReview search: "{query_text}"',
+        resource_type='literature_search',
+        resource_id=str(search_id),
+    )
+    flash(f'Search "{query_text}" deleted.', 'success')
+    return redirect(url_for('litreview.search_history'))
+
+
+@litreview_bp.route('/search-history/clear', methods=['POST'])
+@login_required
+def clear_search_history():
+    """Delete ALL search records for the current user."""
+    count = LiteratureSearch.query.filter_by(user_id=current_user.id).count()
+    LiteratureSearch.query.filter_by(user_id=current_user.id).delete()
+    db.session.commit()
+
+    AuditService.log_action(
+        action_type=AuditActionType.USER_DELETE,
+        action_description=f'User cleared all LitReview search history ({count} record(s))',
+        resource_type='literature_search',
+        resource_id='all',
+    )
+    flash(f'Search history cleared ({count} record(s) removed).', 'success')
+    return redirect(url_for('litreview.search_history'))
+
+
+# ── Retention CLI command ──────────────────────────────────────────────────────
+
+@litreview_bp.cli.command('cleanup')
+@click.option('--days', default=_RETENTION_DAYS, show_default=True,
+              help='Delete searches and article interactions older than this many days.')
+@click.option('--dry-run', is_flag=True, default=False,
+              help='Show what would be deleted without committing.')
+def cleanup_old_data(days, dry_run):
+    """Delete LitReview personal data older than the retention period.
+
+    Run this command periodically (e.g. daily cron):
+        flask litreview cleanup
+        flask litreview cleanup --days 180
+        flask litreview cleanup --dry-run
+    """
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+    searches_q = LiteratureSearch.query.filter(LiteratureSearch.created_at < cutoff)
+    actions_q = UserArticleAction.query.filter(
+        UserArticleAction.updated_at < cutoff,
+        UserArticleAction.is_saved == False,  # never delete explicitly saved articles
+    )
+
+    search_count = searches_q.count()
+    action_count = actions_q.count()
+
+    click.echo(f'Retention cutoff: {cutoff.date()} (>{days} days old)')
+    click.echo(f'  LiteratureSearch records to delete : {search_count}')
+    click.echo(f'  UserArticleAction records to delete: {action_count}  (unsaved only)')
+
+    if dry_run:
+        click.echo('Dry-run — no changes committed.')
+        return
+
+    searches_q.delete(synchronize_session=False)
+    actions_q.delete(synchronize_session=False)
+    db.session.commit()
+    click.echo(f'Done. {search_count} searches and {action_count} action records deleted.')

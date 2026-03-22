@@ -11,12 +11,29 @@
             <h1 class="text-3xl font-bold text-sky-700">Search History</h1>
             <p class="text-gray-600 mt-1">Your past literature searches</p>
         </div>
-        <a
-            href="{{ url_for('litreview.search') }}"
-            class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition"
-        >
-            New Search
-        </a>
+        <div class="flex gap-2 items-center">
+            <a
+                href="{{ url_for('litreview.search') }}"
+                class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition"
+            >
+                New Search
+            </a>
+            {% if searches.items %}
+            <form
+                method="POST"
+                action="{{ url_for('litreview.clear_search_history') }}"
+                onsubmit="return confirm('Delete your entire search history? This cannot be undone.')"
+            >
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                >
+                    Clear All
+                </button>
+            </form>
+            {% endif %}
+        </div>
     </header>
 
     <!-- Search list -->
@@ -45,12 +62,28 @@
                     </div>
                     {% endif %}
                 </div>
-                <a
-                    href="{{ url_for('litreview.search_results', search_id=search.id) }}"
-                    class="ml-4 px-3 py-1 text-sm border border-sky-300 text-sky-600 rounded hover:bg-sky-50 transition whitespace-nowrap"
-                >
-                    View results &rarr;
-                </a>
+                <div class="ml-4 flex gap-2 items-center">
+                    <a
+                        href="{{ url_for('litreview.search_results', search_id=search.id) }}"
+                        class="px-3 py-1 text-sm border border-sky-300 text-sky-600 rounded hover:bg-sky-50 transition whitespace-nowrap"
+                    >
+                        View results &rarr;
+                    </a>
+                    <form
+                        method="POST"
+                        action="{{ url_for('litreview.delete_search', search_id=search.id) }}"
+                        onsubmit="return confirm('Delete this search record? This cannot be undone.')"
+                    >
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button
+                            type="submit"
+                            class="px-3 py-1 text-sm border border-red-300 text-red-600 rounded hover:bg-red-50 transition"
+                            title="Delete this search"
+                        >
+                            Delete
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
         {% endfor %}

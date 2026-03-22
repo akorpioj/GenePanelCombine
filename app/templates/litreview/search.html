@@ -9,6 +9,21 @@
         <p class="text-gray-600">Search PubMed for gene-related publications</p>
     </header>
     
+    <!-- NCBI Transfer Notice -->
+    <div class="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z"/>
+        </svg>
+        <p>
+            Searches are processed by <strong>NCBI PubMed</strong> (National Institutes of Health, USA).
+            Your search query and your IP address are transmitted to NCBI servers in the United States
+            as necessary to provide this service (GDPR Art.&nbsp;49(1)(b)).
+            See our <a href="{{ url_for('main.privacy') }}#data-sharing"
+                       class="underline hover:text-amber-900">Privacy Policy</a> for details.
+        </p>
+    </div>
+
     <!-- Search Form -->
     <form id="searchForm" method="POST" action="{{ url_for('litreview.search') }}" class="mb-8">
         {{ form.hidden_tag() if form }}

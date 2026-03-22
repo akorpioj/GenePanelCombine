@@ -2,6 +2,7 @@
 
 import re
 from functools import wraps
+import nh3
 from flask import render_template, request, flash, redirect, url_for, abort
 from flask_login import login_required, current_user
 from . import knowhow_bp
@@ -12,6 +13,31 @@ from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSu
 
 _URL_RE = re.compile(r'^https?://', re.IGNORECASE)
 _MAX_CONTENT_BYTES = 500 * 1024
+
+# ── HTML sanitization (stored XSS protection) ─────────────────────────────────
+# Allowlist covers all tags and attributes produced by Quill 1.3.7.
+_QUILL_TAGS = {
+    "p", "h1", "h2", "h3", "h4",
+    "strong", "em", "u", "s",
+    "a", "code", "pre", "blockquote",
+    "ul", "ol", "li", "br", "hr", "span", "img",
+}
+# Per-tag attribute allowlist; class+style needed for Quill's alignment/indent helpers.
+_BASE_ATTRS = {"class", "style"}
+_QUILL_ATTRS: dict[str, set[str]] = {tag: _BASE_ATTRS for tag in _QUILL_TAGS}
+_QUILL_ATTRS["a"]   = _BASE_ATTRS | {"href", "rel", "target"}
+_QUILL_ATTRS["img"] = _BASE_ATTRS | {"src", "alt", "width", "height"}
+
+
+def _sanitize_content(html: str) -> str:
+    """Strip non-allowlisted tags/attributes from Quill HTML before persisting."""
+    return nh3.clean(
+        html,
+        tags=_QUILL_TAGS,
+        attributes=_QUILL_ATTRS,
+        link_rel="noopener noreferrer",
+        strip_comments=True,
+    )
 
 # Predefined colour palette: (hex, display_name)
 PALETTE = [
@@ -211,6 +237,8 @@ def create_article():
     if len(content.encode('utf-8')) > _MAX_CONTENT_BYTES:
         return _err('Article content is too large (max 500 KB).')
 
+    content = _sanitize_content(content)
+
     subcategory_id, err = _validate_subcategory(sub_id_raw, category)
     if err:
         return _err(err)
@@ -271,6 +299,8 @@ def update_article(article_id):
     if len(content.encode('utf-8')) > _MAX_CONTENT_BYTES:
         flash('Article content is too large (max 500 KB).', 'danger')
         return redirect(url_for('knowhow.edit_article', article_id=article_id))
+
+    content = _sanitize_content(content)
 
     subcategory_id, err = _validate_subcategory(sub_id_raw, category)
     if err:

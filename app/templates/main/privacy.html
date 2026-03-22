@@ -9,8 +9,8 @@
     <div class="mb-8">
       <h1 class="text-4xl font-bold text-sky-700 mb-2">Privacy Policy & GDPR Compliance</h1>
       <p class="text-gray-600">
-        <strong>Last Updated:</strong> 12/10/2025 &nbsp;|&nbsp; 
-        <strong>Version:</strong> 1.0 &nbsp;|&nbsp; 
+        <strong>Last Updated:</strong> 22/03/2026 &nbsp;|&nbsp; 
+        <strong>Version:</strong> 1.1 &nbsp;|&nbsp; 
         <strong>Controller:</strong> Anita Korpioja
       </p>
       <p class="text-gray-600 mt-1">
@@ -106,6 +106,37 @@
           Such data is only collected to support core technical or administrative functions and is <strong>never used for 
           marketing or profiling</strong>.
         </p>
+
+        <h3 class="text-xl font-semibold text-gray-700 mb-3 mt-6">3.3 LitReview: Literature Search Behaviour Data</h3>
+        <p class="text-gray-700 leading-relaxed mb-3">
+          The <strong>LitReview</strong> feature processes the following personal data for registered users:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-2 ml-4">
+          <li><strong>Search history</strong>: each PubMed search is stored with your search query text, filters (article type, date range, maximum results), result count, and creation timestamp. This data is linked to your user account and may indirectly reveal your clinical or research focus.</li>
+          <li><strong>Article interaction records</strong>: your article-viewing activity (viewed/not viewed status, view count, first and last viewed timestamps) and save status are recorded, constituting limited behavioural profiling of your research activity.</li>
+          <li><strong>Personal notes</strong> (planned feature, not yet available): a notes field is reserved in the database for future use. It is not currently exposed in the application interface. When implemented, a data minimisation warning will be shown at the point of entry.</li>
+        </ul>
+        <p class="text-gray-700 leading-relaxed mb-6">
+          <strong>Retention:</strong> Search history and unsaved article interaction records are automatically deleted after <strong>365 days</strong>. Explicitly saved article records are retained until you delete them or close your account. You can delete individual searches or your full history at any time from your
+          <a href="/litreview/history" class="text-sky-600 hover:underline">Search History</a> page.
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-700 mb-3">3.4 KnowHow: User-Attributed Content</h3>
+        <p class="text-gray-700 leading-relaxed mb-3">
+          The <strong>KnowHow</strong> knowledge base processes:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-2 ml-4">
+          <li><strong>Authored articles</strong>: articles you publish are attributed to you by first name or username and are visible to all logged-in users. Article title, rich-text content (HTML, sanitized server-side), category, and timestamps are stored alongside your user ID.</li>
+          <li><strong>Submitted links</strong>: external links you contribute are attributed to your name and are visible to all logged-in users.</li>
+        </ul>
+        <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p class="text-sm text-amber-800">
+            <strong>Content restriction:</strong> KnowHow articles and links must not contain patient-identifiable or other sensitive personal data. A warning is displayed in the article editor before you write.
+          </p>
+        </div>
+        <p class="text-gray-700 leading-relaxed">
+          <strong>Retention:</strong> KnowHow articles and links persist until deleted by you, an editor, or an administrator. No automated retention period currently applies to KnowHow content.
+        </p>
       </section>
 
       <!-- Legal Basis -->
@@ -141,6 +172,21 @@
                 <td class="px-4 py-3">Performance monitoring and troubleshooting</td>
                 <td class="px-4 py-3">Legitimate interest (Art. 6(1)(f))</td>
               </tr>
+              <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3">LitReview search queries and search history</td>
+                <td class="px-4 py-3">Recording searches to display past searches and support result re-use</td>
+                <td class="px-4 py-3">Performance of a contract / legitimate interest (Art. 6(1)(b) and (f))</td>
+              </tr>
+              <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3">LitReview article interaction records (view status, save status, timestamps)</td>
+                <td class="px-4 py-3">Supporting search result management and limited personalisation</td>
+                <td class="px-4 py-3">Legitimate interest (Art. 6(1)(f))</td>
+              </tr>
+              <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3">KnowHow articles and links (attributed to author by name)</td>
+                <td class="px-4 py-3">Enabling professional knowledge sharing among registered users</td>
+                <td class="px-4 py-3">Performance of a contract / legitimate interest (Art. 6(1)(b) and (f))</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -155,6 +201,11 @@
           <li>User account data is stored only as long as the account remains active.</li>
           <li>Logs are retained for a maximum of <strong>90 days</strong>, after which they are automatically deleted or anonymized.</li>
           <li>Backups are encrypted and follow the same retention limits as the primary data.</li>
+          <li><strong>LitReview search history and unsaved article interactions</strong>: retained for a maximum of <strong>365 days</strong> from creation; deleted automatically by scheduled maintenance.</li>
+          <li><strong>LitReview saved article records</strong>: retained until you delete them or close your account. Saving an article prevents automated deletion.</li>
+          <li><strong>PubMed article metadata cache</strong>: each article is cached locally for <strong>7 days</strong> and refreshed automatically on access.</li>
+          <li><strong>KnowHow articles and links</strong>: retained until deleted by the author, an editor, or an administrator.</li>
+          <li><strong>Self-service deletion</strong>: you can delete individual LitReview searches or clear your entire search history from your <a href="/litreview/history" class="text-sky-600 hover:underline">Search History</a> page. Full account deletion cascades to all your LitReview and interaction data.</li>
         </ul>
       </section>
 
@@ -306,16 +357,44 @@
       <!-- Data Sharing -->
       <section id="data-sharing" class="mb-8">
         <h2 class="text-2xl font-bold text-gray-800 mb-4">8. Data Sharing and Third Parties</h2>
+
+        <h3 class="text-lg font-semibold text-gray-800 mb-2">8.1 Genomics England PanelApp</h3>
         <p class="text-gray-700 leading-relaxed mb-4">
-          PanelMerge interacts with external, publicly available APIs (e.g., PanelApp). 
-          <strong>No personal data is transmitted to these services.</strong>
+          PanelMerge retrieves publicly available gene panel data from the Genomics England PanelApp API (United Kingdom).
+          The UK benefits from an EU adequacy decision under Art.&nbsp;45 GDPR.
+          <strong>No personal data is transmitted in these requests.</strong>
+        </p>
+
+        <h3 class="text-lg font-semibold text-gray-800 mb-2">8.2 NCBI PubMed (USA) &mdash; International Data Transfer</h3>
+        <p class="text-gray-700 leading-relaxed mb-2">
+          The <strong>Literature Review (LitReview)</strong> feature searches the PubMed database operated by the
+          <strong>National Center for Biotechnology Information (NCBI)</strong>, a division of the US National
+          Institutes of Health (NIH), located in Bethesda, Maryland, <strong>United States of America</strong>.
+        </p>
+        <p class="text-gray-700 leading-relaxed mb-2">When you submit a literature search, the following data is transmitted to NCBI servers:</p>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-1 ml-4">
+          <li>Your <strong>search query</strong> (gene name, keyword, or author name)</li>
+          <li>A list of <strong>PubMed article IDs (PMIDs)</strong> for article detail retrieval</li>
+          <li>A <strong>tool identifier</strong> and an administrator <strong>contact email address</strong> required by NCBI Entrez API terms of use</li>
+          <li>Your <strong>IP address</strong> (inherent in any HTTP request)</li>
+        </ul>
+        <p class="text-gray-700 leading-relaxed mb-2">
+          <strong>Legal basis for this transfer:</strong> Art.&nbsp;49(1)(b) GDPR &mdash; transfer necessary for the
+          performance of a service you have explicitly requested (submitting a PubMed search).
         </p>
         <p class="text-gray-700 leading-relaxed mb-4">
-          If future integrations involve data transfers outside the EEA, such transfers will comply with Chapter V 
-          of the GDPR through appropriate safeguards such as Standard Contractual Clauses (SCCs).
+          The United States does not have a general EU adequacy decision. NCBI is a US federal government agency.
+          NCBI&rsquo;s own privacy policies apply to data processed on their systems;
+          see <a href="https://www.nlm.nih.gov/web_policies.html" target="_blank" rel="noopener noreferrer"
+                 class="text-sky-600 hover:underline">nlm.nih.gov/web_policies.html</a>.
+          PanelMerge transmits only the minimum data required; no account credentials or profile data are sent to NCBI.
+          You may choose not to use the LitReview feature to avoid this transfer.
         </p>
+
+        <h3 class="text-lg font-semibold text-gray-800 mb-2">8.3 General</h3>
         <p class="text-gray-700 leading-relaxed">
           <strong>No data is sold or shared for commercial purposes.</strong>
+          No personal data is shared with any third party other than as described above.
         </p>
       </section>
 

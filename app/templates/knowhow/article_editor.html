@@ -91,6 +91,21 @@
             <!-- WYSIWYG editor -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Content <span class="text-red-500">*</span></label>
+
+                <!-- Data protection notice -->
+                <div class="mb-2 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                    <svg class="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    </svg>
+                    <span>
+                        <strong>Do not include identifiable personal or patient information</strong> in this article.
+                        KnowHow articles are visible to all logged-in users of this application.
+                        Any content containing patient names, identifiers, clinical notes referencing individuals,
+                        or other personal data is a violation of data protection policy and must not be published here.
+                    </span>
+                </div>
+
                 <!-- Quill mounts its own toolbar and editor; we just give it a container -->
                 <div id="quillEditor"></div>
                 <!-- Hidden input synced to Quill on submit -->
