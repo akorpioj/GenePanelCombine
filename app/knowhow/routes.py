@@ -3,6 +3,7 @@
 import re
 from functools import wraps
 import nh3
+from markupsafe import escape, Markup
 from flask import render_template, request, flash, redirect, url_for, abort, make_response
 from flask_login import login_required, current_user
 from . import knowhow_bp
@@ -124,6 +125,47 @@ def _validate_subcategory(sub_id_raw, category):
 
 _KNOWHOW_SORT_COOKIE = 'knowhow_sort'
 _VALID_SORTS = {'position', 'label_asc', 'label_desc', 'most_content', 'recently_updated'}
+_SEARCH_RESULT_LIMIT = 50
+_SNIPPET_RADIUS = 120  # plain-text chars either side of the match
+
+
+# ── Search helpers ─────────────────────────────────────────────────────────────
+
+def _safe_like(q: str) -> str:
+    """Escape SQL LIKE wildcards so user input is treated as a literal string."""
+    return q.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_')
+
+
+def _strip_html(html: str) -> str:
+    """Remove HTML tags and collapse whitespace to produce plain text."""
+    return re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', html)).strip()
+
+
+def _highlight(text: str, query: str) -> Markup:
+    """HTML-escape *text* then wrap each occurrence of *query* in a <mark> tag."""
+    escaped = str(escape(text))
+    marked = re.sub(
+        r'(?i)(' + re.escape(query) + r')',
+        r'<mark class="bg-yellow-200 rounded px-0.5">\1</mark>',
+        escaped,
+    )
+    return Markup(marked)
+
+
+def _snippet(html: str, query: str) -> Markup:
+    """Extract a short highlighted plain-text excerpt from HTML article content."""
+    plain = _strip_html(html)
+    idx = plain.lower().find(query.lower())
+    if idx == -1:
+        excerpt = plain[:_SNIPPET_RADIUS * 2]
+        prefix = suffix = ''
+    else:
+        start = max(0, idx - _SNIPPET_RADIUS)
+        end = min(len(plain), idx + len(query) + _SNIPPET_RADIUS)
+        prefix = '\u2026' if start > 0 else ''
+        suffix = '\u2026' if end < len(plain) else ''
+        excerpt = prefix + plain[start:end] + suffix
+    return _highlight(excerpt, query)
 
 
 @knowhow_bp.route('/', methods=['GET'])
@@ -223,6 +265,64 @@ def category(slug):
                            articles_map=articles_map,
                            links_map=links_map,
                            subcategories_json=subcategories_json)
+
+
+# ── Search ─────────────────────────────────────────────────────────────────────
+
+@knowhow_bp.route('/search', methods=['GET'])
+@login_required
+def search():
+    """Full-text search across KnowHow articles and links."""
+    q = request.args.get('q', '').strip()
+
+    article_results = []
+    link_results = []
+
+    if len(q) >= 2:
+        pattern = f'%{_safe_like(q)}%'
+
+        articles = (KnowhowArticle.query
+                    .filter(db.or_(
+                        KnowhowArticle.title.ilike(pattern),
+                        KnowhowArticle.content.ilike(pattern),
+                    ))
+                    .order_by(KnowhowArticle.created_at.desc())
+                    .limit(_SEARCH_RESULT_LIMIT)
+                    .all())
+
+        links = (KnowhowLink.query
+                 .filter(db.or_(
+                     KnowhowLink.description.ilike(pattern),
+                     KnowhowLink.url.ilike(pattern),
+                 ))
+                 .order_by(KnowhowLink.created_at.desc())
+                 .limit(_SEARCH_RESULT_LIMIT)
+                 .all())
+
+        categories = {c.slug: c for c in KnowhowCategory.query.all()}
+
+        for a in articles:
+            article_results.append({
+                'article': a,
+                'category': categories.get(a.category),
+                'title_hl': _highlight(a.title, q),
+                'snippet': _snippet(a.content, q),
+            })
+
+        for lnk in links:
+            link_results.append({
+                'link': lnk,
+                'category': categories.get(lnk.category),
+                'desc_hl': _highlight(lnk.description, q),
+            })
+
+        AuditService.log_view('knowhow_search', q[:256],
+                              f'Searched KnowHow: {q[:256]!r}')
+
+    return render_template('knowhow/search.html',
+                           q=q,
+                           article_results=article_results,
+                           link_results=link_results)
 
 
 # ── Links ──────────────────────────────────────────────────────────────────────

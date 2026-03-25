@@ -60,10 +60,30 @@ The KnowHow index now shows at most 3 articles per category/subcategory slot. A 
 - Singular/plural handled via `{{ 's' if count != 1 }}`
 
 **Files changed:** `app/knowhow/routes.py`, `app/templates/knowhow/index.html`
-- Priority order: explicit `?sort=` query param → saved cookie → default (`position`)
-- Sort selector `<select onchange="this.form.submit()">` submits a GET form on change — no JavaScript framework needed
-- `sort` context variable passed to template to keep the selected option highlighted
-
-**Files changed:** `app/knowhow/routes.py`, `app/templates/knowhow/index.html`
 
 ---
+
+## Feature: KnowHow full-text search (25/03/2026)
+
+Added a search page allowing users to search across all KnowHow article titles, article content (Quill HTML), and link descriptions/URLs. Results are highlighted and grouped by type.
+
+**User-facing behaviour:**
+- Search box added to the KnowHow index header; submits `GET /knowhow/search?q=`
+- Minimum query length: 2 characters
+- Results grouped into **Articles** and **Links** sections, each showing a category badge
+- Articles show a highlighted content snippet centred on the first match (~240 chars with `…` ellipsis)
+- Link results show the highlighted description and the full URL
+- Up to 50 articles and 50 links returned per search
+- Searches are audit-logged (query string, truncated to 256 chars)
+
+**Implementation details:**
+- `GET /knowhow/search` route in `app/knowhow/routes.py`
+- `_safe_like(q)` — escapes `%` and `_` in user input before building the `ILIKE` pattern (wildcard-injection protection)
+- `_strip_html(html)` — strips Quill HTML tags to produce plain text for snippeting; uses `re.sub` (no external parser dependency)
+- `_highlight(text, query)` — HTML-escapes via `markupsafe.escape`, then wraps case-insensitive matches in `<mark class="bg-yellow-200 rounded px-0.5">`, returns `markupsafe.Markup`
+- `_snippet(html, query)` — extracts `±120` chars around the first match, adds `…` ellipsis, calls `_highlight`; falls back to first 240 chars if query not found in plain text
+- Database queries use SQLAlchemy `ilike` on `KnowhowArticle.title`, `KnowhowArticle.content`, `KnowhowLink.description`, `KnowhowLink.url` via `db.or_`
+- Results ordered `created_at DESC`, capped with `.limit(50)` before `.all()`
+- Template uses `| safe` on pre-escaped `Markup` strings — XSS-safe because all user-controlled text passes through `markupsafe.escape` before insertion
+
+**Files changed:** `app/knowhow/routes.py` *(search helpers + route)*, `app/templates/knowhow/index.html` *(search box)*, `app/templates/knowhow/search.html` *(new)*
