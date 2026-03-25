@@ -9,12 +9,12 @@
     <nav class="mb-5 text-sm text-gray-500 flex items-center space-x-2 flex-wrap">
         <a href="{{ url_for('knowhow.index') }}" class="hover:text-sky-700 transition">KnowHow</a>
         <span>›</span>
-        <a href="{{ url_for('knowhow.index') }}#{{ article.category }}" class="hover:text-sky-700 transition">
+        <a href="{{ url_for('knowhow.category', slug=article.category) }}" class="hover:text-sky-700 transition">
             {{ category.label if category else article.category }}
         </a>
         {% if subcategory %}
         <span>›</span>
-        <a href="{{ url_for('knowhow.index') }}#{{ article.category }}" class="hover:text-sky-700 transition">{{ subcategory.label }}</a>
+        <a href="{{ url_for('knowhow.category', slug=article.category) }}" class="hover:text-sky-700 transition">{{ subcategory.label }}</a>
         {% endif %}
         <span>›</span>
         <span class="text-gray-700 font-medium truncate max-w-xs">{{ article.title }}</span>

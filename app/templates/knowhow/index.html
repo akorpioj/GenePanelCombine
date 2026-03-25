@@ -60,7 +60,9 @@
         <div class="rounded-xl border border-gray-200 overflow-hidden" id="{{ category.slug }}">
             <!-- Category header -->
             <div class="px-5 py-3 flex items-center justify-between" style="background-color: {{ category.color }}">
-                <h2 class="text-lg font-semibold text-white">{{ category.label }}</h2>
+                <h2 class="text-lg font-semibold text-white">
+                    <a href="{{ url_for('knowhow.category', slug=category.slug) }}" class="hover:underline">{{ category.label }}</a>
+                </h2>
                 <button onclick="openAddModal('{{ category.slug }}', '{{ category.label | e }}')"
                         class="text-white/70 hover:text-white hover:bg-white/20 rounded-full w-7 h-7 flex items-center justify-center transition text-xl font-light"
                         title="Add a link">+</button>
@@ -71,7 +73,7 @@
 
             {% if root_articles or root_links %}
             <ul class="divide-y divide-gray-100">
-                {% for article in root_articles %}
+                {% for article in root_articles[:3] %}
                 <li class="px-5 py-3 flex items-start space-x-2 hover:bg-gray-50 transition">
                     <span class="mt-1 text-lg font-bold flex-shrink-0" style="color: {{ category.color }}">›</span>
                     <div class="flex-1 min-w-0">
@@ -87,6 +89,14 @@
                     {% endif %}
                 </li>
                 {% endfor %}
+                {% if root_articles|length > 3 %}
+                <li class="px-5 py-2">
+                    <a href="{{ url_for('knowhow.category', slug=category.slug) }}"
+                       class="text-sm text-sky-600 hover:underline">
+                        + {{ root_articles|length - 3 }} more article{{ 's' if root_articles|length - 3 != 1 }} &mdash; see all
+                    </a>
+                </li>
+                {% endif %}
                 {% for link in root_links %}
                 <li class="px-5 py-3 flex items-center space-x-2 hover:bg-gray-50 transition group">
                     <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: {{ category.color }}">
@@ -124,7 +134,7 @@
                     <span class="text-sm font-medium text-gray-600">{{ sub.label }}</span>
                 </div>
                 <ul class="divide-y divide-gray-100">
-                    {% for article in sub_articles %}
+                    {% for article in sub_articles[:3] %}
                     <li class="pl-10 pr-5 py-3 flex items-start space-x-2 hover:bg-gray-50 transition">
                         <span class="mt-1 text-lg font-bold flex-shrink-0" style="color: {{ category.color }}">›</span>
                         <div class="flex-1 min-w-0">
@@ -140,6 +150,14 @@
                         {% endif %}
                     </li>
                     {% endfor %}
+                    {% if sub_articles|length > 3 %}
+                    <li class="pl-10 pr-5 py-2">
+                        <a href="{{ url_for('knowhow.category', slug=category.slug) }}"
+                           class="text-sm text-sky-600 hover:underline">
+                            + {{ sub_articles|length - 3 }} more article{{ 's' if sub_articles|length - 3 != 1 }} &mdash; see all
+                        </a>
+                    </li>
+                    {% endif %}
                     {% for link in sub_links %}
                     <li class="pl-10 pr-5 py-3 flex items-center space-x-2 hover:bg-gray-50 transition group">
                         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: {{ category.color }}">

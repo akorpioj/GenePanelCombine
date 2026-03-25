@@ -141,7 +141,7 @@ def index():
 
     categories = _get_categories()  # always position-sorted initially
 
-    all_articles = KnowhowArticle.query.order_by(KnowhowArticle.created_at.asc()).all()
+    all_articles = KnowhowArticle.query.order_by(KnowhowArticle.created_at.desc()).all()
     all_links    = KnowhowLink.query.order_by(KnowhowLink.created_at.asc()).all()
 
     # Apply category sort
@@ -191,6 +191,38 @@ def index():
     resp.set_cookie(_KNOWHOW_SORT_COOKIE, sort,
                     max_age=365 * 24 * 60 * 60, httponly=True, samesite='Lax')
     return resp
+
+
+# ── Category detail ───────────────────────────────────────────────────────────
+
+@knowhow_bp.route('/category/<slug>', methods=['GET'])
+@login_required
+def category(slug):
+    """Category detail page — all content for one category."""
+    cat = KnowhowCategory.query.filter_by(slug=slug).first_or_404()
+    AuditService.log_view('knowhow_category', slug, f'Viewed KnowHow category: {cat.label}')
+
+    articles = KnowhowArticle.query.filter_by(category=slug).order_by(KnowhowArticle.created_at.asc()).all()
+    links    = KnowhowLink.query.filter_by(category=slug).order_by(KnowhowLink.created_at.asc()).all()
+
+    articles_map: dict = {}
+    for a in articles:
+        articles_map.setdefault(a.subcategory_id, []).append(a)
+
+    links_map: dict = {}
+    for lnk in links:
+        links_map.setdefault(lnk.subcategory_id, []).append(lnk)
+
+    subcategories_json = [
+        {'id': sub.id, 'label': sub.label, 'category_slug': cat.slug}
+        for sub in cat.subcategories
+    ]
+
+    return render_template('knowhow/category.html',
+                           category=cat,
+                           articles_map=articles_map,
+                           links_map=links_map,
+                           subcategories_json=subcategories_json)
 
 
 # ── Links ──────────────────────────────────────────────────────────────────────
