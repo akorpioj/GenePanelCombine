@@ -3,7 +3,7 @@
 import re
 from functools import wraps
 import nh3
-from flask import render_template, request, flash, redirect, url_for, abort
+from flask import render_template, request, flash, redirect, url_for, abort, make_response
 from flask_login import login_required, current_user
 from . import knowhow_bp
 from ..audit_service import AuditService
@@ -122,15 +122,53 @@ def _validate_subcategory(sub_id_raw, category):
 
 # ── Index ──────────────────────────────────────────────────────────────────────
 
+_KNOWHOW_SORT_COOKIE = 'knowhow_sort'
+_VALID_SORTS = {'position', 'label_asc', 'label_desc', 'most_content', 'recently_updated'}
+
+
 @knowhow_bp.route('/', methods=['GET'])
 @login_required
 def index():
     """KnowHow landing page"""
     AuditService.log_view('page', 'knowhow_index', 'Viewed Knowhow index page')
-    categories = _get_categories()
+
+    # Prefer explicit query param; fall back to saved cookie; then default
+    sort = request.args.get('sort')
+    if sort not in _VALID_SORTS:
+        sort = request.cookies.get(_KNOWHOW_SORT_COOKIE, 'position')
+    if sort not in _VALID_SORTS:
+        sort = 'position'
+
+    categories = _get_categories()  # always position-sorted initially
 
     all_articles = KnowhowArticle.query.order_by(KnowhowArticle.created_at.asc()).all()
     all_links    = KnowhowLink.query.order_by(KnowhowLink.created_at.asc()).all()
+
+    # Apply category sort
+    if sort == 'label_asc':
+        categories = sorted(categories, key=lambda c: c.label.lower())
+    elif sort == 'label_desc':
+        categories = sorted(categories, key=lambda c: c.label.lower(), reverse=True)
+    elif sort == 'most_content':
+        from collections import Counter
+        counts = Counter(
+            [a.category for a in all_articles] + [lnk.category for lnk in all_links]
+        )
+        categories = sorted(categories, key=lambda c: counts.get(c.slug, 0), reverse=True)
+    elif sort == 'recently_updated':
+        import datetime
+        latest: dict = {}
+        for a in all_articles:
+            t = a.updated_at or a.created_at
+            if t and (a.category not in latest or t > latest[a.category]):
+                latest[a.category] = t
+        for lnk in all_links:
+            t = lnk.created_at
+            if t and (lnk.category not in latest or t > latest[lnk.category]):
+                latest[lnk.category] = t
+        epoch = datetime.datetime.min
+        categories = sorted(categories, key=lambda c: latest.get(c.slug, epoch), reverse=True)
+    # 'position': already sorted by _get_categories()
 
     # {category_slug: {None | subcategory_id: [item, ...]}}
     articles_map: dict = {}
@@ -141,13 +179,18 @@ def index():
     for lnk in all_links:
         links_map.setdefault(lnk.category, {}).setdefault(lnk.subcategory_id, []).append(lnk)
 
-    return render_template(
+    resp = make_response(render_template(
         'knowhow/index.html',
         categories=categories,
         articles_map=articles_map,
         links_map=links_map,
         subcategories_json=_subcategories_json(categories),
-    )
+        sort=sort,
+    ))
+    # Persist the chosen sort for future sessions (1 year, httponly)
+    resp.set_cookie(_KNOWHOW_SORT_COOKIE, sort,
+                    max_age=365 * 24 * 60 * 60, httponly=True, samesite='Lax')
+    return resp
 
 
 # ── Links ──────────────────────────────────────────────────────────────────────

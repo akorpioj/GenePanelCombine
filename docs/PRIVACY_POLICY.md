@@ -215,12 +215,15 @@ No data is sold or shared for commercial purposes. No personal data is shared wi
 
 ## 9. Cookies and Tracking
 
-The application uses only **essential cookies** required for:
-- Maintaining user sessions  
-- Securing authenticated requests  
+The application uses **essential and functionality cookies** only. No analytics or advertising cookies are used.
 
-No analytics or tracking cookies are used by default.  
-If non-essential cookies (e.g., for analytics) are introduced, a consent banner will be provided to obtain explicit opt-in consent in compliance with GDPR and ePrivacy Directive requirements.
+| Cookie name | Purpose | Type | Expiry | Legal basis |
+|---|---|---|---|---|
+| `session` | Maintains the authenticated user session | Essential | Browser session | Strictly necessary |
+| `remember_token` | Persists login across browser restarts ("Remember me") | Essential | 30 days | Strictly necessary |
+| `knowhow_sort` | Remembers your chosen category sort order in the KnowHow section (e.g. A→Z, most content). Contains no personal data. | Functionality | 1 year | Legitimate interest (Art. 6(1)(f)) — improving user experience |
+
+No analytics or tracking cookies are used. If tracking cookies are introduced in future, a consent banner will be provided in compliance with GDPR and the ePrivacy Directive.
 
 ---
 
