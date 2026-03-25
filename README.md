@@ -1,8 +1,19 @@
-# PanelMerge v1.5.2
+# PanelMerge v1.5.3
 
 PanelMerge is a secure, enterprise-grade web application for researchers and clinicians to easily combine, filter, and download gene lists from multiple sources, including Genomics England PanelApp, PanelApp Australia, and user-uploaded custom gene panels. Features comprehensive panel library management with version control, multi-format export capabilities, and advanced security features.
 
-## 🚀 New in v1.5.2 (March 2026)
+## 🚀 New in v1.5.3 (March 2026)
+
+- **GDPR Retention Controls:** Admin-triggered purge routes for visit logs (90-day), suspicious activity records (90-day), and panel download logs (12-month); new deletion modals in the Admin panel
+- **Stored-XSS Protection (DPIA R12):** KnowHow articles sanitized server-side with `nh3` before storage — prevents malicious HTML/JS from executing in other users' browsers
+- **NCBI Transfer Disclosure (DPIA R7):** Privacy Policy updated with an explicit Art. 49(1)(b) disclosure for PubMed queries routed to NCBI (USA); amber notice shown on the LitReview search page before submission
+- **LitReview Retention & Self-Service Deletion (DPIA R8):** 365-day automated purge CLI (`flask litreview cleanup`); per-search delete and Clear All on the Search History page
+- **PanelGene Annotations Privacy Notices:** Amber warning below the Gene List input and visibility hint on the panel modal reminding users not to include patient-identifiable data in gene notes
+- **KnowHow Content Warning (DPIA R11):** Red banner added to the article editor warning against patient-identifiable content
+- **Privacy Policy v1.2:** New sections 3.5 (Saved Panels), 3.6 (Security Infrastructure / geolocation), 3.7 (Exports & Download Logging); updated legal basis table and retention schedule
+- **DPIA updated to v1.4:** All GDPR action items for v1.6 gaps resolved and ticked
+
+## 🚀 Previously in v1.5.2 (March 2026)
 
 - **Dynamic KnowHow Categories:** Admin-managed categories replace hardcoded sections — add/edit/remove categories with custom colours, descriptions, and ordering
 - **KnowHow Subcategories (Folders):** Optional folder nesting within categories; articles and links assignable to subcategories

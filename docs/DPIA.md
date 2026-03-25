@@ -1,8 +1,8 @@
 # Data Protection Impact Assessment (DPIA)
 **Application:** PanelMerge
-**Version:** 1.3  
+**Version:** 1.4  
 **Date Completed:** 12/10/2025  
-**Last Updated:** 22/03/2026 (v1.1: LitReview and KnowHow added; v1.2: R12 XSS fixed, R7 NCBI transfer disclosed, R8 retention+self-service deletion, Privacy Policy v1.1 published; v1.3: Saved Panels system, security infrastructure, and visit/activity tables documented)
+**Last Updated:** 22/03/2026 (v1.1: LitReview and KnowHow added; v1.2: R12 XSS fixed, R7 NCBI transfer disclosed, R8 retention+self-service deletion, Privacy Policy v1.1 published; v1.3: Saved Panels system, security infrastructure, and visit/activity tables documented; v1.4: retention routes for visit/suspicious_activity/panel_download tables, PanelGene.user_notes UI warning, Privacy Policy v1.2 published with Sections 3.5–3.7)
 **Controller:** Anita Korpioja
 **Contact:** anita.korpioja@gmail.com  
 **Location of Processing:** Finland (EU)  
@@ -228,13 +228,13 @@ A further DPIA update **must be conducted** before any of the following:
 - [x] **Privacy Policy v1.1 published** *(22/03/2026 — Sections 3.3, 3.4 and 5 added covering LitReview search behaviour, article interactions, KnowHow authorship, and retention periods for all new tables)*
 
 **v1.3 additions (new gaps identified 22/03/2026):**
-- [ ] **Saved Panels system documented in Privacy Policy** — library, versioning, change tracking, collaboration records, gene notes field
-- [ ] **Retention limit for `panel_versions` / `panel_changes` / `panel_shares`** — define default policy; consider anonymising `changed_by_id` after account deletion
-- [ ] **Retention limit for `visit` table** — apply same 90-day limit as server logs
-- [ ] **Retention limit for `suspicious_activity` table** — 90-day limit; document geolocation processing in Privacy Policy
-- [ ] **Retention limit for `panel_download` table** — define a period consistent with audit requirements
-- [ ] **PanelGene.user_notes warning** — add UI notice at gene annotation entry point; warn at panel-share time that notes will be visible to recipients
-- [ ] **Export template and panel download processing disclosed in Privacy Policy**
+- [x] **Saved Panels system documented in Privacy Policy** *(22/03/2026 — Privacy Policy v1.2: Section 3.5 added covering panel library, versioning, change tracking, collaboration records, and gene annotations)*
+- [x] **Retention limit for `panel_versions` / `panel_changes` / `panel_shares`** *(22/03/2026 — policy defined: records retained until panel deletion or account closure; cascade deletion documented in Privacy Policy Section 3.5 and Section 5)*
+- [x] **Retention limit for `visit` table** *(22/03/2026 — 90-day admin-triggered purge implemented: `POST /admin/visit-logs/delete-old` route added to auth/routes.py; delete button added to audit_logs admin page)*
+- [x] **Retention limit for `suspicious_activity` table** *(22/03/2026 — 90-day admin-triggered purge implemented: `POST /admin/suspicious-activity/delete-old` route added; delete button and modal added to admin_suspicious_activity.html; geolocation processing documented in Privacy Policy Section 3.6)*
+- [x] **Retention limit for `panel_download` table** *(22/03/2026 — 12-month admin-triggered purge implemented: `POST /admin/panel-downloads/delete-old` route added; delete button added to audit_logs admin page)*
+- [x] **PanelGene.user_notes warning** *(22/03/2026 — amber privacy notice added below Gene List textarea in panel creation/edit modal (_my_panels.html); visibility hint added below visibility dropdown warning that annotations are visible to share recipients)*
+- [x] **Export template and panel download processing disclosed in Privacy Policy** *(22/03/2026 — Privacy Policy v1.2: Section 3.7 added covering panel export templates and download logging; Section 4 table updated with new rows; Section 5 retention updated)*
 
 ---
 

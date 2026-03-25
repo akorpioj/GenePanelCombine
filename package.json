@@ -1,6 +1,6 @@
 {
   "name": "panel-merge",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "A secure, enterprise-grade Flask application for filtering gene panels with saved panel library, comprehensive security monitoring, version control, and multi-format export capabilities.",
   "main": "index.js",
   "scripts": {

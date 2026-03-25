@@ -96,7 +96,7 @@ Admins can now delete audit log records older than a chosen time period directly
 - Both buttons include CSRF token
 
 #### DPIA update
-- `docs/DPIA.md` updated to v1.4; R8 marked **MITIGATED**; Appendix A checklist items ticked
+- `docs/DPIA.md` updated to v1.2; R8 marked **MITIGATED**; Appendix A checklist items ticked
 
 ---
 
@@ -112,6 +112,80 @@ Admins can now delete audit log records older than a chosen time period directly
   - **Section 4 (Legal Basis table)** — three new rows: LitReview search history (Art. 6(1)(b)/(f)), LitReview article interactions (Art. 6(1)(f)), KnowHow content (Art. 6(1)(b)/(f))
   - **Section 5 (Retention)** — explicit retention periods added: LitReview search/interactions 365 days (automated), cached article metadata 7-day TTL, saved articles on user request, KnowHow until admin/author deletion; self-service deletion link added
 
-- **DPIA.md updated to v1.5**: R9 classified as **dormant** (notes field not in any UI); Section 2 processing activities table retention columns updated; Section 6 remaining open checkboxes ticked; Section 4.2 residual risks updated; Section 4A "Action required" resolved
+- **DPIA.md updated to v1.2**: R9 classified as **dormant** (notes field not in any UI); Section 2 processing activities table retention columns updated; Section 6 remaining open checkboxes ticked; Section 4.2 residual risks updated; Section 4A "Action required" resolved
 
 ---
+
+### GDPR: DPIA v1.3 — Saved Panels and Security Infrastructure gaps documented
+
+**Context:** A full re-review of the codebase against the existing DPIA v1.2 identified 15+ undocumented processing activities: the Saved Panels library system (10 database models), visit tracking, geolocation profiling in suspicious activity detection, panel download logging, export templates, session management, and login statistics.
+
+**`docs/DPIA.md` updated to v1.3:**
+- 14 new processing activity rows added to Section 2 (Saved panels library, shared panels, version control, change log, gene annotations, panel exports, export templates, panel download tracking, session management, login statistics, suspicious activity detection, geolocation profiling, visit tracking, failed login tracking)
+- Section 3 necessity/proportionality assessment expanded
+- 6 new risks documented: R16–R21 (panel sharing reveals professional relationships; `user_notes` could contain patient data; geolocation profiling; visit log IP accumulation; unbounded version/change history; no retention limit on visit/suspicious_activity/panel_download tables)
+- Section 4.2 residual risks updated
+- Appendix D added: Saved Panels data fields reference
+- Appendix E added: Security infrastructure data fields reference
+- 7 open action items added to Appendix A "v1.3 additions" checklist
+
+---
+
+### Fix: DPIA v1.4 action items — Saved Panels, retention, Privacy Policy v1.2 (25/03/2026)
+
+All 7 open items from the DPIA v1.4 "v1.3 additions" checklist implemented.
+
+#### Admin retention routes for visit logs, suspicious activity, and panel download logs (`app/auth/routes.py`)
+
+Three new admin-only `POST` routes added, following the exact pattern of `POST /admin/audit-logs/delete-old`:
+
+- **`POST /admin/visit-logs/delete-old`** (`auth.delete_old_visit_logs`)
+  - Deletes `Visit` records where `visit_date < cutoff`
+  - Period options: 1, 2, or 3 months (recommended: 3 months / 90-day GDPR limit)
+  - Logs deletion via `AuditService.log_admin_action`
+
+- **`POST /admin/suspicious-activity/delete-old`** (`auth.delete_old_suspicious_activity`)
+  - Deletes `SuspiciousActivity` records where `timestamp < cutoff`
+  - Period options: 1, 2, or 3 months
+  - Redirects back to the Suspicious Activity Monitor page
+
+- **`POST /admin/panel-downloads/delete-old`** (`auth.delete_old_panel_downloads`)
+  - Deletes `PanelDownload` records where `download_date < cutoff`
+  - Period options: 3, 6, or 12 months (recommended: 12 months for audit trail compliance)
+  - Logs deletion via `AuditService.log_admin_action`
+
+#### Admin UI changes
+
+- **Audit Logs page (`app/templates/auth/audit_logs.html`)**:
+  - Two new buttons added to the action bar: **"Delete Old Visit Logs"** (orange) and **"Delete Old Downloads Log"** (yellow)
+  - Each opens its own modal with a GDPR context note, period radio buttons, CSRF token, and a JS `confirm()` dialog before submission
+
+- **Suspicious Activity Monitor (`app/templates/auth/admin_suspicious_activity.html`)**:
+  - **"Delete Old Records"** button added to the page header
+  - Modal with GDPR context note, period radio buttons (1/2/3 months), CSRF token, and JS confirm function
+
+#### PanelGene `user_notes` UI warnings (`app/templates/auth/_my_panels.html`)
+
+Two notices added to the panel creation/edit modal:
+
+1. **Amber privacy notice** below the Gene List textarea:
+   - *"Privacy notice: If per-gene annotations or notes are added to this panel, they will be visible to any user this panel is shared with or made public to. Do not include patient-identifiable information in gene notes."*
+
+2. **Visibility dropdown hint** below the Visibility selector:
+   - *"Shared or Public: gene annotations (user notes) on this panel will be visible to recipients."*
+
+#### Privacy Policy updated to v1.2
+
+Both **`app/templates/main/privacy.html`** and **`docs/PRIVACY_POLICY.md`** updated:
+
+- **Section 3.5 (new)** — Saved Panels: panel library records, gene annotations (`user_notes`), version history snapshots, change log entries, panel share records; amber warning about annotations visibility; cascade deletion on account close
+- **Section 3.6 (new)** — Security Infrastructure: visit logs (IP, path, user agent, timestamp), suspicious activity records (IP, email, geolocation city/country, activity type), login statistics (login count, last IP), session records; clarification that geolocation is used only for security alerting, not profiling
+- **Section 3.7 (new)** — Panel Exports and Download Logging: download records (IP, user ID, panel IDs, timestamps), export templates (name, format settings)
+- **Section 4 (Legal Basis table)** — 5 new rows: Saved Panels (Art. 6(1)(b)/(f)), visit logs (Art. 6(1)(f), 90 days), suspicious activity (Art. 6(1)(f), 90 days), panel download records (Art. 6(1)(f), 12 months), export templates (Art. 6(1)(b)/(f))
+- **Section 5 (Retention)** — 5 new bullet points: visit logs 90 days, suspicious activity 90 days, panel download records 12 months, saved panels/gene annotations until panel or account deletion (cascade), export templates until deleted
+
+#### DPIA updated to v1.4
+
+- All 7 `[ ]` checklist items under **"v1.3 additions"** ticked with implementation notes and dates
+- Version header bumped from **1.3 → 1.4**
+- Last Updated extended to record v1.4 changes

@@ -29,6 +29,7 @@ This guide provides step-by-step instructions for migrating between different ve
 
 | From → To | Complexity | Database Changes | Config Changes | Downtime |
 |-----------|------------|------------------|----------------|----------|
+| 1.5.2 → 1.5.3 | Low | No DB changes | No | ~2-5 min |
 | 1.5.1 → 1.5.2 | Low | 2 new tables, 2 FK cols | No | ~2-5 min |
 | 1.5.0 → 1.5.1 | Low | 4 new tables | No | ~2-5 min |
 | 1.4.x → 1.5.x | High | Major (5 new tables) | Minimal | ~10-20 min |
@@ -69,6 +70,49 @@ This guide provides step-by-step instructions for migrating between different ve
 ---
 
 ## 🚀 Version-Specific Migrations
+
+## v1.5.3 Migration (GDPR Compliance & Retention Controls)
+
+#### From v1.5.2 to v1.5.3
+
+**Major Changes**:
+- No database schema changes
+- New Python dependency: `nh3>=0.2.14` (HTML sanitizer for KnowHow)
+- New admin routes for GDPR data retention purging
+- Privacy Policy updated to v1.2
+
+**Migration Steps**:
+
+1. **Update Application Code**
+   ```bash
+   git fetch origin
+   git checkout v1.5.3
+   pip install -r requirements.txt
+   ```
+
+2. **Verify nh3 installed**
+   ```bash
+   python -c "import nh3; print(nh3.__version__)"
+   # Should print 0.3.3 or later
+   ```
+
+3. **No database migration required**
+   - Skip `flask db upgrade` — no schema changes in this release
+
+4. **Restart Application**
+   ```bash
+   # Restart your WSGI server, e.g.:
+   systemctl restart panelmerge
+   ```
+
+**Rollback (if needed)**:
+```bash
+git checkout v1.5.2
+pip install -r requirements.txt
+# No DB rollback needed — no schema was changed
+```
+
+---
 
 ## v1.5.2 Migration (Dynamic KnowHow & Session Fix)
 

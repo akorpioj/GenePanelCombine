@@ -17,6 +17,25 @@
     </header>
 
     <div class="space-y-6">
+        <!-- Version 1.5.3 -->
+        <div class="border-l-4 border-teal-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-teal-700">Version 1.5.3</h2>
+                <span class="text-sm text-gray-500">March 2026</span>
+            </div>
+            <p class="text-gray-600 text-sm mb-2 italic">GDPR Compliance &amp; Retention Controls</p>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>&bull; <strong>GDPR Retention Routes:</strong> Admin purge controls for visit logs (&le;90 days), suspicious activity (&le;90 days), and panel download logs (&le;12 months); delete modals in Admin UI</li>
+                <li>&bull; <strong>KnowHow XSS Protection:</strong> <code>nh3</code> server-side HTML sanitization on every KnowHow create/update; prevents stored-XSS attacks</li>
+                <li>&bull; <strong>NCBI International Transfer Disclosure:</strong> PubMed queries sent to NCBI (USA) disclosed in Privacy Policy Section 8.2 (Art. 49(1)(b)); amber notice on LitReview search page</li>
+                <li>&bull; <strong>LitReview Retention &amp; Self-Service Deletion:</strong> 365-day retention limit; <code>flask litreview cleanup</code> CLI; per-search and clear-all delete routes</li>
+                <li>&bull; <strong>PanelGene Annotations Privacy Notices:</strong> Amber warning below Gene List textarea; visibility dropdown hints about shared data exposure</li>
+                <li>&bull; <strong>KnowHow Content Warning:</strong> Red editor banner warns against patient-identifiable content</li>
+                <li>&bull; <strong>Privacy Policy v1.2:</strong> New Sections 3.5 (Saved Panels), 3.6 (Security Infrastructure), 3.7 (Panel Exports); 5 new legal-basis and retention rows</li>
+                <li>&bull; <strong>DPIA v1.4:</strong> All 7 open v1.3-additions checklist items resolved and documented</li>
+            </ul>
+        </div>
+
         <!-- Version 1.5.2 -->
         <div class="border-l-4 border-sky-500 pl-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">

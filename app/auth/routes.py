@@ -1310,6 +1310,96 @@ def delete_old_audit_logs():
     return redirect(url_for('auth.audit_logs'))
 
 
+@auth_bp.route('/admin/visit-logs/delete-old', methods=['POST'])
+@login_required
+def delete_old_visit_logs():
+    """Delete visit log records older than a specified number of months (GDPR retention)"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+
+    from ..models import Visit
+
+    months = request.form.get('months', type=int)
+    if months not in (1, 2, 3):
+        flash('Invalid time period selected. Choose 1, 2, or 3 months.', 'error')
+        return redirect(url_for('auth.audit_logs'))
+
+    cutoff_date = datetime.datetime.now() - datetime.timedelta(days=months * 30)
+
+    count = Visit.query.filter(Visit.visit_date < cutoff_date).count()
+    Visit.query.filter(Visit.visit_date < cutoff_date).delete()
+    db.session.commit()
+
+    AuditService.log_admin_action(
+        action_description=f"GDPR retention: deleted {count} visit log record(s) older than {months} month(s)",
+        details={"months": months, "cutoff_date": cutoff_date.isoformat(), "deleted_count": count}
+    )
+
+    flash(f'Successfully deleted {count} visit log record(s) older than {months} month(s).', 'success')
+    return redirect(url_for('auth.audit_logs'))
+
+
+@auth_bp.route('/admin/suspicious-activity/delete-old', methods=['POST'])
+@login_required
+def delete_old_suspicious_activity():
+    """Delete suspicious activity records older than a specified number of months (GDPR retention)"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+
+    from ..models import SuspiciousActivity
+
+    months = request.form.get('months', type=int)
+    if months not in (1, 2, 3):
+        flash('Invalid time period selected. Choose 1, 2, or 3 months.', 'error')
+        return redirect(url_for('auth.admin_suspicious_activity'))
+
+    cutoff_date = datetime.datetime.now() - datetime.timedelta(days=months * 30)
+
+    count = SuspiciousActivity.query.filter(SuspiciousActivity.timestamp < cutoff_date).count()
+    SuspiciousActivity.query.filter(SuspiciousActivity.timestamp < cutoff_date).delete()
+    db.session.commit()
+
+    AuditService.log_admin_action(
+        action_description=f"GDPR retention: deleted {count} suspicious activity record(s) older than {months} month(s)",
+        details={"months": months, "cutoff_date": cutoff_date.isoformat(), "deleted_count": count}
+    )
+
+    flash(f'Successfully deleted {count} suspicious activity record(s) older than {months} month(s).', 'success')
+    return redirect(url_for('auth.admin_suspicious_activity'))
+
+
+@auth_bp.route('/admin/panel-downloads/delete-old', methods=['POST'])
+@login_required
+def delete_old_panel_downloads():
+    """Delete panel download records older than a specified number of months (GDPR retention)"""
+    if not current_user.is_admin():
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('main.index'))
+
+    from ..models import PanelDownload
+
+    months = request.form.get('months', type=int)
+    if months not in (3, 6, 12):
+        flash('Invalid time period selected. Choose 3, 6, or 12 months.', 'error')
+        return redirect(url_for('auth.audit_logs'))
+
+    cutoff_date = datetime.datetime.now() - datetime.timedelta(days=months * 30)
+
+    count = PanelDownload.query.filter(PanelDownload.download_date < cutoff_date).count()
+    PanelDownload.query.filter(PanelDownload.download_date < cutoff_date).delete()
+    db.session.commit()
+
+    AuditService.log_admin_action(
+        action_description=f"GDPR retention: deleted {count} panel download record(s) older than {months} month(s)",
+        details={"months": months, "cutoff_date": cutoff_date.isoformat(), "deleted_count": count}
+    )
+
+    flash(f'Successfully deleted {count} panel download record(s) older than {months} month(s).', 'success')
+    return redirect(url_for('auth.audit_logs'))
+
+
 # Admin Message Management Routes
 @auth_bp.route('/admin/messages')
 @login_required
