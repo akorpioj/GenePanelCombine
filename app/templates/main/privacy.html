@@ -9,8 +9,8 @@
     <div class="mb-8">
       <h1 class="text-4xl font-bold text-sky-700 mb-2">Privacy Policy & GDPR Compliance</h1>
       <p class="text-gray-600">
-        <strong>Last Updated:</strong> 22/03/2026 &nbsp;|&nbsp; 
-        <strong>Version:</strong> 1.1 &nbsp;|&nbsp; 
+        <strong>Last Updated:</strong> 25/03/2026 &nbsp;|&nbsp; 
+        <strong>Version:</strong> 1.2 &nbsp;|&nbsp; 
         <strong>Controller:</strong> Anita Korpioja
       </p>
       <p class="text-gray-600 mt-1">
@@ -137,6 +137,56 @@
         <p class="text-gray-700 leading-relaxed">
           <strong>Retention:</strong> KnowHow articles and links persist until deleted by you, an editor, or an administrator. No automated retention period currently applies to KnowHow content.
         </p>
+
+        <h3 class="text-xl font-semibold text-gray-700 mb-3 mt-6">3.5 Saved Panels: Panel Library and Collaboration</h3>
+        <p class="text-gray-700 leading-relaxed mb-3">
+          The <strong>Saved Panels</strong> feature (Panel Library) processes the following data for registered users:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-2 ml-4">
+          <li><strong>Panel records</strong>: panel name, description, tags, status (Active/Draft/Archived), visibility (Private/Shared/Public), and timestamps, linked to your user account.</li>
+          <li><strong>Gene annotations</strong> (<code>user_notes</code>): free-text annotations you attach to individual genes within a panel. These notes are entirely user-supplied and are linked to your user account. They must not contain patient-identifiable information.</li>
+          <li><strong>Version history</strong>: each panel edit creates a version snapshot recording the full gene list, change summary, and a link to the user who made the change. Versions accumulate over time.</li>
+          <li><strong>Change log</strong>: individual change records (genes added or removed per edit) are stored with your user ID and a timestamp.</li>
+          <li><strong>Panel shares</strong>: when you share a panel with another user, a share record is created recording both user IDs, the permission level granted, and the share creation timestamp.</li>
+          <li><strong>Access metadata</strong>: timestamps of when panels are last accessed are updated on each view.</li>
+        </ul>
+        <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p class="text-sm text-amber-800">
+            <strong>Gene annotations privacy notice:</strong> Gene annotations (user notes) you attach to a panel are visible to any user the panel is shared with or to all logged-in users if the panel is set to Public. Do not enter patient-identifiable or sensitive information in gene annotations.
+          </p>
+        </div>
+        <p class="text-gray-700 leading-relaxed">
+          <strong>Retention:</strong> Panel records, versions, changes, and shares persist until you delete the panel or close your account. No automated purge of historical versions currently applies. Full account deletion cascades to all panels and associated version/change/share records owned by you.
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-700 mb-3 mt-6">3.6 Security Infrastructure: Visit Logs, Login Statistics, and Geolocation</h3>
+        <p class="text-gray-700 leading-relaxed mb-3">
+          PanelMerge operates several security monitoring subsystems that automatically collect personal data:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-2 ml-4">
+          <li><strong>Visit logs</strong>: IP address, visited path, browser user agent string, and timestamp are recorded for every HTTP request (authenticated and unauthenticated).</li>
+          <li><strong>Suspicious activity log</strong>: IP address, email address (if supplied), geolocation data (city and country derived from IP), browser user agent, activity type (e.g., failed password reset), alert trigger status, and timestamp are recorded when anomalous authentication behaviour is detected.</li>
+          <li><strong>Login statistics</strong>: per-user login count, last login date, and last login IP address are maintained inside your user record for security monitoring.</li>
+          <li><strong>Session records</strong>: active session tokens and associated IP addresses are stored to enforce session limits and detect session anomalies.</li>
+        </ul>
+        <p class="text-gray-700 leading-relaxed mb-4">
+          IP-derived geolocation (city and country) is used solely for security alerting (detecting logins from unusual locations). Location data is not used for marketing or behavioural profiling.
+        </p>
+        <p class="text-gray-700 leading-relaxed">
+          <strong>Retention:</strong> Visit logs are retained for a maximum of <strong>90 days</strong>. Suspicious activity records are retained for a maximum of <strong>90 days</strong>. Both are subject to administrator-triggered purge via the Admin panel in accordance with GDPR Art. 5(1)(e).
+        </p>
+
+        <h3 class="text-xl font-semibold text-gray-700 mb-3 mt-6">3.7 Panel Exports and Download Logging</h3>
+        <p class="text-gray-700 leading-relaxed mb-3">
+          When you download a gene panel (export gene lists to Excel, CSV, or other formats), the application may log:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-2 ml-4">
+          <li><strong>Panel download records</strong>: your user ID (if authenticated), IP address, the panel IDs and list types downloaded, gene count, and download timestamp.</li>
+          <li><strong>Export templates</strong>: if you save a named export configuration (template), the template name and format settings are stored linked to your user account. Export templates contain no special-category data.</li>
+        </ul>
+        <p class="text-gray-700 leading-relaxed">
+          <strong>Retention:</strong> Panel download records are retained for a maximum of <strong>12 months</strong> to support audit trail requirements, then purged by the administrator. Export templates persist until you delete them.
+        </p>
       </section>
 
       <!-- Legal Basis -->
@@ -187,6 +237,31 @@
                 <td class="px-4 py-3">Enabling professional knowledge sharing among registered users</td>
                 <td class="px-4 py-3">Performance of a contract / legitimate interest (Art. 6(1)(b) and (f))</td>
               </tr>
+              <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3">Saved panel records, gene annotations, version history, change log, panel shares</td>
+                <td class="px-4 py-3">Enabling panel library, versioning, and collaboration between users</td>
+                <td class="px-4 py-3">Performance of a contract / legitimate interest (Art. 6(1)(b) and (f))</td>
+              </tr>
+              <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3">Visit logs (IP address, path, user agent, timestamp)</td>
+                <td class="px-4 py-3">Security monitoring, fraud detection, intrusion detection</td>
+                <td class="px-4 py-3">Legitimate interest (Art. 6(1)(f)); retained maximum 90 days</td>
+              </tr>
+              <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3">Suspicious activity records (IP, email, geolocation, activity type, timestamp)</td>
+                <td class="px-4 py-3">Detection and investigation of authentication anomalies and account abuse</td>
+                <td class="px-4 py-3">Legitimate interest (Art. 6(1)(f)); retained maximum 90 days</td>
+              </tr>
+              <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3">Panel download records (IP, user ID, panel details, timestamp)</td>
+                <td class="px-4 py-3">Audit trail for data export activity</td>
+                <td class="px-4 py-3">Legitimate interest (Art. 6(1)(f)); retained maximum 12 months</td>
+              </tr>
+              <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3">Export templates (template name, format settings)</td>
+                <td class="px-4 py-3">Saving user export preferences for convenience</td>
+                <td class="px-4 py-3">Performance of a contract / legitimate interest (Art. 6(1)(b) and (f))</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -206,6 +281,11 @@
           <li><strong>PubMed article metadata cache</strong>: each article is cached locally for <strong>7 days</strong> and refreshed automatically on access.</li>
           <li><strong>KnowHow articles and links</strong>: retained until deleted by the author, an editor, or an administrator.</li>
           <li><strong>Self-service deletion</strong>: you can delete individual LitReview searches or clear your entire search history from your <a href="/litreview/history" class="text-sky-600 hover:underline">Search History</a> page. Full account deletion cascades to all your LitReview and interaction data.</li>
+          <li><strong>Visit logs</strong>: retained for a maximum of <strong>90 days</strong>, then permanently deleted by the administrator via the Admin panel.</li>
+          <li><strong>Suspicious activity records</strong>: retained for a maximum of <strong>90 days</strong>, then permanently deleted by the administrator via the Admin panel. Records may be retained longer if required for an active security investigation.</li>
+          <li><strong>Panel download records</strong>: retained for a maximum of <strong>12 months</strong> to support audit trail requirements, then permanently deleted by the administrator.</li>
+          <li><strong>Saved panel records and gene annotations</strong>: retained until you delete the panel or close your account. Cascade deletion removes all version history, change log entries, gene annotations, and share records associated with the panel.</li>
+          <li><strong>Export templates</strong>: retained until you delete them. Full account deletion removes all your export templates.</li>
         </ul>
       </section>
 

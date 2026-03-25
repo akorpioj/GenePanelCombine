@@ -22,13 +22,27 @@
             </nav>
         </div>
         
-        <div class="mt-4 flex justify-end space-x-3">
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
             <button type="button" onclick="document.getElementById('deleteLogsModal').classList.remove('hidden')"
                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                 <svg class="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
                 Delete Old Logs
+            </button>
+            <button type="button" onclick="document.getElementById('deleteVisitLogsModal').classList.remove('hidden')"
+               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                <svg class="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete Old Visit Logs
+            </button>
+            <button type="button" onclick="document.getElementById('deletePanelDownloadsModal').classList.remove('hidden')"
+               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                <svg class="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete Old Downloads Log
             </button>
             <a href="{{ url_for('auth.export_audit_logs', **filters) }}" 
                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
@@ -90,9 +104,109 @@
                 </form>
             </div>
         </div>
-    </div>
 
-    <!-- Filters Card -->
+        <!-- Delete Old Visit Logs Modal -->
+        <div id="deleteVisitLogsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+                <div class="flex items-center mb-4">
+                    <div class="flex-shrink-0 bg-orange-100 rounded-full p-2 mr-3">
+                        <svg class="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Delete Old Visit Logs</h3>
+                </div>
+                <p class="text-sm text-gray-600 mb-2">
+                    Permanently delete visit log records (IP address, path, user agent) older than the selected period.
+                    <strong class="text-red-600">This action cannot be undone.</strong>
+                </p>
+                <p class="text-xs text-gray-500 mb-5">
+                    GDPR requirement: visit logs containing IP addresses should be retained for no longer than <strong>90 days</strong>.
+                </p>
+                <form method="POST" action="{{ url_for('auth.delete_old_visit_logs') }}" id="deleteVisitLogsForm">
+                    <div class="mb-5">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Delete visit logs older than:</label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-orange-400 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                <input type="radio" name="months" value="1" class="mr-2 text-orange-600">
+                                <span class="text-sm font-medium text-gray-700">1 Month</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-orange-400 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                <input type="radio" name="months" value="2" class="mr-2 text-orange-600">
+                                <span class="text-sm font-medium text-gray-700">2 Months</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-orange-400 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                <input type="radio" name="months" value="3" class="mr-2 text-orange-600">
+                                <span class="text-sm font-medium text-gray-700">3 Months</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="document.getElementById('deleteVisitLogsModal').classList.add('hidden')"
+                                class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                onclick="return confirmVisitDelete()"
+                                class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                            Delete Visit Logs
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Delete Old Panel Downloads Modal -->
+        <div id="deletePanelDownloadsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+                <div class="flex items-center mb-4">
+                    <div class="flex-shrink-0 bg-yellow-100 rounded-full p-2 mr-3">
+                        <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Delete Old Panel Download Logs</h3>
+                </div>
+                <p class="text-sm text-gray-600 mb-2">
+                    Permanently delete panel download log records (IP address, panel IDs, gene count) older than the selected period.
+                    <strong class="text-red-600">This action cannot be undone.</strong>
+                </p>
+                <p class="text-xs text-gray-500 mb-5">
+                    GDPR requirement: download logs containing IP addresses should be retained for no longer than <strong>12 months</strong> (required for audit trail purposes).
+                </p>
+                <form method="POST" action="{{ url_for('auth.delete_old_panel_downloads') }}" id="deletePanelDownloadsForm">
+                    <div class="mb-5">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Delete download logs older than:</label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-yellow-400 has-[:checked]:border-yellow-500 has-[:checked]:bg-yellow-50">
+                                <input type="radio" name="months" value="3" class="mr-2 text-yellow-600">
+                                <span class="text-sm font-medium text-gray-700">3 Months</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-yellow-400 has-[:checked]:border-yellow-500 has-[:checked]:bg-yellow-50">
+                                <input type="radio" name="months" value="6" class="mr-2 text-yellow-600">
+                                <span class="text-sm font-medium text-gray-700">6 Months</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-yellow-400 has-[:checked]:border-yellow-500 has-[:checked]:bg-yellow-50">
+                                <input type="radio" name="months" value="12" class="mr-2 text-yellow-600">
+                                <span class="text-sm font-medium text-gray-700">12 Months</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="document.getElementById('deletePanelDownloadsModal').classList.add('hidden')"
+                                class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                onclick="return confirmDownloadDelete()"
+                                class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                            Delete Download Logs
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     <div class="bg-white shadow rounded-lg mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">Filters</h3>
@@ -160,10 +274,9 @@
                 </span>
             </h3>
         </div>
-        <div class="overflow-hidden">
+        <div class="overflow-x-auto">
             {% if audit_logs.items %}
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
@@ -272,7 +385,6 @@
                             {% endfor %}
                         </tbody>
                     </table>
-                </div>
 
                 <!-- Pagination -->
                 {% if audit_logs.pages > 1 %}
@@ -347,6 +459,28 @@ function confirmDelete() {
     const months = selected.value;
     const label = {'1': '1 month', '2': '2 months', '3': '3 months', '6': '6 months'}[months];
     return confirm(`Are you sure you want to permanently delete all audit logs older than ${label}? This cannot be undone.`);
+}
+
+function confirmVisitDelete() {
+    const selected = document.querySelector('#deleteVisitLogsForm input[name="months"]:checked');
+    if (!selected) {
+        alert('Please select a time period before deleting.');
+        return false;
+    }
+    const months = selected.value;
+    const label = {'1': '1 month', '2': '2 months', '3': '3 months'}[months];
+    return confirm(`Are you sure you want to permanently delete all visit log records older than ${label}? This cannot be undone.`);
+}
+
+function confirmDownloadDelete() {
+    const selected = document.querySelector('#deletePanelDownloadsForm input[name="months"]:checked');
+    if (!selected) {
+        alert('Please select a time period before deleting.');
+        return false;
+    }
+    const months = selected.value;
+    const label = {'3': '3 months', '6': '6 months', '12': '12 months'}[months];
+    return confirm(`Are you sure you want to permanently delete all panel download log records older than ${label}? This cannot be undone.`);
 }
 </script>
 {% endblock %}

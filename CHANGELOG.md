@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-03-25 - GDPR Compliance & Retention Controls
+
+### 🔒 Security & GDPR
+
+#### Fix: Stored XSS in KnowHow articles (DPIA R12)
+- Added `nh3>=0.2.14` (v0.3.3 installed) Rust-based HTML sanitizer to `requirements.txt`
+- `_sanitize_content()` helper in `app/knowhow/routes.py` applies `nh3.clean()` with a Quill allowlist before every DB write
+- Applied in both `create_article()` and `update_article()`; template `{{ article.content | safe }}` is safe by construction
+
+#### Fix: Undisclosed international data transfer to NCBI/USA (DPIA R7)
+- `docs/PRIVACY_POLICY.md` and `app/templates/main/privacy.html` Section 8 restructured into 8.1 (PanelApp), 8.2 (NCBI PubMed — Art. 49(1)(b) disclosure), 8.3 (General)
+- Amber notice banner added to `app/templates/litreview/search.html` informing users before every PubMed search that their query is sent to NCBI (USA)
+
+#### Fix: No retention schedule for LitReview personal data (DPIA R8)
+- `_RETENTION_DAYS = 365` constant in `app/litreview/routes.py`
+- `flask litreview cleanup` CLI command: deletes searches older than cutoff and unsaved article actions; supports `--days` and `--dry-run` flags
+- `POST /litreview/search/<id>/delete` and `POST /litreview/search-history/clear` self-service deletion routes
+- Delete button and "Clear All" added to `app/templates/litreview/history.html` with CSRF protection
+
+#### Notice: KnowHow content warning (DPIA R11)
+- Red warning banner added to `app/templates/knowhow/article_editor.html` above the Quill editor; warns against patient-identifiable content
+
+#### Fix: GDPR retention controls for visit, suspicious activity, and download logs (DPIA R19/R21)
+- **`POST /admin/visit-logs/delete-old`** — deletes `visit` records older than 1/2/3 months
+- **`POST /admin/suspicious-activity/delete-old`** — deletes `suspicious_activity` records older than 1/2/3 months
+- **`POST /admin/panel-downloads/delete-old`** — deletes `panel_download` records older than 3/6/12 months
+- Admin UI: "Delete Old Visit Logs" and "Delete Old Downloads Log" buttons + modals added to `audit_logs.html`
+- Admin UI: "Delete Old Records" button + modal added to `admin_suspicious_activity.html`
+- All three routes log deletion counts via `AuditService.log_admin_action`
+
+#### Fix: PanelGene `user_notes` privacy notices (DPIA R17)
+- Amber privacy notice added below Gene List textarea in `app/templates/auth/_my_panels.html`
+- Visibility dropdown hint warns that Shared/Public panels expose gene annotations to recipients
+
+### 📝 Documentation
+
+#### Privacy Policy v1.2
+- **Section 3.5 (new)** — Saved Panels: panel library, versioning, change log, panel shares, gene annotations; cascade deletion on account close
+- **Section 3.6 (new)** — Security Infrastructure: visit logs, suspicious activity (IP, email, geolocation), login statistics, session records; geolocation used only for security alerting
+- **Section 3.7 (new)** — Panel Exports and Download Logging: download records, export templates
+- **Section 4** — 5 new rows: Saved Panels, visit logs, suspicious activity, download records, export templates
+- **Section 5** — 5 new retention bullet points with defined periods
+
+#### DPIA updated to v1.4
+- All 7 open checklist items from "v1.3 additions" ticked with implementation notes
+- Version bumped from 1.3 → 1.4; Last Updated extended
+
+### 🔄 Migration Notes
+- No database schema changes in v1.5.3
+- Run `pip install -r requirements.txt` to install `nh3>=0.2.14`
+- No `flask db upgrade` required
+
+---
+
 ## [1.5.2] - 2026-03-22 - Dynamic KnowHow & Session Fix
 
 ### 🚀 New Features
