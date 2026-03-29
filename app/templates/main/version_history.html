@@ -17,6 +17,24 @@
     </header>
 
     <div class="space-y-6">
+        <!-- Version 1.5.5 -->
+        <div class="border-l-4 border-sky-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-sky-700">Version 1.5.5</h2>
+                <span class="text-sm text-gray-500">March 2026</span>
+            </div>
+            <p class="text-gray-600 text-sm mb-2 italic">KnowHow Reactions, Tags, Bookmarks, Print &amp; New Badge</p>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>&bull; <strong>KnowHow Bookmarks:</strong> Save/unsave articles to a personal reading list; bookmarks page at <code>/knowhow/bookmarks</code>; toggle button on article view; DB migration: <code>knowhow_bookmarks</code> table</li>
+                <li>&bull; <strong>&ldquo;Helpful&rdquo; Reactions:</strong> Per-user thumbs-up reactions on articles; count shown on cards and article view; &ldquo;Most helpful&rdquo; category sort; DB migration: <code>knowhow_reactions</code> table</li>
+                <li>&bull; <strong>Article Tags:</strong> Free-text comma-separated tags; sky-blue pill links on cards and article view; filtered view per tag at <code>/knowhow/tags/&lt;label&gt;</code>; DB migrations: <code>knowhow_tags</code> + <code>knowhow_article_tags</code></li>
+                <li>&bull; <strong>Related Articles:</strong> Up to 5 same-category articles listed at the bottom of each article view</li>
+                <li>&bull; <strong>Category Descriptions:</strong> Category description text displayed on category detail pages</li>
+                <li>&bull; <strong>Print / PDF Export:</strong> &ldquo;Print&rdquo; button on article view calls <code>window.print()</code>; <code>@media print</code> CSS hides nav &amp; UI chrome for a clean printout</li>
+                <li>&bull; <strong>&ldquo;New since last visit&rdquo; badge:</strong> White/red count badge on index category headers showing items added since user's last visit; DB migration: <code>knowhow_last_visits</code> table</li>
+            </ul>
+        </div>
+
         <!-- Version 1.5.4 -->
         <div class="border-l-4 border-emerald-500 pl-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">

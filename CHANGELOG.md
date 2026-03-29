@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.5] - 2026-03-29 - KnowHow Reactions, Tags, Bookmarks, Print & New Badge
+
+### 🚀 New Features
+
+#### KnowHow Bookmarks / Reading List
+- Save/unsave any article to a personal reading list via a toggle button on the article view
+- Personal bookmarks page at `GET /knowhow/bookmarks`
+- DB migration: new `knowhow_bookmarks(user_id, article_id)` table
+
+#### KnowHow "Helpful" Reactions
+- Per-user thumbs-up reaction toggle on article view; AJAX endpoint `POST /knowhow/articles/<id>/react`
+- Reaction count shown as a green badge on article cards (index and category) and on the article view
+- New "Most helpful" category sort option added to the index sort selector
+- DB migration: new `knowhow_reactions(user_id, article_id)` table
+
+#### Article Tags
+- Free-text comma-separated tag input added to the article editor (tags normalised to lowercase, max 64 chars each)
+- Sky-blue pill badges (prefixed `#`) shown on article cards and in the article view header
+- Clicking a tag navigates to `GET /knowhow/tags/<label>` — filtered list of all articles with that tag
+- DB migrations: `knowhow_tags(id, label)` + `knowhow_article_tags(article_id, tag_id)` association table
+
+#### Related Articles
+- Up to 5 same-category articles displayed at the bottom of every article view, ordered by `updated_at DESC`
+
+#### Category Description Display
+- Category description text (previously stored but unused) now shown on category detail pages
+
+#### Print / PDF Export
+- "Print" button added to the article view action row; calls `window.print()`
+- `@media print` CSS block hides site nav, breadcrumb, buttons, and related articles section for a clean printout
+
+#### "New Since Last Visit" Badge
+- White pill badge with red count shown on index category headers for categories with new content since the user's last visit
+- `category()` route upserts a `KnowhowLastVisit` record on each visit
+- DB migration: new `knowhow_last_visits(user_id, category_slug, visited_at)` table
+
+### 🛠 Bug Fixes
+
+#### nh3 panic on article save
+- Removed `"rel"` from `_QUILL_ATTRS["a"]` — nh3/ammonia owns the `rel` attribute and panics if it is included in the caller's allowed-attrs set
+
+---
+
 ## [1.5.4] - 2026-03-29 - KnowHow Search & Article Summary
 
 ### 🚀 New Features

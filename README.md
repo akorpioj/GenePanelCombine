@@ -1,8 +1,18 @@
-# PanelMerge v1.5.4
+# PanelMerge v1.5.5
 
 PanelMerge is a secure, enterprise-grade web application for researchers and clinicians to easily combine, filter, and download gene lists from multiple sources, including Genomics England PanelApp, PanelApp Australia, and user-uploaded custom gene panels. Features comprehensive panel library management with version control, multi-format export capabilities, and advanced security features.
 
-## 🚀 New in v1.5.4 (March 2026)
+## 🚀 New in v1.5.5 (March 2026)
+
+- **KnowHow Bookmarks:** Save/unsave articles to a personal reading list; bookmarks page at `/knowhow/bookmarks`; toggle button on the article view
+- **"Helpful" Reactions:** Per-user thumbs-up reactions on articles; count shown on article cards and the article view; new "Most helpful" category sort option
+- **Article Tags:** Free-text comma-separated tags; sky-blue `# label` pill badges on cards and article view; filtered view per tag at `/knowhow/tags/<label>`
+- **Related Articles:** Up to 5 same-category articles listed at the bottom of each article view
+- **Category Descriptions:** Category description text displayed on category detail pages
+- **Print / PDF Export:** "Print" button on article view; `@media print` CSS gives a clean printout (hides nav, buttons, and UI chrome)
+- **"New since last visit" badge:** White/red count badge on index category headers counts items added since the user's last visit to that category
+
+## 🚀 Previously in v1.5.4 (March 2026)
 
 - **KnowHow Full-text Search:** Search box on the KnowHow index; `GET /knowhow/search?q=` queries article titles, content, and link descriptions/URLs via `ILIKE`; highlighted snippets; up to 50 results per type; audit-logged
 - **KnowHow Category Detail Pages:** Each category header on the index links to `/knowhow/category/<slug>` showing all articles and links for that category (no truncation)

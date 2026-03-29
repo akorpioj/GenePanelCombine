@@ -3,7 +3,7 @@ PanelMerge Version Information
 """
 
 # Application version
-VERSION = "1.5.4"
+VERSION = "1.5.5"
 VERSION_NAME = "KnowHow Search & Article Summary"
 RELEASE_DATE = "2026-03-29"
 
