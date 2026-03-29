@@ -95,15 +95,75 @@ Categories and subcategories provide a fixed two-level hierarchy. Tags offer a f
 
 Currently all saved articles are immediately visible to all logged-in users. Drafts let authors work across multiple sessions before publishing, and allow EDITOR/ADMIN review before release.
 
-**Suggested implementation:**
-- Add `is_draft = db.Column(db.Boolean, default=False, nullable=False)` to `KnowhowArticle`
-- The article editor gains a "Save as Draft" button alongside "Publish"
-- Draft articles are visible only to their author, EDITORs, and ADMINs
-- Index and category routes add `filter(or_(KnowhowArticle.is_draft == False, KnowhowArticle.user_id == current_user.id, current_user.role.in_([EDITOR, ADMIN])))` to the article query
-- Draft articles show a muted "DRAFT" badge in list views and the article header
-- Admin category management page can show a count of unpublished drafts per category
+### Step 1 — DB column & migration
 
-**DB changes:** One non-nullable boolean column on `knowhow_articles`.
+- Add `is_draft = db.Column(db.Boolean, nullable=False, server_default='false', default=False)` to `KnowhowArticle` in `app/models.py`
+- Generate and apply migration: `flask db migrate -m "add is_draft to knowhow_articles"` → `flask db upgrade`
+- Existing articles default to `is_draft=False` (published) via `server_default`
+
+**Files:** `app/models.py`, new migration file
+
+---
+
+### Step 2 — Article editor: "Save as Draft" button
+
+- In `article_editor.html`, replace the single Submit button with two buttons in the same `<form>`:
+  - `<button name="action" value="publish">Publish</button>`
+  - `<button name="action" value="draft">Save as Draft</button>`
+- In `create_article()` and `update_article()` routes, read `action = request.form.get('action', 'publish')` and set `article.is_draft = (action == 'draft')`
+- Pre-fill the editor with the current `is_draft` value so editing an existing draft keeps it in draft state until explicitly published
+
+**Files:** `app/templates/knowhow/article_editor.html`, `app/knowhow/routes.py`
+
+---
+
+### Step 3 — Filter draft articles out of list routes
+
+Add a helper that returns the correct SQLAlchemy filter expression based on the current user:
+
+```python
+def _draft_filter():
+    """Returns a filter that hides other users' drafts."""
+    from sqlalchemy import or_
+    from .models import UserRole
+    if current_user.role in (UserRole.ADMIN, UserRole.EDITOR):
+        return True  # no filter — see all
+    return or_(
+        KnowhowArticle.is_draft == False,
+        KnowhowArticle.user_id == current_user.id,
+    )
+```
+
+Apply `_draft_filter()` in:
+- `index()` — filter `all_articles` query
+- `category()` — filter category articles query
+- `search()` — filter `articles` query
+- `tag_articles()` — filter `tag.articles` query
+
+**Files:** `app/knowhow/routes.py`
+
+---
+
+### Step 4 — "DRAFT" badge in templates
+
+- In `article_view.html`: add a red `DRAFT` badge next to the title when `article.is_draft`
+- In `index.html` and `category.html`: add a small muted `DRAFT` label on article cards when `article.is_draft` (visible only because the reader is the author, EDITOR, or ADMIN)
+- Authors should also see a clear banner on the article view reminding them the article is not yet public
+
+**Files:** `app/templates/knowhow/article_view.html`, `app/templates/knowhow/index.html`, `app/templates/knowhow/category.html`
+
+---
+
+### Step 5 — "My drafts" shortcut (optional)
+
+- Add a `GET /knowhow/drafts` route listing the current user's own draft articles (authors) or all drafts (EDITOR/ADMIN)
+- Link from the KnowHow index header (only shown to users who have drafts)
+
+**Files:** `app/knowhow/routes.py`, new `app/templates/knowhow/drafts.html`
+
+---
+
+**DB changes:** One non-nullable boolean column (`is_draft`) on `knowhow_articles`.
 
 ---
 

@@ -2026,6 +2026,7 @@ class KnowhowArticle(db.Model):
     summary        = db.Column(db.String(512), nullable=True)
     category       = db.Column(db.String(64), nullable=False, index=True)
     content        = db.Column(db.Text, nullable=False, default='')
+    is_draft       = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
     user_id        = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     subcategory_id = db.Column(db.Integer, db.ForeignKey('knowhow_subcategories.id', ondelete='SET NULL'), nullable=True)
     created_at     = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
