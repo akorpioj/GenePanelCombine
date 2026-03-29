@@ -1,0 +1,280 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.7, pytest-8.4.2, pluggy-1.6.0 -- C:\Users\anita\gitprojects\GenePanelCombine\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+metadata: {'Python': '3.13.7', 'Platform': 'Windows-11-10.0.26100-SP0', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'Faker': '37.11.0', 'cov': '7.0.0', 'flask': '1.3.0', 'html': '4.1.1', 'metadata': '3.1.1', 'mock': '3.15.1'}, 'JAVA_HOME': 'C:\\Program Files\\AdoptOpenJDK\\jdk-11.0.9.101-hotspot\\'}
+rootdir: C:\Users\anita\gitprojects\GenePanelCombine
+configfile: pytest.ini
+plugins: Faker-37.11.0, cov-7.0.0, flask-1.3.0, html-4.1.1, metadata-3.1.1, mock-3.15.1
+collecting ... collected 1 item
+
+tests/unit/test_knowhow_bookmarks.py::TestBookmarksPage::test_bookmarks_are_personal FAILED [100%]
+
+================================== FAILURES ===================================
+________________ TestBookmarksPage.test_bookmarks_are_personal ________________
+
+self = <test_knowhow_bookmarks.TestBookmarksPage object at 0x00000169F7503650>
+client = <FlaskClient <Flask 'app'>>
+db_session = <sqlalchemy.orm.scoping.scoped_session object at 0x00000169F70A01A0>
+
+    def test_bookmarks_are_personal(self, client, db_session):
+        """One user's bookmark must not appear on another user's bookmarks page."""
+        owner = _make_user(db_session, 'bmp_owner_user')
+        viewer = _make_user(db_session, 'bmp_viewer_user')
+        article = _make_article(db_session, owner, 'Owners Exclusive Piece')
+        _login(client, owner.id)
+        _toggle(client, article.id)
+        # Sanity: owner sees the bookmarked article
+        assert 'Owners Exclusive Piece' in client.get('/knowhow/bookmarks').get_data(as_text=True)
+        # Viewer has no bookmarks ù their reading list must be empty
+        _login(client, viewer.id)
+        resp = client.get('/knowhow/bookmarks')
+>       assert 'Owners Exclusive Piece' not in resp.get_data(as_text=True)
+E       assert 'Owners Exclusive Piece' not in '<!DOCTYPE html>\\n<html lang="en">\\n<head>\\n  <meta charset="utf-8">\\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\\n  <title>My Reading List - KnowHow - PanelMerge</title>\\n  <link rel="stylesheet" href="/static/css/custom.css">\\n  <link rel="stylesheet" href="/static/css/styles.css">\\n  <link rel="stylesheet" href="/static/css/timezone.css">\\n  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">\\n  \\n</head>\\n<body class="bg-red-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">\\n\\n  <header class="w-full max-w-6xl mb-6">\\n    <nav class="flex justify-between items-center">\\n      <div class="text-lg font-semibold text-sky-700">\\n        PanelMerge\\n      </div>\\n      <div class="flex items-center space-x-4 text-sm">\\n        <a href="/" class="text-sky-600 hover:text-sky-800 transition">Home</a>\\n        <a href="/version" class="text-sky-600 hover:text-sky-800 transition">Version</a>\\n        <a href="/version-history" class="text-sky-600 hover:text-sky-800 transition">History</a>\\n        \\n        <!-- Tools Dropdown Menu -->\\n        <div class="relative" id="toolsMenuContainer">\\n          <button id="toolsMenuButton" class="text-sky-600 hover:text-sky-800 transition flex items-center space-x-1">\\n            <span>Tools</span>\\n            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">\\n              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>\\n            </svg>\\n          </button>\\n          <div id="toolsMenuDropdown" class="absolute left-0 top-full pt-1 w-48 z-50 hidden">\\n            <div class="bg-white rounded-md shadow-lg py-1 border border-gray-100">\\n              <a href="/litreview/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">Literature Review</a>\\n              <a href="/knowhow/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">KnowHow</a>\\n            </div>\\n          </div>\\n        </div>\\n        \\n        \\n          <div class="flex items-center space-x-4 ml-6 pl-6 border-l border-gray-300">\\n            <span class="text-gray-600">Welcome, bmp_owner_user!</span>\\n            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">User</span>\\n            <a href="/auth/profile" class="text-sky-600 hover:text-sky-800 transition">Profile</a>\\n            \\n            <a href="/auth/logout" class="text-red-600 hover:text-red-800 transition">Logout</a>\\n          </div>\\n        \\n      </div>\\n    </nav>\\n  </header>\\n\\n  <!-- Messages (alerts, notifications) -->\\n  \\n    \\n  \\n\\n    <!-- Admin Messages -->\\n    \\n\\n  \\n<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">\\n\\n    <!-- Breadcrumb -->\\n    <nav class="mb-5 text-sm text-gray-500 flex items-center space-x-2 flex-wrap">\\n        <a href="/knowhow/" class="hover:text-sky-700 transition">KnowHow</a>\\n        <span>\u203a</span>\\n        <span class="text-gray-700 font-medium">My Reading List</span>\\n    </nav>\\n\\n    <header class="mb-6 flex items-center justify-between flex-wrap gap-3">\\n        <div>\\n            <h1 class="text-2xl font-bold text-sky-700">My Reading List</h1>\\n            <p class="text-sm text-gray-500 mt-1">\\n                Articles you have bookmarked for later, newest first.\\n            </p>\\n        </div>\\n        <a href="/knowhow/"\\n           class="inline-flex items-center px-4 py-2 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition">\\n            \u2190 Back to KnowHow\\n        </a>\\n    </header>\\n\\n    \\n    <ul class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">\\n        \\n        \\n        <li class="px-5 py-4 hover:bg-gray-50 transition">\\n            <div class="flex items-start justify-between gap-4">\\n                <div class="flex-1 min-w-0">\\n                    <a href="/knowhow/articles/1"\\n                       class="text-sky-700 font-semibold hover:underline">Owners Exclusive Piece</a>\\n                    \\n                    <div class="mt-1 flex items-center gap-3 flex-wrap text-xs text-gray-400">\\n                        \\n                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-white text-xs font-medium"\\n                              style="background-color: #0369a1">Gene Panels</span>\\n                        \\n                        <span>By bmp_owner_user</span>\\n                        <span>29 Mar 2026</span>\\n                    </div>\\n                </div>\\n                <!-- Remove bookmark button -->\\n                <button onclick="removeBookmark(1, this)"\\n                        title="Remove from reading list"\\n                        class="flex-shrink-0 text-gray-400 hover:text-red-500 transition p-1 rounded">\\n                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">\\n                        <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>\\n                    </svg>\\n                </button>\\n            </div>\\n        </li>\\n        \\n    </ul>\\n    \\n\\n</div>\\n\\n<script>\\nfunction removeBookmark(articleId, btn) {\\n    btn.disabled = true;\\n    fetch(`/knowhow/articles/${articleId}/bookmark`, {\\n        method: \\'POST\\',\\n        headers: {\\'X-Requested-With\\': \\'XMLHttpRequest\\'},\\n        credentials: \\'same-origin\\'\\n    })\\n    .then(r => r.json())\\n    .then(data => {\\n        if (!data.bookmarked) {\\n            // Remove the list item from the DOM\\n            const li = btn.closest(\\'li\\');\\n            const ul = li.parentElement;\\n            li.remove();\\n            // Show empty state if no items remain\\n            if (ul && ul.querySelectorAll(\\'li\\').length === 0) {\\n                ul.outerHTML = `\\n                    <div class="text-center py-16 text-gray-400">\\n                        <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">\\n                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>\\n                        </svg>\\n                        <p class="text-lg font-medium text-gray-500">Your reading list is empty.</p>\\n                        <p class="text-sm mt-1">Open any article and click <strong>Save</strong> to add it here.</p>\\n                    </div>`;\\n            }\\n        }\\n    })\\n    .catch(() => { btn.disabled = false; });\\n}\\n</script>\\n\\n\\n  <footer class="w-full max-w-6xl mt-8 pt-6 border-t border-gray-300 text-center text-sm text-gray-500">\\n    <p>&copy; 2025 PanelMerge.</p>\\n    <p class="mt-2 space-x-4">\\n      <a href="/privacy" class="text-sky-600 hover:text-sky-800 transition">Privacy Policy</a>\\n      <span class="text-gray-300">|</span>\\n      <a href="mailto:anita.korpioja@gmail.com" class="text-sky-600 hover:text-sky-800 transition">Contact</a>\\n      <span class="text-gray-300"></span>\\n    </p>\\n  </footer>\\n\\n  <!-- Scripts -->\\n  <script src="/static/js/timezone.js"></script>\\n  \\n\\n  <script>\\n    // Update current time displays\\n    function updateCurrentTime() {\\n      const currentTimeElements = document.querySelectorAll(\\'#current-user-time, #footer-current-time\\');\\n      const currentTime = window.getCurrentUserTime();\\n      \\n      currentTimeElements.forEach(element => {\\n        if (element) {\\n          element.textContent = currentTime;\\n        }\\n      });\\n    }\\n\\n    // Update time immediately and then every minute\\n    updateCurrentTime();\\n    setInterval(updateCurrentTime, 60000);\\n\\n    // Tools Dropdown Menu functionality\\n    const toolsMenuButton = document.getElementById(\\'toolsMenuButton\\');\\n    const toolsMenuDropdown = document.getElementById(\\'toolsMenuDropdown\\');\\n    const toolsMenuContainer = document.getElementById(\\'toolsMenuContainer\\');\\n\\n    if (toolsMenuButton && toolsMenuDropdown && toolsMenuContainer) {\\n      var toolsHideTimer;\\n\\n      // Toggle dropdown on button click\\n      toolsMenuButton.addEventListener(\\'click\\', function(e) {\\n        e.stopPropagation();\\n        toolsMenuDropdown.classList.toggle(\\'hidden\\');\\n      });\\n\\n      // Show on hover \u2014 cancel any pending hide\\n      toolsMenuContainer.addEventListener(\\'mouseenter\\', function() {\\n        clearTimeout(toolsHideTimer);\\n        toolsMenuDropdown.classList.remove(\\'hidden\\');\\n      });\\n\\n      // Delay hide so cursor can reach the dropdown\\n      toolsMenuContainer.addEventListener(\\'mouseleave\\', function() {\\n        toolsHideTimer = setTimeout(function() {\\n          toolsMenuDropdown.classList.add(\\'hidden\\');\\n        }, 100);\\n      });\\n\\n      // Close when clicking elsewhere\\n      document.addEventListener(\\'click\\', function(e) {\\n        if (!toolsMenuContainer.contains(e.target)) {\\n          toolsMenuDropdown.classList.add(\\'hidden\\');\\n        }\\n      });\\n    }\\n  </script>\\n</body>\\n</html>'
+E         
+E         'Owners Exclusive Piece' is contained here:
+E           <!DOCTYPE html>
+E           <html lang="en">
+E           <head>
+E             <meta charset="utf-8">
+E             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+E             <title>My Reading List - KnowHow - PanelMerge</title>
+E             <link rel="stylesheet" href="/static/css/custom.css">
+E             <link rel="stylesheet" href="/static/css/styles.css">
+E             <link rel="stylesheet" href="/static/css/timezone.css">
+E             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+E             
+E           </head>
+E           <body class="bg-red-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">
+E           
+E             <header class="w-full max-w-6xl mb-6">
+E               <nav class="flex justify-between items-center">
+E                 <div class="text-lg font-semibold text-sky-700">
+E                   PanelMerge
+E                 </div>
+E                 <div class="flex items-center space-x-4 text-sm">
+E                   <a href="/" class="text-sky-600 hover:text-sky-800 transition">Home</a>
+E                   <a href="/version" class="text-sky-600 hover:text-sky-800 transition">Version</a>
+E                   <a href="/version-history" class="text-sky-600 hover:text-sky-800 transition">History</a>
+E                   
+E                   <!-- Tools Dropdown Menu -->
+E                   <div class="relative" id="toolsMenuContainer">
+E                     <button id="toolsMenuButton" class="text-sky-600 hover:text-sky-800 transition flex items-center space-x-1">
+E                       <span>Tools</span>
+E                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+E                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+E                       </svg>
+E                     </button>
+E                     <div id="toolsMenuDropdown" class="absolute left-0 top-full pt-1 w-48 z-50 hidden">
+E                       <div class="bg-white rounded-md shadow-lg py-1 border border-gray-100">
+E                         <a href="/litreview/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">Literature Review</a>
+E                         <a href="/knowhow/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">KnowHow</a>
+E                       </div>
+E                     </div>
+E                   </div>
+E                   
+E                   
+E                     <div class="flex items-center space-x-4 ml-6 pl-6 border-l border-gray-300">
+E                       <span class="text-gray-600">Welcome, bmp_owner_user!</span>
+E                       <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">User</span>
+E                       <a href="/auth/profile" class="text-sky-600 hover:text-sky-800 transition">Profile</a>
+E                       
+E                       <a href="/auth/logout" class="text-red-600 hover:text-red-800 transition">Logout</a>
+E                     </div>
+E                   
+E                 </div>
+E               </nav>
+E             </header>
+E           
+E             <!-- Messages (alerts, notifications) -->
+E             
+E               
+E             
+E           
+E               <!-- Admin Messages -->
+E               
+E           
+E             
+E           <div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">
+E           
+E               <!-- Breadcrumb -->
+E               <nav class="mb-5 text-sm text-gray-500 flex items-center space-x-2 flex-wrap">
+E                   <a href="/knowhow/" class="hover:text-sky-700 transition">KnowHow</a>
+E                   <span>¢</span>
+E                   <span class="text-gray-700 font-medium">My Reading List</span>
+E               </nav>
+E           
+E               <header class="mb-6 flex items-center justify-between flex-wrap gap-3">
+E                   <div>
+E                       <h1 class="text-2xl font-bold text-sky-700">My Reading List</h1>
+E                       <p class="text-sm text-gray-500 mt-1">
+E                           Articles you have bookmarked for later, newest first.
+E                       </p>
+E                   </div>
+E                   <a href="/knowhow/"
+E                      class="inline-flex items-center px-4 py-2 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition">
+E                       \u2190 Back to KnowHow
+E                   </a>
+E               </header>
+E           
+E               
+E               <ul class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
+E                   
+E                   
+E                   <li class="px-5 py-4 hover:bg-gray-50 transition">
+E                       <div class="flex items-start justify-between gap-4">
+E                           <div class="flex-1 min-w-0">
+E                               <a href="/knowhow/articles/1"
+E                                  class="text-sky-700 font-semibold hover:underline">Owners Exclusive Piece</a>
+E         ?                                                                           ++++++++++++++++++++++
+E                               
+E                               <div class="mt-1 flex items-center gap-3 flex-wrap text-xs text-gray-400">
+E                                   
+E                                   <span class="inline-flex items-center px-2 py-0.5 rounded-full text-white text-xs font-medium"
+E                                         style="background-color: #0369a1">Gene Panels</span>
+E                                   
+E                                   <span>By bmp_owner_user</span>
+E                                   <span>29 Mar 2026</span>
+E                               </div>
+E                           </div>
+E                           <!-- Remove bookmark button -->
+E                           <button onclick="removeBookmark(1, this)"
+E                                   title="Remove from reading list"
+E                                   class="flex-shrink-0 text-gray-400 hover:text-red-500 transition p-1 rounded">
+E                               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+E                                   <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+E                               </svg>
+E                           </button>
+E                       </div>
+E                   </li>
+E                   
+E               </ul>
+E               
+E           
+E           </div>
+E           
+E           <script>
+E           function removeBookmark(articleId, btn) {
+E               btn.disabled = true;
+E               fetch(`/knowhow/articles/${articleId}/bookmark`, {
+E                   method: 'POST',
+E                   headers: {'X-Requested-With': 'XMLHttpRequest'},
+E                   credentials: 'same-origin'
+E               })
+E               .then(r => r.json())
+E               .then(data => {
+E                   if (!data.bookmarked) {
+E                       // Remove the list item from the DOM
+E                       const li = btn.closest('li');
+E                       const ul = li.parentElement;
+E                       li.remove();
+E                       // Show empty state if no items remain
+E                       if (ul && ul.querySelectorAll('li').length === 0) {
+E                           ul.outerHTML = `
+E                               <div class="text-center py-16 text-gray-400">
+E                                   <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+E                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+E                                   </svg>
+E                                   <p class="text-lg font-medium text-gray-500">Your reading list is empty.</p>
+E                                   <p class="text-sm mt-1">Open any article and click <strong>Save</strong> to add it here.</p>
+E                               </div>`;
+E                       }
+E                   }
+E               })
+E               .catch(() => { btn.disabled = false; });
+E           }
+E           </script>
+E           
+E           
+E             <footer class="w-full max-w-6xl mt-8 pt-6 border-t border-gray-300 text-center text-sm text-gray-500">
+E               <p>&copy; 2025 PanelMerge.</p>
+E               <p class="mt-2 space-x-4">
+E                 <a href="/privacy" class="text-sky-600 hover:text-sky-800 transition">Privacy Policy</a>
+E                 <span class="text-gray-300">|</span>
+E                 <a href="mailto:anita.korpioja@gmail.com" class="text-sky-600 hover:text-sky-800 transition">Contact</a>
+E                 <span class="text-gray-300"></span>
+E               </p>
+E             </footer>
+E           
+E             <!-- Scripts -->
+E             <script src="/static/js/timezone.js"></script>
+E             
+E           
+E             <script>
+E               // Update current time displays
+E               function updateCurrentTime() {
+E                 const currentTimeElements = document.querySelectorAll('#current-user-time, #footer-current-time');
+E                 const currentTime = window.getCurrentUserTime();
+E                 
+E                 currentTimeElements.forEach(element => {
+E                   if (element) {
+E                     element.textContent = currentTime;
+E                   }
+E                 });
+E               }
+E           
+E               // Update time immediately and then every minute
+E               updateCurrentTime();
+E               setInterval(updateCurrentTime, 60000);
+E           
+E               // Tools Dropdown Menu functionality
+E               const toolsMenuButton = document.getElementById('toolsMenuButton');
+E               const toolsMenuDropdown = document.getElementById('toolsMenuDropdown');
+E               const toolsMenuContainer = document.getElementById('toolsMenuContainer');
+E           
+E               if (toolsMenuButton && toolsMenuDropdown && toolsMenuContainer) {
+E                 var toolsHideTimer;
+E           
+E                 // Toggle dropdown on button click
+E                 toolsMenuButton.addEventListener('click', function(e) {
+E                   e.stopPropagation();
+E                   toolsMenuDropdown.classList.toggle('hidden');
+E                 });
+E           
+E                 // Show on hover ù cancel any pending hide
+E                 toolsMenuContainer.addEventListener('mouseenter', function() {
+E                   clearTimeout(toolsHideTimer);
+E                   toolsMenuDropdown.classList.remove('hidden');
+E                 });
+E           
+E                 // Delay hide so cursor can reach the dropdown
+E                 toolsMenuContainer.addEventListener('mouseleave', function() {
+E                   toolsHideTimer = setTimeout(function() {
+E                     toolsMenuDropdown.classList.add('hidden');
+E                   }, 100);
+E                 });
+E           
+E                 // Close when clicking elsewhere
+E                 document.addEventListener('click', function(e) {
+E                   if (!toolsMenuContainer.contains(e.target)) {
+E                     toolsMenuDropdown.classList.add('hidden');
+E                   }
+E                 });
+E               }
+E             </script>
+E           </body>
+E           </html>
+
+tests\unit\test_knowhow_bookmarks.py:179: AssertionError
+----------------------------- Captured log setup ------------------------------
+ERROR    app.audit_service:audit_service.py:156 Unexpected error logging audit action: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+============================== warnings summary ===============================
+tests/unit/test_knowhow_bookmarks.py::TestBookmarksPage::test_bookmarks_are_personal
+  C:\Users\anita\gitprojects\GenePanelCombine\.venv\Lib\site-packages\flask_sqlalchemy\extension.py:881: SAWarning: Can't sort tables for DROP; an unresolvable foreign key dependency exists between tables: panel_versions, saved_panels; and backend does not support ALTER.  To restore at least a partial sort, apply use_alter=True to ForeignKey and ForeignKeyConstraint objects involved in the cycle to mark these as known cycles that will be ignored.
+    getattr(metadata, op_name)(bind=engine)
+
+tests/unit/test_knowhow_bookmarks.py::TestBookmarksPage::test_bookmarks_are_personal
+  C:\Users\anita\gitprojects\GenePanelCombine\app\__init__.py:115: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    return User.query.get(int(user_id))
+
+tests/unit/test_knowhow_bookmarks.py::TestBookmarksPage::test_bookmarks_are_personal
+  C:\Users\anita\gitprojects\GenePanelCombine\.venv\Lib\site-packages\flask_sqlalchemy\query.py:30: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    rv = self.get(ident)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/test_knowhow_bookmarks.py::TestBookmarksPage::test_bookmarks_are_personal - assert 'Owners Exclusive Piece' not in '<!DOCTYPE html>\\n<html lang="en">\\n<head>\\n  <meta charset="utf-8">\\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\\n  <title>My Reading List - KnowHow - PanelMerge</title>\\n  <link rel="stylesheet" href="/static/css/custom.css">\\n  <link rel="stylesheet" href="/static/css/styles.css">\\n  <link rel="stylesheet" href="/static/css/timezone.css">\\n  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">\\n  \\n</head>\\n<body class="bg-red-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">\\n\\n  <header class="w-full max-w-6xl mb-6">\\n    <nav class="flex justify-between items-center">\\n      <div class="text-lg font-semibold text-sky-700">\\n        PanelMerge\\n      </div>\\n      <div class="flex items-center space-x-4 text-sm">\\n        <a href="/" class="text-sky-600 hover:text-sky-800 transition">Home</a>\\n        <a href="/version" class="text-sky-600 hover:text-sky-800 transition">Version</a>\\n        <a href="/version-history" class="text-sky-600 hover:text-sky-800 transition">History</a>\\n        \\n        <!-- Tools Dropdown Menu -->\\n        <div class="relative" id="toolsMenuContainer">\\n          <button id="toolsMenuButton" class="text-sky-600 hover:text-sky-800 transition flex items-center space-x-1">\\n            <span>Tools</span>\\n            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">\\n              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>\\n            </svg>\\n          </button>\\n          <div id="toolsMenuDropdown" class="absolute left-0 top-full pt-1 w-48 z-50 hidden">\\n            <div class="bg-white rounded-md shadow-lg py-1 border border-gray-100">\\n              <a href="/litreview/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">Literature Review</a>\\n              <a href="/knowhow/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">KnowHow</a>\\n            </div>\\n          </div>\\n        </div>\\n        \\n        \\n          <div class="flex items-center space-x-4 ml-6 pl-6 border-l border-gray-300">\\n            <span class="text-gray-600">Welcome, bmp_owner_user!</span>\\n            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">User</span>\\n            <a href="/auth/profile" class="text-sky-600 hover:text-sky-800 transition">Profile</a>\\n            \\n            <a href="/auth/logout" class="text-red-600 hover:text-red-800 transition">Logout</a>\\n          </div>\\n        \\n      </div>\\n    </nav>\\n  </header>\\n\\n  <!-- Messages (alerts, notifications) -->\\n  \\n    \\n  \\n\\n    <!-- Admin Messages -->\\n    \\n\\n  \\n<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">\\n\\n    <!-- Breadcrumb -->\\n    <nav class="mb-5 text-sm text-gray-500 flex items-center space-x-2 flex-wrap">\\n        <a href="/knowhow/" class="hover:text-sky-700 transition">KnowHow</a>\\n        <span>\u203a</span>\\n        <span class="text-gray-700 font-medium">My Reading List</span>\\n    </nav>\\n\\n    <header class="mb-6 flex items-center justify-between flex-wrap gap-3">\\n        <div>\\n            <h1 class="text-2xl font-bold text-sky-700">My Reading List</h1>\\n            <p class="text-sm text-gray-500 mt-1">\\n                Articles you have bookmarked for later, newest first.\\n            </p>\\n        </div>\\n        <a href="/knowhow/"\\n           class="inline-flex items-center px-4 py-2 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition">\\n            \u2190 Back to KnowHow\\n        </a>\\n    </header>\\n\\n    \\n    <ul class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">\\n        \\n        \\n        <li class="px-5 py-4 hover:bg-gray-50 transition">\\n            <div class="flex items-start justify-between gap-4">\\n                <div class="flex-1 min-w-0">\\n                    <a href="/knowhow/articles/1"\\n                       class="text-sky-700 font-semibold hover:underline">Owners Exclusive Piece</a>\\n                    \\n                    <div class="mt-1 flex items-center gap-3 flex-wrap text-xs text-gray-400">\\n                        \\n                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-white text-xs font-medium"\\n                              style="background-color: #0369a1">Gene Panels</span>\\n                        \\n                        <span>By bmp_owner_user</span>\\n                        <span>29 Mar 2026</span>\\n                    </div>\\n                </div>\\n                <!-- Remove bookmark button -->\\n                <button onclick="removeBookmark(1, this)"\\n                        title="Remove from reading list"\\n                        class="flex-shrink-0 text-gray-400 hover:text-red-500 transition p-1 rounded">\\n                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">\\n                        <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>\\n                    </svg>\\n                </button>\\n            </div>\\n        </li>\\n        \\n    </ul>\\n    \\n\\n</div>\\n\\n<script>\\nfunction removeBookmark(articleId, btn) {\\n    btn.disabled = true;\\n    fetch(`/knowhow/articles/${articleId}/bookmark`, {\\n        method: \\'POST\\',\\n        headers: {\\'X-Requested-With\\': \\'XMLHttpRequest\\'},\\n        credentials: \\'same-origin\\'\\n    })\\n    .then(r => r.json())\\n    .then(data => {\\n        if (!data.bookmarked) {\\n            // Remove the list item from the DOM\\n            const li = btn.closest(\\'li\\');\\n            const ul = li.parentElement;\\n            li.remove();\\n            // Show empty state if no items remain\\n            if (ul && ul.querySelectorAll(\\'li\\').length === 0) {\\n                ul.outerHTML = `\\n                    <div class="text-center py-16 text-gray-400">\\n                        <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">\\n                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>\\n                        </svg>\\n                        <p class="text-lg font-medium text-gray-500">Your reading list is empty.</p>\\n                        <p class="text-sm mt-1">Open any article and click <strong>Save</strong> to add it here.</p>\\n                    </div>`;\\n            }\\n        }\\n    })\\n    .catch(() => { btn.disabled = false; });\\n}\\n</script>\\n\\n\\n  <footer class="w-full max-w-6xl mt-8 pt-6 border-t border-gray-300 text-center text-sm text-gray-500">\\n    <p>&copy; 2025 PanelMerge.</p>\\n    <p class="mt-2 space-x-4">\\n      <a href="/privacy" class="text-sky-600 hover:text-sky-800 transition">Privacy Policy</a>\\n      <span class="text-gray-300">|</span>\\n      <a href="mailto:anita.korpioja@gmail.com" class="text-sky-600 hover:text-sky-800 transition">Contact</a>\\n      <span class="text-gray-300"></span>\\n    </p>\\n  </footer>\\n\\n  <!-- Scripts -->\\n  <script src="/static/js/timezone.js"></script>\\n  \\n\\n  <script>\\n    // Update current time displays\\n    function updateCurrentTime() {\\n      const currentTimeElements = document.querySelectorAll(\\'#current-user-time, #footer-current-time\\');\\n      const currentTime = window.getCurrentUserTime();\\n      \\n      currentTimeElements.forEach(element => {\\n        if (element) {\\n          element.textContent = currentTime;\\n        }\\n      });\\n    }\\n\\n    // Update time immediately and then every minute\\n    updateCurrentTime();\\n    setInterval(updateCurrentTime, 60000);\\n\\n    // Tools Dropdown Menu functionality\\n    const toolsMenuButton = document.getElementById(\\'toolsMenuButton\\');\\n    const toolsMenuDropdown = document.getElementById(\\'toolsMenuDropdown\\');\\n    const toolsMenuContainer = document.getElementById(\\'toolsMenuContainer\\');\\n\\n    if (toolsMenuButton && toolsMenuDropdown && toolsMenuContainer) {\\n      var toolsHideTimer;\\n\\n      // Toggle dropdown on button click\\n      toolsMenuButton.addEventListener(\\'click\\', function(e) {\\n        e.stopPropagation();\\n        toolsMenuDropdown.classList.toggle(\\'hidden\\');\\n      });\\n\\n      // Show on hover \u2014 cancel any pending hide\\n      toolsMenuContainer.addEventListener(\\'mouseenter\\', function() {\\n        clearTimeout(toolsHideTimer);\\n        toolsMenuDropdown.classList.remove(\\'hidden\\');\\n      });\\n\\n      // Delay hide so cursor can reach the dropdown\\n      toolsMenuContainer.addEventListener(\\'mouseleave\\', function() {\\n        toolsHideTimer = setTimeout(function() {\\n          toolsMenuDropdown.classList.add(\\'hidden\\');\\n        }, 100);\\n      });\\n\\n      // Close when clicking elsewhere\\n      document.addEventListener(\\'click\\', function(e) {\\n        if (!toolsMenuContainer.contains(e.target)) {\\n          toolsMenuDropdown.classList.add(\\'hidden\\');\\n        }\\n      });\\n    }\\n  </script>\\n</body>\\n</html>'\n  \n  'Owners Exclusive Piece' is contained here:\n    <!DOCTYPE html>\n    <html lang="en">\n    <head>\n      <meta charset="utf-8">\n      <meta name="viewport" content="width=device-width, initial-scale=1.0">\n      <title>My Reading List - KnowHow - PanelMerge</title>\n      <link rel="stylesheet" href="/static/css/custom.css">\n      <link rel="stylesheet" href="/static/css/styles.css">\n      <link rel="stylesheet" href="/static/css/timezone.css">\n      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">\n      \n    </head>\n    <body class="bg-red-100 text-gray-800 min-h-screen flex flex-col items-center py-8 px-4">\n    \n      <header class="w-full max-w-6xl mb-6">\n        <nav class="flex justify-between items-center">\n          <div class="text-lg font-semibold text-sky-700">\n            PanelMerge\n          </div>\n          <div class="flex items-center space-x-4 text-sm">\n            <a href="/" class="text-sky-600 hover:text-sky-800 transition">Home</a>\n            <a href="/version" class="text-sky-600 hover:text-sky-800 transition">Version</a>\n            <a href="/version-history" class="text-sky-600 hover:text-sky-800 transition">History</a>\n            \n            <!-- Tools Dropdown Menu -->\n            <div class="relative" id="toolsMenuContainer">\n              <button id="toolsMenuButton" class="text-sky-600 hover:text-sky-800 transition flex items-center space-x-1">\n                <span>Tools</span>\n                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">\n                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>\n                </svg>\n              </button>\n              <div id="toolsMenuDropdown" class="absolute left-0 top-full pt-1 w-48 z-50 hidden">\n                <div class="bg-white rounded-md shadow-lg py-1 border border-gray-100">\n                  <a href="/litreview/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">Literature Review</a>\n                  <a href="/knowhow/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition">KnowHow</a>\n                </div>\n              </div>\n            </div>\n            \n            \n              <div class="flex items-center space-x-4 ml-6 pl-6 border-l border-gray-300">\n                <span class="text-gray-600">Welcome, bmp_owner_user!</span>\n                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">User</span>\n                <a href="/auth/profile" class="text-sky-600 hover:text-sky-800 transition">Profile</a>\n                \n                <a href="/auth/logout" class="text-red-600 hover:text-red-800 transition">Logout</a>\n              </div>\n            \n          </div>\n        </nav>\n      </header>\n    \n      <!-- Messages (alerts, notifications) -->\n      \n        \n      \n    \n        <!-- Admin Messages -->\n        \n    \n      \n    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">\n    \n        <!-- Breadcrumb -->\n        <nav class="mb-5 text-sm text-gray-500 flex items-center space-x-2 flex-wrap">\n            <a href="/knowhow/" class="hover:text-sky-700 transition">KnowHow</a>\n            <span>\u203a</span>\n            <span class="text-gray-700 font-medium">My Reading List</span>\n        </nav>\n    \n        <header class="mb-6 flex items-center justify-between flex-wrap gap-3">\n            <div>\n                <h1 class="text-2xl font-bold text-sky-700">My Reading List</h1>\n                <p class="text-sm text-gray-500 mt-1">\n                    Articles you have bookmarked for later, newest first.\n                </p>\n            </div>\n            <a href="/knowhow/"\n               class="inline-flex items-center px-4 py-2 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition">\n                \u2190 Back to KnowHow\n            </a>\n        </header>\n    \n        \n        <ul class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">\n            \n            \n            <li class="px-5 py-4 hover:bg-gray-50 transition">\n                <div class="flex items-start justify-between gap-4">\n                    <div class="flex-1 min-w-0">\n                        <a href="/knowhow/articles/1"\n                           class="text-sky-700 font-semibold hover:underline">Owners Exclusive Piece</a>\n  ?                                                                           ++++++++++++++++++++++\n                        \n                        <div class="mt-1 flex items-center gap-3 flex-wrap text-xs text-gray-400">\n                            \n                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-white text-xs font-medium"\n                                  style="background-color: #0369a1">Gene Panels</span>\n                            \n                            <span>By bmp_owner_user</span>\n                            <span>29 Mar 2026</span>\n                        </div>\n                    </div>\n                    <!-- Remove bookmark button -->\n                    <button onclick="removeBookmark(1, this)"\n                            title="Remove from reading list"\n                            class="flex-shrink-0 text-gray-400 hover:text-red-500 transition p-1 rounded">\n                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">\n                            <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>\n                        </svg>\n                    </button>\n                </div>\n            </li>\n            \n        </ul>\n        \n    \n    </div>\n    \n    <script>\n    function removeBookmark(articleId, btn) {\n        btn.disabled = true;\n        fetch(`/knowhow/articles/${articleId}/bookmark`, {\n            method: 'POST',\n            headers: {'X-Requested-With': 'XMLHttpRequest'},\n            credentials: 'same-origin'\n        })\n        .then(r => r.json())\n        .then(data => {\n            if (!data.bookmarked) {\n                // Remove the list item from the DOM\n                const li = btn.closest('li');\n                const ul = li.parentElement;\n                li.remove();\n                // Show empty state if no items remain\n                if (ul && ul.querySelectorAll('li').length === 0) {\n                    ul.outerHTML = `\n                        <div class="text-center py-16 text-gray-400">\n                            <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">\n                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>\n                            </svg>\n                            <p class="text-lg font-medium text-gray-500">Your reading list is empty.</p>\n                            <p class="text-sm mt-1">Open any article and click <strong>Save</strong> to add it here.</p>\n                        </div>`;\n                }\n            }\n        })\n        .catch(() => { btn.disabled = false; });\n    }\n    </script>\n    \n    \n      <footer class="w-full max-w-6xl mt-8 pt-6 border-t border-gray-300 text-center text-sm text-gray-500">\n        <p>&copy; 2025 PanelMerge.</p>\n        <p class="mt-2 space-x-4">\n          <a href="/privacy" class="text-sky-600 hover:text-sky-800 transition">Privacy Policy</a>\n          <span class="text-gray-300">|</span>\n          <a href="mailto:anita.korpioja@gmail.com" class="text-sky-600 hover:text-sky-800 transition">Contact</a>\n          <span class="text-gray-300"></span>\n        </p>\n      </footer>\n    \n      <!-- Scripts -->\n      <script src="/static/js/timezone.js"></script>\n      \n    \n      <script>\n        // Update current time displays\n        function updateCurrentTime() {\n          const currentTimeElements = document.querySelectorAll('#current-user-time, #footer-current-time');\n          const currentTime = window.getCurrentUserTime();\n          \n          currentTimeElements.forEach(element => {\n            if (element) {\n              element.textContent = currentTime;\n            }\n          });\n        }\n    \n        // Update time immediately and then every minute\n        updateCurrentTime();\n        setInterval(updateCurrentTime, 60000);\n    \n        // Tools Dropdown Menu functionality\n        const toolsMenuButton = document.getElementById('toolsMenuButton');\n        const toolsMenuDropdown = document.getElementById('toolsMenuDropdown');\n        const toolsMenuContainer = document.getElementById('toolsMenuContainer');\n    \n        if (toolsMenuButton && toolsMenuDropdown && toolsMenuContainer) {\n          var toolsHideTimer;\n    \n          // Toggle dropdown on button click\n          toolsMenuButton.addEventListener('click', function(e) {\n            e.stopPropagation();\n            toolsMenuDropdown.classList.toggle('hidden');\n          });\n    \n          // Show on hover \u2014 cancel any pending hide\n          toolsMenuContainer.addEventListener('mouseenter', function() {\n            clearTimeout(toolsHideTimer);\n            toolsMenuDropdown.classList.remove('hidden');\n          });\n    \n          // Delay hide so cursor can reach the dropdown\n          toolsMenuContainer.addEventListener('mouseleave', function() {\n            toolsHideTimer = setTimeout(function() {\n              toolsMenuDropdown.classList.add('hidden');\n            }, 100);\n          });\n    \n          // Close when clicking elsewhere\n          document.addEventListener('click', function(e) {\n            if (!toolsMenuContainer.contains(e.target)) {\n              toolsMenuDropdown.classList.add('hidden');\n            }\n          });\n        }\n      </script>\n    </body>\n    </html>
+======================== 1 failed, 3 warnings in 6.92s ========================

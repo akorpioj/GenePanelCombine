@@ -316,7 +316,7 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 2 | ~~Article summary field~~ ✅ implemented | Very low | ★★★★☆ | Yes — 1 column |
 | 3 | ~~Bookmarks / reading list~~ ✅ implemented | Medium | ★★★★☆ | Yes — 1 table |
 | 4 | ~~Article tags~~ ✅ implemented | Medium | ★★★☆☆ | Yes — 2 tables |
-| 5 | Draft / publish workflow | Medium | ★★★☆☆ | Yes — 1 column |
+| 5 | ~~Draft / publish workflow~~ ✅ implemented | Medium | ★★★☆☆ | Yes — 1 column |
 | 6 | ~~"Helpful" reactions~~ ✅ implemented | Low | ★★★☆☆ | Yes — 1 table |
 | 7 | ~~Related articles~~ ✅ implemented | Low | ★★★☆☆ | No (basic) |
 | 8 | Article version history | High | ★★☆☆☆ | Yes — 1 table |

@@ -6,6 +6,7 @@ import tempfile
 import pytest
 from unittest.mock import Mock, patch
 from flask import Flask
+from sqlalchemy.pool import StaticPool
 from app import create_app
 from app.models import db, User, AdminMessage, AuditLog, Visit, PanelDownload, UserRole
 from app.extensions import cache
@@ -36,6 +37,13 @@ def app():
         'DATABASE_URL': f'sqlite:///{db_path}',  # Override any production DB
         'CLOUD_SQL_CONNECTION_NAME': None,  # Ensure Cloud SQL is disabled
         'ENCRYPT_SENSITIVE_FIELDS': False,  # Disable encryption for testing
+        # StaticPool forces all sessions (test + request contexts) to share a
+        # single SQLite connection, so route commits are immediately visible to
+        # the test session without cross-connection transaction isolation gaps.
+        'SQLALCHEMY_ENGINE_OPTIONS': {
+            'connect_args': {'check_same_thread': False},
+            'poolclass': StaticPool,
+        },
     })
     
     # Establish an application context
