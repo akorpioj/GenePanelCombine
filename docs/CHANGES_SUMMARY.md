@@ -79,3 +79,20 @@ Implemented Feature 6 from `KNOWHOW_FUTURE_FEATURES.md`. Users can now mark any 
 **Files changed:** `app/models.py`, `app/knowhow/routes.py`, `app/templates/knowhow/article_view.html`, `app/templates/knowhow/index.html`, `app/templates/knowhow/category.html`, `migrations/versions/9d38c69c3c02_add_knowhow_reactions.py` *(new)*
 
 ---
+
+## Feature: KnowHow related articles (29/03/2026)
+
+Implemented Feature 7 from `KNOWHOW_FUTURE_FEATURES.md`. Each article view page now surfaces up to 5 related articles from the same category below the article body, reducing dead-ends and encouraging exploration.
+
+**User-facing behaviour:**
+- A "Related articles" card list appears between the article body and the "← Back to" link when there are other articles in the same category
+- Each row shows the category-colour bullet, the article title as a link, and the optional summary (truncated)
+- The section is entirely hidden for articles that are the only entry in their category
+
+**Implementation details:**
+- `view_article()` queries up to 5 `KnowhowArticle` records with the same `category` slug, excluding the current article, ordered by `updated_at DESC`; result passed as `related` to the template
+- Template: bordered list with `{% if related %}` guard; no DB changes required
+
+**Files changed:** `app/knowhow/routes.py`, `app/templates/knowhow/article_view.html`
+
+---

@@ -123,7 +123,7 @@ A lightweight single-click reaction (e.g., "👍 Helpful") gives authors feedbac
 
 ---
 
-## 7. Related Articles
+## 7. Related Articles ✅ _Implemented 29/03/2026_
 
 **Priority: Low–Medium**
 
@@ -136,6 +136,11 @@ At the bottom of each article, surface 3–5 other articles from the same catego
 - No DB changes required for the simple same-category version
 
 **DB changes:** None (basic); tag table needed for tag-weighted version.
+
+**Implementation notes:**
+- `view_article()` queries up to 5 articles with the same `category` slug, excluding the current article, ordered by `updated_at DESC`; passes result as `related` to template
+- Template renders a bordered card list between the article body and the "Back to" link; hidden when `related` is empty
+- Each related article card shows the category colour bullet, title (link), and optional summary
 
 ---
 
@@ -228,8 +233,8 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 3 | ~~Bookmarks / reading list~~ ✅ implemented | Medium | ★★★★☆ | Yes — 1 table |
 | 4 | Article tags | Medium | ★★★☆☆ | Yes — 2 tables |
 | 5 | Draft / publish workflow | Medium | ★★★☆☆ | Yes — 1 column |
-| 6 | "Helpful" reactions | Low | ★★★☆☆ | Yes — 1 table |
-| 7 | Related articles | Low | ★★★☆☆ | No (basic) |
+| 6 | ~~"Helpful" reactions~~ ✅ implemented | Low | ★★★☆☆ | Yes — 1 table |
+| 7 | ~~Related articles~~ ✅ implemented | Low | ★★★☆☆ | No (basic) |
 | 8 | Article version history | High | ★★☆☆☆ | Yes — 1 table |
 | 9 | ~~Category description display~~ ✅ implemented | Very low | ★★☆☆☆ | No |
 | 10 | Print / PDF export | Low | ★★☆☆☆ | No |

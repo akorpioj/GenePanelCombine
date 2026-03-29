@@ -474,10 +474,17 @@ def view_article(article_id):
     reacted     = KnowhowReaction.query.filter_by(
         user_id=current_user.id, article_id=article_id).first() is not None
     reaction_count = article.reactions.count()
+    related = (KnowhowArticle.query
+               .filter(KnowhowArticle.category == article.category,
+                       KnowhowArticle.id != article_id)
+               .order_by(KnowhowArticle.updated_at.desc())
+               .limit(5)
+               .all())
     return render_template('knowhow/article_view.html',
                            article=article, category=category,
                            subcategory=subcategory, bookmarked=bookmarked,
-                           reacted=reacted, reaction_count=reaction_count)
+                           reacted=reacted, reaction_count=reaction_count,
+                           related=related)
 
 
 @knowhow_bp.route('/articles/<int:article_id>/edit', methods=['GET'])

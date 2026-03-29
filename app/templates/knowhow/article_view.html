@@ -87,7 +87,29 @@
         {{ article.content | safe }}
     </div>
 
-    <div class="mt-8 pt-4 border-t border-gray-100">
+    {% if related %}
+    <div class="mt-8 pt-6 border-t border-gray-100">
+        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Related articles</h3>
+        <ul class="divide-y divide-gray-100 rounded-lg border border-gray-100 overflow-hidden">
+            {% for rel in related %}
+            <li class="px-4 py-3 flex items-start gap-2 hover:bg-gray-50 transition">
+                {% if category %}
+                <span class="mt-0.5 text-base font-bold flex-shrink-0" style="color: {{ category.color }}">›</span>
+                {% endif %}
+                <div class="flex-1 min-w-0">
+                    <a href="{{ url_for('knowhow.view_article', article_id=rel.id) }}"
+                       class="font-medium text-gray-800 hover:underline">{{ rel.title }}</a>
+                    {% if rel.summary %}
+                    <p class="text-xs text-gray-500 mt-0.5 truncate">{{ rel.summary }}</p>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="mt-6 pt-4 border-t border-gray-100">
         <a href="{{ url_for('knowhow.index') }}#{{ article.category }}"
            class="inline-flex items-center text-sm text-sky-600 hover:text-sky-800 transition">
             ← Back to {{ (category.label if category else article.category) }}{% if subcategory %} / {{ subcategory.label }}{% endif %}
