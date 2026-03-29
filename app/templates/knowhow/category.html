@@ -34,6 +34,12 @@
                     title="Add a link">+</button>
         </div>
 
+        {% if category.description %}
+        <div class="px-5 py-3 bg-gray-50 border-b border-gray-200 text-sm text-gray-600 italic">
+            {{ category.description }}
+        </div>
+        {% endif %}
+
         {% set root_articles = articles_map.get(none, []) %}
         {% set root_links    = links_map.get(none, []) %}
 

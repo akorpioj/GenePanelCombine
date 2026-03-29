@@ -147,15 +147,16 @@ Track the full content of each article at the time of every save, allowing autho
 
 ---
 
-## 9. Category Description Display
+## 9. Category Description Display ✅ _Implemented 29/03/2026_
 
-**Priority: Low**
+~~**Priority: Low**~~
 
-`KnowhowCategory` already has a `description` field that can be set via the admin panel, but it is never shown to regular users. Displaying it on the category detail page would help orient new users.
+`KnowhowCategory` already has a `description` field settable via the admin panel.
 
-**Suggested implementation:**
-- In `category.html`, add a `{% if category.description %}` block below the coloured header card showing the description in a light grey box
-- No route or model changes required
+**Implemented as:**
+- `{% if category.description %}` block added to `category.html` immediately below the coloured header bar
+- Renders as a light grey `bg-gray-50` strip with `text-sm text-gray-600 italic` styling and a bottom border
+- No route, model, or DB changes required
 
 **DB changes:** None.
 
@@ -221,9 +222,9 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 6 | "Helpful" reactions | Low | ★★★☆☆ | Yes — 1 table |
 | 7 | Related articles | Low | ★★★☆☆ | No (basic) |
 | 8 | Article version history | High | ★★☆☆☆ | Yes — 1 table |
-| 9 | Category description display | Very low | ★★☆☆☆ | No |
+| 9 | ~~Category description display~~ ✅ implemented | Very low | ★★☆☆☆ | No |
 | 10 | Print / PDF export | Low | ★★☆☆☆ | No |
 | 11 | Link preview cards | High | ★★☆☆☆ | Yes — 3 columns |
 | 12 | "New since last visit" badge | Medium | ★★☆☆☆ | Yes — 1 table |
 
-**Recommended next sprint:** Feature 9 (category description display) — zero risk, no DB migration, purely a template addition. Features 3 (bookmarks) and 6 (reactions) are the next lowest-complexity additions with real DB changes.
+**Recommended next sprint:** Features 3 (bookmarks/reading list) and 6 (helpful reactions) — both low-complexity with real user value. Feature 7 (related articles) requires no DB changes and could also be added quickly.
