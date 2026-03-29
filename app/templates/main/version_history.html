@@ -17,6 +17,24 @@
     </header>
 
     <div class="space-y-6">
+        <!-- Version 1.5.4 -->
+        <div class="border-l-4 border-emerald-500 pl-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <h2 class="text-xl font-semibold text-emerald-700">Version 1.5.4</h2>
+                <span class="text-sm text-gray-500">March 2026</span>
+            </div>
+            <p class="text-gray-600 text-sm mb-2 italic">KnowHow Search &amp; Article Summary</p>
+            <ul class="text-gray-700 space-y-1 text-sm">
+                <li>&bull; <strong>KnowHow Full-text Search:</strong> <code>GET /knowhow/search?q=</code> — ILIKE search across article titles, HTML content, link descriptions and URLs; highlighted snippets; 50-result cap; audit-logged</li>
+                <li>&bull; <strong>Category Detail Pages:</strong> <code>/knowhow/category/&lt;slug&gt;</code> shows all articles and links for a category; index headers are now links</li>
+                <li>&bull; <strong>Index Truncation:</strong> At most 3 most-recent articles shown per bucket; &ldquo;+ N more &mdash; see all&rdquo; overflow link to category page</li>
+                <li>&bull; <strong>Category Sort:</strong> 5-option sort selector (position, A&rarr;Z, Z&rarr;A, most content, recently updated); preference saved in a cookie</li>
+                <li>&bull; <strong>Article Summary Field:</strong> Optional 512-char plain-text teaser stored in new nullable DB column; shown beneath article titles; textarea added to editor</li>
+                <li>&bull; <strong>CSRF Fix:</strong> Removed erroneous <code>{{ csrf_token() }}</code> calls from Admin retention modals</li>
+                <li>&bull; <strong>Audit Logs layout fix:</strong> Stray <code>&lt;/div&gt;</code> causing table overflow removed</li>
+            </ul>
+        </div>
+
         <!-- Version 1.5.3 -->
         <div class="border-l-4 border-teal-500 pl-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">

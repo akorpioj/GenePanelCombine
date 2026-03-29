@@ -87,3 +87,23 @@ Added a search page allowing users to search across all KnowHow article titles, 
 - Template uses `| safe` on pre-escaped `Markup` strings — XSS-safe because all user-controlled text passes through `markupsafe.escape` before insertion
 
 **Files changed:** `app/knowhow/routes.py` *(search helpers + route)*, `app/templates/knowhow/index.html` *(search box)*, `app/templates/knowhow/search.html` *(new)*
+
+---
+
+## Feature: KnowHow article summary field (29/03/2026)
+
+Added an optional plain-text summary to `KnowhowArticle`, completing the intended design where index and category templates already contained `{% if article.summary %}` blocks.
+
+**User-facing behaviour:**
+- Article editor now shows an optional "Summary" textarea between the Title and Category fields (max 512 chars, 2 rows)
+- Short summaries are displayed beneath article titles in the KnowHow index and category detail views
+- Articles without a summary are unaffected
+
+**Implementation details:**
+- `summary = db.Column(db.String(512), nullable=True)` added to `KnowhowArticle` in `app/models.py`
+- Alembic migration `b25d3df6625c_add_knowhow_article_summary.py` generated and applied
+- `create_article()` reads `request.form.get('summary', '').strip()` and rejects summaries longer than 512 characters with a 400 flash
+- `update_article()` applies the same validation and assigns `article.summary = summary`
+- Existing `{% if article.summary %}` blocks in `index.html` and `category.html` now render automatically — no template changes needed
+
+**Files changed:** `app/models.py`, `app/knowhow/routes.py` *(create + update)*, `app/templates/knowhow/article_editor.html`, `migrations/versions/b25d3df6625c_add_knowhow_article_summary.py` *(new)*

@@ -1,6 +1,6 @@
 # KnowHow — Future Feature Suggestions
 
-_Last updated: 25/03/2026_
+_Last updated: 29/03/2026_
 
 This document outlines potential enhancements to the KnowHow knowledge base, ordered roughly by implementation complexity and likely user value. Each suggestion notes which existing models or routes it builds on.
 
@@ -27,19 +27,21 @@ Users have no way to find content without knowing which category it lives in. A 
 
 ---
 
-## 2. Article Summary Field
+## 2. Article Summary Field ✅ _Implemented 29/03/2026_
 
-**Priority: High** _(templates already conditionally render `article.summary`)_
+~~**Priority: High**~~
 
-The index and category templates already contain `{% if article.summary %}` checks, but the field does not exist on the `KnowhowArticle` model. Adding it completes the intended design: a short plain-text teaser shown beneath article titles in list views.
+The index and category templates already contained `{% if article.summary %}` checks. Adding the model field, migration, and editor form field completes the intended design: a short plain-text teaser shown beneath article titles in list views.
 
-**Suggested implementation:**
-- Add `summary = db.Column(db.String(512), nullable=True)` to `KnowhowArticle`
-- Migration: `flask db migrate -m "add knowhow article summary"` then `flask db upgrade`
-- Add an optional "Summary" textarea (max 512 chars) below the title field in `article_editor.html`
-- No route changes required; `create_article` and `update_article` just need to read `request.form.get('summary', '').strip()`
+**Implemented as:**
+- `summary = db.Column(db.String(512), nullable=True)` added to `KnowhowArticle` in `app/models.py`
+- Migration `b25d3df6625c_add_knowhow_article_summary.py` generated and applied via `flask db upgrade`
+- Optional "Summary" textarea (max 512 chars, 2 rows) added between the Title and Category fields in `article_editor.html`
+- `create_article()` and `update_article()` both read `request.form.get('summary', '').strip()` and validate `len(summary) <= 512`
+- Existing `{% if article.summary %}` blocks in `index.html` and `category.html` now render automatically
+- Summaries are not displayed on the article view page (the full article is shown there instead)
 
-**DB changes:** One nullable `VARCHAR(512)` column on `knowhow_articles`.
+**DB changes:** One nullable `VARCHAR(512)` column added to `knowhow_articles`.
 
 ---
 
@@ -212,7 +214,7 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | # | Feature | Complexity | Value | DB Migration? |
 |---|---------|-----------|-------|---------------|
 | 1 | ~~Full-text search~~ ✅ implemented | Low | ★★★★★ | No |
-| 2 | Article summary field | Very low | ★★★★☆ | Yes — 1 column |
+| 2 | ~~Article summary field~~ ✅ implemented | Very low | ★★★★☆ | Yes — 1 column |
 | 3 | Bookmarks / reading list | Medium | ★★★★☆ | Yes — 1 table |
 | 4 | Article tags | Medium | ★★★☆☆ | Yes — 2 tables |
 | 5 | Draft / publish workflow | Medium | ★★★☆☆ | Yes — 1 column |
@@ -224,4 +226,4 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 11 | Link preview cards | High | ★★☆☆☆ | Yes — 3 columns |
 | 12 | "New since last visit" badge | Medium | ★★☆☆☆ | Yes — 1 table |
 
-**Recommended next sprint:** Features 2 (summary field) and 9 (category description display) — both low-risk, high-return, and require zero DB migrations. Feature 1 (search) is complete.
+**Recommended next sprint:** Feature 9 (category description display) — zero risk, no DB migration, purely a template addition. Features 3 (bookmarks) and 6 (reactions) are the next lowest-complexity additions with real DB changes.

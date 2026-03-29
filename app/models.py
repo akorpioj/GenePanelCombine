@@ -2023,6 +2023,7 @@ class KnowhowArticle(db.Model):
 
     id             = db.Column(db.Integer, primary_key=True)
     title          = db.Column(db.String(256), nullable=False)
+    summary        = db.Column(db.String(512), nullable=True)
     category       = db.Column(db.String(64), nullable=False, index=True)
     content        = db.Column(db.Text, nullable=False, default='')
     user_id        = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)

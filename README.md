@@ -1,8 +1,16 @@
-# PanelMerge v1.5.3
+# PanelMerge v1.5.4
 
 PanelMerge is a secure, enterprise-grade web application for researchers and clinicians to easily combine, filter, and download gene lists from multiple sources, including Genomics England PanelApp, PanelApp Australia, and user-uploaded custom gene panels. Features comprehensive panel library management with version control, multi-format export capabilities, and advanced security features.
 
-## 🚀 New in v1.5.3 (March 2026)
+## 🚀 New in v1.5.4 (March 2026)
+
+- **KnowHow Full-text Search:** Search box on the KnowHow index; `GET /knowhow/search?q=` queries article titles, content, and link descriptions/URLs via `ILIKE`; highlighted snippets; up to 50 results per type; audit-logged
+- **KnowHow Category Detail Pages:** Each category header on the index links to `/knowhow/category/<slug>` showing all articles and links for that category (no truncation)
+- **KnowHow Index Truncation:** Index shows at most 3 most-recent articles per bucket; a "+ N more — see all" link appears when there are more
+- **KnowHow Category Sort:** Sort selector (5 options: position, A→Z, Z→A, most content, recently updated) with cookie persistence
+- **KnowHow Article Summary Field:** Optional 512-char plain-text teaser shown beneath article titles in index and category views; editor textarea added; `summary` DB column (nullable VARCHAR 512)
+
+## 🚀 Previously in v1.5.3 (March 2026)
 
 - **GDPR Retention Controls:** Admin-triggered purge routes for visit logs (90-day), suspicious activity records (90-day), and panel download logs (12-month); new deletion modals in the Admin panel
 - **Stored-XSS Protection (DPIA R12):** KnowHow articles sanitized server-side with `nh3` before storage — prevents malicious HTML/JS from executing in other users' browsers

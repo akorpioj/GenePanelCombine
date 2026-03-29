@@ -3,15 +3,15 @@ PanelMerge Version Information
 """
 
 # Application version
-VERSION = "1.5.3"
-VERSION_NAME = "GDPR Compliance & Retention Controls"
-RELEASE_DATE = "2026-03-25"
+VERSION = "1.5.4"
+VERSION_NAME = "KnowHow Search & Article Summary"
+RELEASE_DATE = "2026-03-29"
 
 # Version details
 VERSION_INFO = {
     "major": 1,
     "minor": 5,
-    "patch": 3,
+    "patch": 4,
     "version": VERSION,
     "name": VERSION_NAME,
     "release_date": RELEASE_DATE,
@@ -38,7 +38,12 @@ VERSION_INFO = {
         "LitReview Module (Phase 1 Foundation)",
         "Dynamic KnowHow Categories & Subcategories",
         "Logout Session Cookie Fix",
-        "GDPR Retention Controls (Visit, Suspicious Activity, Download Logs)",
+        "KnowHow Category Sort (5 options, cookie-persisted)",
+        "KnowHow Category Detail Pages",
+        "KnowHow Index 3-article truncation per bucket",
+        "KnowHow Full-text Search (ILIKE, highlighted snippets)",
+        "KnowHow Article Summary Field",
+        "GDPR Compliance & Retention Controls",
         "KnowHow Stored-XSS Protection (nh3 Sanitization)",
         "NCBI International Transfer Disclosure",
         "PanelGene Annotations Privacy Notices",

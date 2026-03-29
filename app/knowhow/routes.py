@@ -392,6 +392,7 @@ def new_article():
 @login_required
 def create_article():
     title      = request.form.get('title', '').strip()
+    summary    = request.form.get('summary', '').strip() or None
     cat_slug   = request.form.get('category', '').strip()
     content    = request.form.get('content', '')
     sub_id_raw = request.form.get('subcategory_id', '').strip()
@@ -407,6 +408,8 @@ def create_article():
 
     if not title or len(title) > 256:
         return _err('Title is required (max 256 chars).')
+    if summary and len(summary) > 512:
+        return _err('Summary must be 512 characters or fewer.')
     if not category:
         return _err('Please select a valid category.')
     if len(content.encode('utf-8')) > _MAX_CONTENT_BYTES:
@@ -418,7 +421,7 @@ def create_article():
     if err:
         return _err(err)
 
-    article = KnowhowArticle(title=title, category=cat_slug, content=content,
+    article = KnowhowArticle(title=title, summary=summary, category=cat_slug, content=content,
                              user_id=current_user.id, subcategory_id=subcategory_id)
     db.session.add(article)
     db.session.commit()
@@ -459,6 +462,7 @@ def update_article(article_id):
         abort(403)
 
     title      = request.form.get('title', '').strip()
+    summary    = request.form.get('summary', '').strip() or None
     cat_slug   = request.form.get('category', '').strip()
     content    = request.form.get('content', '')
     sub_id_raw = request.form.get('subcategory_id', '').strip()
@@ -467,6 +471,9 @@ def update_article(article_id):
 
     if not title or len(title) > 256:
         flash('Title is required (max 256 chars).', 'danger')
+        return redirect(url_for('knowhow.edit_article', article_id=article_id))
+    if summary and len(summary) > 512:
+        flash('Summary must be 512 characters or fewer.', 'danger')
         return redirect(url_for('knowhow.edit_article', article_id=article_id))
     if not category:
         flash('Please select a valid category.', 'danger')
@@ -483,6 +490,7 @@ def update_article(article_id):
         return redirect(url_for('knowhow.edit_article', article_id=article_id))
 
     article.title          = title
+    article.summary        = summary
     article.category       = cat_slug
     article.content        = content
     article.subcategory_id = subcategory_id

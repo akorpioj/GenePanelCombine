@@ -29,6 +29,7 @@ This guide provides step-by-step instructions for migrating between different ve
 
 | From → To | Complexity | Database Changes | Config Changes | Downtime |
 |-----------|------------|------------------|----------------|----------|
+| 1.5.3 → 1.5.4 | Low | 1 nullable column | No | ~2-5 min |
 | 1.5.2 → 1.5.3 | Low | No DB changes | No | ~2-5 min |
 | 1.5.1 → 1.5.2 | Low | 2 new tables, 2 FK cols | No | ~2-5 min |
 | 1.5.0 → 1.5.1 | Low | 4 new tables | No | ~2-5 min |
@@ -70,6 +71,57 @@ This guide provides step-by-step instructions for migrating between different ve
 ---
 
 ## 🚀 Version-Specific Migrations
+
+## v1.5.4 Migration (KnowHow Search & Article Summary)
+
+#### From v1.5.3 to v1.5.4
+
+**Major Changes**:
+- One new nullable DB column: `summary VARCHAR(512)` on `knowhow_articles`
+- No new Python dependencies
+- No configuration changes required
+
+**Migration Steps**:
+
+1. **Update Application Code**
+   ```bash
+   git fetch origin
+   git checkout v1.5.4
+   pip install -r requirements.txt
+   ```
+
+2. **Run Database Migration**
+   ```bash
+   flask db upgrade
+   # Applies: b25d3df6625c_add_knowhow_article_summary
+   ```
+
+3. **Verify the column exists**
+   ```bash
+   python -c "
+   from app import create_app, db
+   from sqlalchemy import inspect
+   app = create_app()
+   with app.app_context():
+       inspector = inspect(db.engine)
+       cols = [c['name'] for c in inspector.get_columns('knowhow_articles')]
+       print('OK' if 'summary' in cols else 'MISSING', 'summary column')
+   "
+   ```
+
+4. **Restart Application**
+   ```bash
+   systemctl restart panelmerge
+   ```
+
+**Rollback (if needed)**:
+```bash
+flask db downgrade b25d3df6625c-1
+# Drops the summary column — existing summaries will be lost
+git checkout v1.5.3
+```
+
+---
 
 ## v1.5.3 Migration (GDPR Compliance & Retention Controls)
 

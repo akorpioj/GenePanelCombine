@@ -93,6 +93,7 @@ The blueprint is registered in `app/__init__.py` with no additional configuratio
 |--------|------|-------------|---------|
 | `id` | Integer | PK | — |
 | `title` | String(256) | NOT NULL | — |
+| `summary` | String(512) | nullable | `null` |
 | `category` | String(64) | NOT NULL, INDEX | — |
 | `content` | Text | NOT NULL | `''` |
 | `user_id` | Integer | FK → `user.id` ON DELETE CASCADE, NOT NULL | — |
@@ -107,6 +108,7 @@ The blueprint is registered in `app/__init__.py` with no additional configuratio
 
 **Notes:**
 - `category` stores the slug string (not a DB FK); if the category is deleted, articles become hidden but are not deleted
+- `summary` is a short plain-text teaser (max 512 chars) displayed beneath article titles in the index and category detail views; optional
 - `content` stores Quill-generated HTML, sanitized by `nh3` before storage (see [§6](#6-security-controls))
 - `updated_at` auto-updates on any `db.session.commit()` that touches the row
 
@@ -197,6 +199,7 @@ Creates a new article.
 | Field | Rule |
 |-------|------|
 | `title` | Required; max 256 chars |
+| `summary` | Optional; max 512 chars; stripped of leading/trailing whitespace |
 | `category` | Required; must exist as a `KnowhowCategory.slug` |
 | `content` | UTF-8 size ≤ 500 KB; sanitized via `_sanitize_content()` |
 | `subcategory_id` | Optional; if provided, must exist and belong to the selected category |

@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.4] - 2026-03-29 - KnowHow Search & Article Summary
+
+### 🚀 New Features
+
+#### KnowHow Full-text Search
+- `GET /knowhow/search?q=` route searches article titles, article content (Quill HTML), link descriptions, and link URLs via PostgreSQL `ILIKE`
+- `_safe_like(q)` escapes `%` and `_` in user input (wildcard-injection protection)
+- `_highlight()` uses `markupsafe.escape` before injecting `<mark>` tags — XSS-safe `| safe` usage
+- `_snippet()` extracts ±120 chars around the first match with `…` ellipsis
+- Up to 50 articles and 50 links returned per query; results ordered `created_at DESC`
+- Search box added to KnowHow index header; searches are audit-logged
+- New template: `app/templates/knowhow/search.html`
+
+#### KnowHow Category Detail Pages
+- New route `GET /knowhow/category/<slug>` (`knowhow.category`) — shows all articles and links for one category without truncation; returns 404 for unknown slugs
+- Category headers on the index are now `<a>` links pointing to the detail page
+- Article view breadcrumb category/subcategory links now point to `knowhow.category`
+- New template: `app/templates/knowhow/category.html`
+
+#### KnowHow Index — 3-article truncation
+- Index now shows at most 3 most-recent articles per category/subcategory bucket
+- A `+ N more article(s) — see all` overflow link points to the category detail page
+- Articles ordered `created_at DESC` so that `[:3]` selects the newest items
+
+#### KnowHow Category Sort
+- Sort selector added to the KnowHow index actions bar (5 options: position, A→Z, Z→A, most content, recently updated)
+- Sort preference persisted in a `knowhow_sort` cookie (1 year, `httponly`, `SameSite=Lax`)
+- Resolution order: `?sort=` query param → cookie → default `'position'`
+
+#### KnowHow Article Summary Field
+- `summary = db.Column(db.String(512), nullable=True)` added to `KnowhowArticle`
+- Optional "Summary" textarea (max 512 chars) added to the article editor between Title and Category
+- `create_article()` and `update_article()` both validate and persist the field
+- Existing `{% if article.summary %}` blocks in `index.html` and `category.html` now render automatically
+
+### 🛠 Bug Fixes
+
+#### CSRF token error on Admin pages
+- Removed `{{ csrf_token() }}` calls from three GDPR retention modals in `audit_logs.html` and `admin_suspicious_activity.html` — app uses a custom session-based CSRF token, not Flask-WTF
+
+#### Audit Logs table layout overflow
+- Removed stray `</div>` that was closing the header section early and stretching the table container
+
+### 🔄 Migration Notes
+- Run `flask db upgrade` to apply migration `b25d3df6625c_add_knowhow_article_summary.py` (adds nullable `summary VARCHAR(512)` to `knowhow_articles`)
+
+---
+
 ## [1.5.3] - 2026-03-25 - GDPR Compliance & Retention Controls
 
 ### 🔒 Security & GDPR
