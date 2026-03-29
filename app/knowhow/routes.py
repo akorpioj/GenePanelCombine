@@ -8,7 +8,7 @@ from flask import render_template, request, flash, redirect, url_for, abort, mak
 from flask_login import login_required, current_user
 from . import knowhow_bp
 from ..audit_service import AuditService
-from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSubcategory, KnowhowBookmark, KnowhowReaction, KnowhowTag, UserRole
+from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSubcategory, KnowhowBookmark, KnowhowReaction, KnowhowTag, KnowhowLastVisit, UserRole
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -274,6 +274,26 @@ def index():
         for aid, tag in rows:
             article_tags[aid].append(tag)
 
+    # {category_slug: int} — count of articles/links added since user's last visit
+    import datetime
+    last_visits: dict = {
+        lv.category_slug: lv.visited_at
+        for lv in KnowhowLastVisit.query.filter_by(user_id=current_user.id).all()
+    }
+    new_counts: dict = {}
+    for cat in categories:
+        lv_time = last_visits.get(cat.slug)
+        if lv_time is None:
+            continue  # never visited — no badge (would always show everything as new)
+        cat_articles = [a for a in all_articles if a.category == cat.slug]
+        cat_links    = [lnk for lnk in all_links if lnk.category == cat.slug]
+        count = (
+            sum(1 for a in cat_articles if (a.created_at or datetime.datetime.min) > lv_time) +
+            sum(1 for lnk in cat_links if (lnk.created_at or datetime.datetime.min) > lv_time)
+        )
+        if count:
+            new_counts[cat.slug] = count
+
     resp = make_response(render_template(
         'knowhow/index.html',
         categories=categories,
@@ -283,6 +303,7 @@ def index():
         sort=sort,
         reaction_counts=reaction_counts,
         article_tags=article_tags,
+        new_counts=new_counts,
     ))
     # Persist the chosen sort for future sessions (1 year, httponly)
     resp.set_cookie(_KNOWHOW_SORT_COOKIE, sort,
@@ -298,6 +319,17 @@ def category(slug):
     """Category detail page — all content for one category."""
     cat = KnowhowCategory.query.filter_by(slug=slug).first_or_404()
     AuditService.log_view('knowhow_category', slug, f'Viewed KnowHow category: {cat.label}')
+
+    # Upsert last-visit timestamp for "new since last visit" badge on index
+    import datetime as _dt
+    lv = KnowhowLastVisit.query.filter_by(user_id=current_user.id, category_slug=slug).first()
+    if lv is None:
+        lv = KnowhowLastVisit(user_id=current_user.id, category_slug=slug,
+                              visited_at=_dt.datetime.utcnow())
+        db.session.add(lv)
+    else:
+        lv.visited_at = _dt.datetime.utcnow()
+    db.session.commit()
 
     articles = KnowhowArticle.query.filter_by(category=slug).order_by(KnowhowArticle.created_at.asc()).all()
     links    = KnowhowLink.query.filter_by(category=slug).order_by(KnowhowLink.created_at.asc()).all()

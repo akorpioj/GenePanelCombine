@@ -2101,6 +2101,18 @@ class KnowhowTag(db.Model):
         return f'<KnowhowTag {self.label}>'
 
 
+class KnowhowLastVisit(db.Model):
+    """Records the last time a user visited a KnowHow category page."""
+    __tablename__ = 'knowhow_last_visits'
+
+    user_id       = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    category_slug = db.Column(db.String(64), primary_key=True)
+    visited_at    = db.Column(db.DateTime, nullable=False)
+
+    def __repr__(self):
+        return f'<KnowhowLastVisit user={self.user_id} cat={self.category_slug}>'
+
+
 def db_init(app):
     """
     Initializes database connection. For testing, uses SQLite in-memory database.

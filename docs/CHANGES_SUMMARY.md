@@ -141,3 +141,24 @@ Implemented Feature 10 from `KNOWHOW_FUTURE_FEATURES.md`. Articles can be printe
 **Files changed:** `app/templates/knowhow/article_view.html`
 
 ---
+
+## Feature: KnowHow "new since last visit" badge (29/03/2026)
+
+Implemented Feature 12 from `KNOWHOW_FUTURE_FEATURES.md`. A count badge on each category header shows how many articles or links have been added since the user last visited that category.
+
+**User-facing behaviour:**
+- When a user visits a category page, their last-visit timestamp for that category is recorded
+- The next time they view the KnowHow index, a white pill badge with a red count number appears next to the category label for any category with new content since their last visit (e.g. "3")
+- Categories the user has never visited show no badge (avoids "everything is new" false positives)
+- The badge disappears once the user visits the category (updating their last-visit timestamp)
+
+**Implementation details:**
+- `KnowhowLastVisit(user_id FK PK, category_slug PK, visited_at)` model added to `app/models.py`; FK references `user.id` with `CASCADE` delete
+- Alembic migration `b7c8d9e0f1a2_add_knowhow_last_visits.py` generated and applied via `flask db upgrade`
+- `category()` route upserts a `KnowhowLastVisit` row on each page load (`INSERT` first visit, `UPDATE` subsequent)
+- `index()` route builds `new_counts: dict[slug → int]` via an in-memory pass over `all_articles` / `all_links` (no extra DB query); passes `new_counts` to template
+- Badge added to `index.html` category header using `new_counts.get(category.slug)`
+
+**Files changed:** `app/models.py`, `app/knowhow/routes.py`, `app/templates/knowhow/index.html`, `migrations/versions/b7c8d9e0f1a2_add_knowhow_last_visits.py` *(new)*
+
+---

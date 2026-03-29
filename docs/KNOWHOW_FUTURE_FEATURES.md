@@ -221,7 +221,7 @@ External links currently show only a description and URL. Showing an Open Graph 
 
 ---
 
-## 12. "New Since Last Visit" Indicator
+## 12. "New Since Last Visit" Indicator ✅ _Implemented 29/03/2026_
 
 **Priority: Low**
 
@@ -233,6 +233,12 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 - Rendered as a small red dot or count badge on the category header in `index.html`
 
 **DB changes:** New `knowhow_last_visits` table.
+
+**Implemented as:**
+- `KnowhowLastVisit(user_id PK FK, category_slug PK, visited_at)` model added to `models.py`; Alembic migration `b7c8d9e0f1a2` generated and applied
+- `category()` route upserts `KnowhowLastVisit` for the current user on every category page load
+- `index()` route builds `new_counts: dict[slug → int]` — counts articles/links whose `created_at` is after the user's last visit to that category; categories never yet visited are excluded (no "everything is new" false positives)
+- White pill badge with red count number rendered in the category header beside the category label; disappears once count is zero
 
 ---
 
@@ -251,6 +257,6 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 9 | ~~Category description display~~ ✅ implemented | Very low | ★★☆☆☆ | No |
 | 10 | ~~Print / PDF export~~ ✅ implemented | Low | ★★☆☆☆ | No |
 | 11 | Link preview cards | High | ★★☆☆☆ | Yes — 3 columns |
-| 12 | "New since last visit" badge | Medium | ★★☆☆☆ | Yes — 1 table |
+| 12 | ~~"New since last visit" badge~~ ✅ implemented | Medium | ★★☆☆☆ | Yes — 1 table |
 
-**Recommended next sprint:** Feature 12 ("new since last visit" badge) adds meaningful re-engagement with a single new table and no route complexity. Feature 5 (draft/publish workflow) is the most impactful remaining feature but requires careful filtering across all article list routes.
+**Recommended next sprint:** Feature 5 (draft/publish workflow) is the most impactful remaining feature; it requires an `is_draft` boolean on `KnowhowArticle` and careful filtering across all article list routes (`index`, `category`, `search`, `tag_articles`). Feature 8 (article version history) adds audit-trail value but has higher implementation complexity.

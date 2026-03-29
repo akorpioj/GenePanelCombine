@@ -86,8 +86,14 @@
         <div class="rounded-xl border border-gray-200 overflow-hidden" id="{{ category.slug }}">
             <!-- Category header -->
             <div class="px-5 py-3 flex items-center justify-between" style="background-color: {{ category.color }}">
-                <h2 class="text-lg font-semibold text-white">
+                <h2 class="text-lg font-semibold text-white flex items-center gap-2">
                     <a href="{{ url_for('knowhow.category', slug=category.slug) }}" class="hover:underline">{{ category.label }}</a>
+                    {% if new_counts.get(category.slug) %}
+                    <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-xs font-bold bg-white/90 text-red-600"
+                          title="{{ new_counts[category.slug] }} new since your last visit">
+                        {{ new_counts[category.slug] }}
+                    </span>
+                    {% endif %}
                 </h2>
                 <button onclick="openAddModal('{{ category.slug }}', '{{ category.label | e }}')"
                         class="text-white/70 hover:text-white hover:bg-white/20 rounded-full w-7 h-7 flex items-center justify-center transition text-xl font-light"
