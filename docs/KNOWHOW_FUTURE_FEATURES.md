@@ -45,18 +45,20 @@ The index and category templates already contained `{% if article.summary %}` ch
 
 ---
 
-## 3. Bookmarks / Reading List
+## 3. Bookmarks / Reading List ✅ _Implemented 29/03/2026_
 
-**Priority: Medium**
+~~**Priority: Medium**~~
 
-Allow users to bookmark articles for quick access via a personal reading list, useful when following up on referenced resources during clinical work.
+Users can now bookmark articles for quick access via a personal reading list.
 
-**Suggested implementation:**
-- New model: `KnowhowBookmark(id, user_id FK, article_id FK, created_at)` with a unique constraint on `(user_id, article_id)`
-- `POST /knowhow/articles/<id>/bookmark` — toggle (add if absent, remove if present); returns JSON `{bookmarked: true/false}` for a small JS toggle
-- Bookmark icon (hollow/filled star) on the article view header
-- New route `GET /knowhow/bookmarks` renders a personal reading list page
-- Link to reading list added to the KnowHow index header actions bar
+**Implemented as:**
+- `KnowhowBookmark(id, user_id FK, article_id FK, created_at)` added to `app/models.py` with a `UniqueConstraint` on `(user_id, article_id)` and `CASCADE` deletes on both FKs
+- `POST /knowhow/articles/<id>/bookmark` — toggle: removes bookmark if present, creates one if absent; returns `{bookmarked: true/false}` JSON; audits additions
+- `GET /knowhow/bookmarks` — personal reading list page, newest bookmarks first, with category badges, summaries, and inline remove buttons
+- Bookmark button (hollow/filled star) added to the article view header alongside the Edit button; state toggled client-side via `fetch()` without page reload
+- "My Reading List" amber link added to the KnowHow index header
+- Alembic migration `0bd52c3d4e36_add_knowhow_bookmarks.py` generated and applied
+- New template: `app/templates/knowhow/bookmarks.html`
 
 **DB changes:** New `knowhow_bookmarks` table.
 
@@ -216,7 +218,7 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 |---|---------|-----------|-------|---------------|
 | 1 | ~~Full-text search~~ ✅ implemented | Low | ★★★★★ | No |
 | 2 | ~~Article summary field~~ ✅ implemented | Very low | ★★★★☆ | Yes — 1 column |
-| 3 | Bookmarks / reading list | Medium | ★★★★☆ | Yes — 1 table |
+| 3 | ~~Bookmarks / reading list~~ ✅ implemented | Medium | ★★★★☆ | Yes — 1 table |
 | 4 | Article tags | Medium | ★★★☆☆ | Yes — 2 tables |
 | 5 | Draft / publish workflow | Medium | ★★★☆☆ | Yes — 1 column |
 | 6 | "Helpful" reactions | Low | ★★★☆☆ | Yes — 1 table |
@@ -227,4 +229,4 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 11 | Link preview cards | High | ★★☆☆☆ | Yes — 3 columns |
 | 12 | "New since last visit" badge | Medium | ★★☆☆☆ | Yes — 1 table |
 
-**Recommended next sprint:** Features 3 (bookmarks/reading list) and 6 (helpful reactions) — both low-complexity with real user value. Feature 7 (related articles) requires no DB changes and could also be added quickly.
+**Recommended next sprint:** Feature 6 (helpful reactions) is now the next lowest-complexity addition with a DB change. Feature 7 (related articles) requires no DB changes and could also be added quickly.

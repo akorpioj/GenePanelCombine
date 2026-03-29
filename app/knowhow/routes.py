@@ -4,11 +4,11 @@ import re
 from functools import wraps
 import nh3
 from markupsafe import escape, Markup
-from flask import render_template, request, flash, redirect, url_for, abort, make_response
+from flask import render_template, request, flash, redirect, url_for, abort, make_response, jsonify
 from flask_login import login_required, current_user
 from . import knowhow_bp
 from ..audit_service import AuditService
-from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSubcategory, UserRole
+from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSubcategory, KnowhowBookmark, UserRole
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -438,8 +438,11 @@ def view_article(article_id):
     category    = KnowhowCategory.query.filter_by(slug=article.category).first()
     subcategory = (KnowhowSubcategory.query.get(article.subcategory_id)
                    if article.subcategory_id else None)
+    bookmarked  = KnowhowBookmark.query.filter_by(
+        user_id=current_user.id, article_id=article_id).first() is not None
     return render_template('knowhow/article_view.html',
-                           article=article, category=category, subcategory=subcategory)
+                           article=article, category=category,
+                           subcategory=subcategory, bookmarked=bookmarked)
 
 
 @knowhow_bp.route('/articles/<int:article_id>/edit', methods=['GET'])
@@ -497,6 +500,43 @@ def update_article(article_id):
     db.session.commit()
     flash('Article updated.', 'success')
     return redirect(url_for('knowhow.view_article', article_id=article.id))
+
+
+@knowhow_bp.route('/articles/<int:article_id>/bookmark', methods=['POST'])
+@login_required
+def toggle_bookmark(article_id):
+    """Toggle a personal bookmark on a KnowHow article. Returns JSON."""
+    article = KnowhowArticle.query.get_or_404(article_id)
+    existing = KnowhowBookmark.query.filter_by(
+        user_id=current_user.id, article_id=article_id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({'bookmarked': False})
+    bookmark = KnowhowBookmark(user_id=current_user.id, article_id=article_id)
+    db.session.add(bookmark)
+    db.session.commit()
+    AuditService.log_view('knowhow_bookmark', str(article_id),
+                          f'Bookmarked KnowHow article: {article.title}')
+    return jsonify({'bookmarked': True})
+
+
+@knowhow_bp.route('/bookmarks', methods=['GET'])
+@login_required
+def bookmarks():
+    """Personal reading list — all bookmarked articles for the current user."""
+    rows = (KnowhowBookmark.query
+            .filter_by(user_id=current_user.id)
+            .order_by(KnowhowBookmark.created_at.desc())
+            .all())
+    articles = [b.article for b in rows]
+    # Build a category lookup so we can show category labels
+    slugs = {a.category for a in articles}
+    categories = {c.slug: c for c in KnowhowCategory.query.filter(
+        KnowhowCategory.slug.in_(slugs)).all()} if slugs else {}
+    AuditService.log_view('knowhow_bookmarks', 'list', 'Viewed KnowHow reading list')
+    return render_template('knowhow/bookmarks.html',
+                           articles=articles, categories=categories)
 
 
 @knowhow_bp.route('/articles/<int:article_id>/delete', methods=['POST'])
