@@ -309,7 +309,16 @@ def index():
         if count:
             new_counts[cat.slug] = count
 
-    resp = make_response(render_template(
+    resp = make_response()
+    # Persist the chosen sort for future sessions (1 year, httponly)
+    resp.set_cookie(_KNOWHOW_SORT_COOKIE, sort,
+                    max_age=365 * 24 * 60 * 60, httponly=True, samesite='Lax')
+    # Pass the count of the current user's own drafts so the template can
+    # conditionally render the "My Drafts" link.
+    user_draft_count = KnowhowArticle.query.filter_by(
+        user_id=current_user.id, is_draft=True
+    ).count()
+    resp.set_data(render_template(
         'knowhow/index.html',
         categories=categories,
         articles_map=articles_map,
@@ -319,11 +328,32 @@ def index():
         reaction_counts=reaction_counts,
         article_tags=article_tags,
         new_counts=new_counts,
+        user_draft_count=user_draft_count,
     ))
-    # Persist the chosen sort for future sessions (1 year, httponly)
-    resp.set_cookie(_KNOWHOW_SORT_COOKIE, sort,
-                    max_age=365 * 24 * 60 * 60, httponly=True, samesite='Lax')
     return resp
+
+
+# ── My Drafts ─────────────────────────────────────────────────────────────────
+
+@knowhow_bp.route('/drafts', methods=['GET'])
+@login_required
+def drafts():
+    """List the current user's own draft articles (or all drafts for EDITOR/ADMIN)."""
+    if current_user.role in (UserRole.ADMIN, UserRole.EDITOR):
+        draft_articles = (
+            KnowhowArticle.query
+            .filter_by(is_draft=True)
+            .order_by(KnowhowArticle.updated_at.desc())
+            .all()
+        )
+    else:
+        draft_articles = (
+            KnowhowArticle.query
+            .filter_by(user_id=current_user.id, is_draft=True)
+            .order_by(KnowhowArticle.updated_at.desc())
+            .all()
+        )
+    return render_template('knowhow/drafts.html', draft_articles=draft_articles)
 
 
 # ── Category detail ───────────────────────────────────────────────────────────

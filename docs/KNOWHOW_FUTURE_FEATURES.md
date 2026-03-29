@@ -89,7 +89,7 @@ Categories and subcategories provide a fixed two-level hierarchy. Tags offer a f
 
 ---
 
-## 5. Draft / Publish Workflow
+## 5. Draft / Publish Workflow ✅ _Implemented 29/03/2026_
 
 **Priority: Medium**
 
@@ -160,6 +160,12 @@ Apply `_draft_filter()` in:
 - Link from the KnowHow index header (only shown to users who have drafts)
 
 **Files:** `app/knowhow/routes.py`, new `app/templates/knowhow/drafts.html`
+
+**Implementation notes:**
+- `GET /knowhow/drafts` route added to `routes.py`; USER role sees only their own drafts; EDITOR/ADMIN see all drafts; ordered by `updated_at DESC`
+- New template `app/templates/knowhow/drafts.html`: breadcrumb, article list (title + DRAFT badge + Edit button), empty state
+- `index()` queries `user_draft_count` (own drafts only) and passes it to `index.html`
+- Conditional "My Drafts" link (red, with count badge) added to the index header, rendered only when `user_draft_count > 0`
 
 ---
 
