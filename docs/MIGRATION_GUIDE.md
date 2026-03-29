@@ -29,6 +29,7 @@ This guide provides step-by-step instructions for migrating between different ve
 
 | From → To | Complexity | Database Changes | Config Changes | Downtime |
 |-----------|------------|------------------|----------------|----------|
+| 1.5.4 → 1.5.5 | Low | 5 new tables | No | ~2-5 min |
 | 1.5.3 → 1.5.4 | Low | 1 nullable column | No | ~2-5 min |
 | 1.5.2 → 1.5.3 | Low | No DB changes | No | ~2-5 min |
 | 1.5.1 → 1.5.2 | Low | 2 new tables, 2 FK cols | No | ~2-5 min |
@@ -71,6 +72,43 @@ This guide provides step-by-step instructions for migrating between different ve
 ---
 
 ## 🚀 Version-Specific Migrations
+
+## v1.5.5 Migration (KnowHow Reactions, Tags, Bookmarks, Print & New Badge)
+
+#### From v1.5.4 to v1.5.5
+
+**Major Changes**:
+- Five new DB tables: `knowhow_bookmarks`, `knowhow_reactions`, `knowhow_tags`, `knowhow_article_tags`, `knowhow_last_visits`
+- No new Python dependencies
+- No configuration changes required
+
+**Migration Steps**:
+
+1. **Update Application Code**
+   ```bash
+   git fetch origin
+   git checkout v1.5.5
+   pip install -r requirements.txt
+   ```
+
+2. **Run Database Migrations**
+   ```bash
+   flask db upgrade
+   # Applies: 0bd52c3d4e36, 9d38c69c3c02, a63cbbd8ad61, b7c8d9e0f1a2
+   ```
+
+3. **Restart Application**
+   ```bash
+   systemctl restart panelmerge
+   ```
+
+**Rollback (if needed)**:
+```bash
+flask db downgrade 0bd52c3d4e36-1
+git checkout v1.5.4
+```
+
+---
 
 ## v1.5.4 Migration (KnowHow Search & Article Summary)
 

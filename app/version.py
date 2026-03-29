@@ -3,7 +3,7 @@ PanelMerge Version Information
 """
 
 # Application version
-VERSION = "1.5.4"
+VERSION = "1.5.5"
 VERSION_NAME = "KnowHow Search & Article Summary"
 RELEASE_DATE = "2026-03-29"
 
@@ -11,7 +11,7 @@ RELEASE_DATE = "2026-03-29"
 VERSION_INFO = {
     "major": 1,
     "minor": 5,
-    "patch": 4,
+    "patch": 5,
     "version": VERSION,
     "name": VERSION_NAME,
     "release_date": RELEASE_DATE,
