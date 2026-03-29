@@ -26,7 +26,7 @@ _QUILL_TAGS = {
 # Per-tag attribute allowlist; class+style needed for Quill's alignment/indent helpers.
 _BASE_ATTRS = {"class", "style"}
 _QUILL_ATTRS: dict[str, set[str]] = {tag: _BASE_ATTRS for tag in _QUILL_TAGS}
-_QUILL_ATTRS["a"]   = _BASE_ATTRS | {"href", "rel", "target"}
+_QUILL_ATTRS["a"]   = _BASE_ATTRS | {"href", "target"}
 _QUILL_ATTRS["img"] = _BASE_ATTRS | {"src", "alt", "width", "height"}
 
 
