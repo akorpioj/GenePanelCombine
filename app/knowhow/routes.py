@@ -82,6 +82,21 @@ def _admin_required(f):
     return decorated
 
 
+def _draft_filter():
+    """Return a SQLAlchemy filter expression that hides other users' drafts.
+
+    ADMIN and EDITOR users see everything.  Regular users see all published
+    articles plus their own drafts.
+    """
+    from sqlalchemy import or_
+    if current_user.role in (UserRole.ADMIN, UserRole.EDITOR):
+        return True  # no restriction
+    return or_(
+        KnowhowArticle.is_draft == False,
+        KnowhowArticle.user_id == current_user.id,
+    )
+
+
 def _seed_categories():
     """Seed the 10 default categories on first use (idempotent)."""
     if KnowhowCategory.query.count() == 0:
@@ -207,7 +222,7 @@ def index():
 
     categories = _get_categories()  # always position-sorted initially
 
-    all_articles = KnowhowArticle.query.order_by(KnowhowArticle.created_at.desc()).all()
+    all_articles = KnowhowArticle.query.filter(_draft_filter()).order_by(KnowhowArticle.created_at.desc()).all()
     all_links    = KnowhowLink.query.order_by(KnowhowLink.created_at.asc()).all()
 
     # Apply category sort
@@ -331,7 +346,11 @@ def category(slug):
         lv.visited_at = _dt.datetime.utcnow()
     db.session.commit()
 
-    articles = KnowhowArticle.query.filter_by(category=slug).order_by(KnowhowArticle.created_at.asc()).all()
+    articles = (KnowhowArticle.query
+                .filter_by(category=slug)
+                .filter(_draft_filter())
+                .order_by(KnowhowArticle.created_at.asc())
+                .all())
     links    = KnowhowLink.query.filter_by(category=slug).order_by(KnowhowLink.created_at.asc()).all()
 
     articles_map: dict = {}
@@ -392,6 +411,7 @@ def search():
         pattern = f'%{_safe_like(q)}%'
 
         articles = (KnowhowArticle.query
+                    .filter(_draft_filter())
                     .filter(db.or_(
                         KnowhowArticle.title.ilike(pattern),
                         KnowhowArticle.content.ilike(pattern),
@@ -698,6 +718,7 @@ def tag_articles(label):
     """All articles tagged with a given label."""
     tag = KnowhowTag.query.filter_by(label=label.lower()).first_or_404()
     articles = (tag.articles
+                .filter(_draft_filter())
                 .order_by(KnowhowArticle.updated_at.desc())
                 .all())
     slugs = {a.category for a in articles}
