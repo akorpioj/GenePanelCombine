@@ -184,7 +184,7 @@ Track the full content of each article at the time of every save, allowing autho
 
 ---
 
-## 10. Print / PDF Export of Articles
+## 10. Print / PDF Export of Articles ✅ _Implemented 29/03/2026_
 
 **Priority: Low**
 
@@ -196,6 +196,10 @@ Clinical geneticists may want a clean printable version of a protocol or guide t
 - For true PDF generation: add `weasyprint` to `requirements.txt` and a `GET /knowhow/articles/<id>.pdf` route
 
 **DB changes:** None.
+
+**Implemented as:**
+- "Print" button added to the article view action row — calls `window.print()`
+- `@media print` CSS in `article_view.html`: hides site nav (`body > header`), breadcrumb, interactive buttons, related articles section, and back-link footer; removes card shadow and padding; sets body background to white
 
 ---
 
@@ -245,8 +249,8 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 7 | ~~Related articles~~ ✅ implemented | Low | ★★★☆☆ | No (basic) |
 | 8 | Article version history | High | ★★☆☆☆ | Yes — 1 table |
 | 9 | ~~Category description display~~ ✅ implemented | Very low | ★★☆☆☆ | No |
-| 10 | Print / PDF export | Low | ★★☆☆☆ | No |
+| 10 | ~~Print / PDF export~~ ✅ implemented | Low | ★★☆☆☆ | No |
 | 11 | Link preview cards | High | ★★☆☆☆ | Yes — 3 columns |
 | 12 | "New since last visit" badge | Medium | ★★☆☆☆ | Yes — 1 table |
 
-**Recommended next sprint:** Feature 10 (print/PDF export) requires no DB changes and can be done with a `@media print` CSS block. Feature 12 ("new since last visit" badge) adds meaningful re-engagement with a single new table. Feature 5 (draft/publish workflow) is the most impactful remaining feature but requires careful filtering across all article list routes.
+**Recommended next sprint:** Feature 12 ("new since last visit" badge) adds meaningful re-engagement with a single new table and no route complexity. Feature 5 (draft/publish workflow) is the most impactful remaining feature but requires careful filtering across all article list routes.

@@ -119,3 +119,25 @@ Implemented Feature 4 from `KNOWHOW_FUTURE_FEATURES.md`. Articles can now be tag
 **Files changed:** `app/models.py`, `app/knowhow/routes.py`, `app/templates/knowhow/article_editor.html`, `app/templates/knowhow/article_view.html`, `app/templates/knowhow/index.html`, `app/templates/knowhow/category.html`, `app/templates/knowhow/tag_articles.html` *(new)*, `migrations/versions/a63cbbd8ad61_add_knowhow_tags.py` *(new)*
 
 ---
+
+## Feature: KnowHow article print/PDF export (29/03/2026)
+
+Implemented Feature 10 from `KNOWHOW_FUTURE_FEATURES.md`. Articles can be printed or saved as PDFs directly from the browser.
+
+**User-facing behaviour:**
+- A **Print** button appears in the article view action row (alongside Bookmark, Helpful, and Edit)
+- Clicking it triggers the browser print dialog (`window.print()`), which also enables "Save as PDF" in all modern browsers / OS print drivers
+- The printed output shows only the article title, author/date, tags, and body — all navigation, buttons, related articles, and back-link are hidden
+
+**Implementation details:**
+- `@media print` CSS block added inline in `article_view.html`:
+  - `body > header` (site nav) and all elements with class `no-print` are hidden (`display: none !important`)
+  - `body` background is set to white and padding removed
+  - `#article-card` shadow, padding, and `max-width` constraint are removed so body content fills the page
+- `no-print` class added to: breadcrumb `<nav>`, action-buttons `<div>`, related articles `<div>`, back-link `<div>`
+- `id="article-card"` added to the outer card wrapper for `@media print` targeting
+- No DB changes; no new routes
+
+**Files changed:** `app/templates/knowhow/article_view.html`
+
+---
