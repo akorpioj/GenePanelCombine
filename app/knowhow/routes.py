@@ -532,13 +532,17 @@ def create_article():
     if err:
         return _err(err)
 
+    action = request.form.get('action', 'publish')
+    is_draft = (action == 'draft')
+
     article = KnowhowArticle(title=title, summary=summary, category=cat_slug, content=content,
-                             user_id=current_user.id, subcategory_id=subcategory_id)
+                             user_id=current_user.id, subcategory_id=subcategory_id,
+                             is_draft=is_draft)
     db.session.add(article)
     db.session.flush()  # get article.id before syncing tags
     _sync_tags(article, tags_raw)
     db.session.commit()
-    flash('Article published.', 'success')
+    flash('Draft saved.' if is_draft else 'Article published.', 'success')
     return redirect(url_for('knowhow.view_article', article_id=article.id))
 
 
@@ -617,14 +621,18 @@ def update_article(article_id):
         flash(err, 'danger')
         return redirect(url_for('knowhow.edit_article', article_id=article_id))
 
+    action = request.form.get('action', 'publish')
+    is_draft = (action == 'draft')
+
     article.title          = title
     article.summary        = summary
     article.category       = cat_slug
     article.content        = content
     article.subcategory_id = subcategory_id
+    article.is_draft       = is_draft
     _sync_tags(article, tags_raw)
     db.session.commit()
-    flash('Article updated.', 'success')
+    flash('Draft saved.' if is_draft else 'Article updated.', 'success')
     return redirect(url_for('knowhow.view_article', article_id=article.id))
 
 

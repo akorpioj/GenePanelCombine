@@ -148,9 +148,13 @@
             <div class="flex space-x-3">
                 <a href="{{ url_for('knowhow.index') }}"
                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</a>
-                <button type="submit" id="saveBtn"
+                <button type="submit" name="action" value="draft" id="saveDraftBtn"
+                        class="px-5 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
+                    Save as draft
+                </button>
+                <button type="submit" name="action" value="publish" id="saveBtn"
                         class="px-5 py-2 text-sm text-white bg-sky-600 rounded-lg hover:bg-sky-700 transition font-medium">
-                    {% if article %}Save changes{% else %}Publish article{% endif %}
+                    {% if article %}Publish changes{% else %}Publish article{% endif %}
                 </button>
             </div>
         </div>
