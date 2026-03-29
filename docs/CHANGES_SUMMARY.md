@@ -56,3 +56,26 @@ Implemented Feature 3 from `KNOWHOW_FUTURE_FEATURES.md`. Users can now bookmark 
 **Files changed:** `app/models.py`, `app/knowhow/routes.py`, `app/templates/knowhow/article_view.html`, `app/templates/knowhow/index.html`, `app/templates/knowhow/bookmarks.html` *(new)*, `migrations/versions/0bd52c3d4e36_add_knowhow_bookmarks.py` *(new)*
 
 ---
+
+## Feature: KnowHow "Helpful" reactions (29/03/2026)
+
+Implemented Feature 6 from `KNOWHOW_FUTURE_FEATURES.md`. Users can now mark any KnowHow article as helpful with a single click; the count is shown on article cards across the site and a new `Most helpful first` sort option surfaces the most-reacted categories.
+
+**User-facing behaviour:**
+- Every article view page shows a thumbs-up **Helpful?** button in the header alongside the bookmark button; clicking toggles the reaction without a page reload and updates the count in the button
+- Article authors see a read-only reaction count badge (no interactive button) on their own articles
+- Reaction counts (thumbs-up icon + number) shown on article cards in the KnowHow index and category pages when the count is ≥ 1
+- New **Most helpful first** option in the KnowHow index sort selector; sorts categories by their total reaction count descending
+
+**Implementation details:**
+- `KnowhowReaction(id, user_id FK CASCADE, article_id FK CASCADE, created_at)` added to `app/models.py`; `UniqueConstraint` on `(user_id, article_id)` prevents duplicate reactions
+- Alembic migration `9d38c69c3c02_add_knowhow_reactions.py` generated and applied via `flask db upgrade`
+- `POST /knowhow/articles/<id>/react` — toggle route returning `{reacted: bool, count: int}` JSON; returns 403 if the article belongs to the requesting user
+- `view_article()` extended to pass `reacted` (bool) and `reaction_count` (int) to the template
+- `index()` builds a `reaction_counts` dict `{article_id: count}` via a grouped SQLAlchemy query and passes it to the template; `most_helpful` sort branch sorts categories by total reaction count
+- `category()` similarly builds a scoped `reaction_counts` dict filtered to articles in that category
+- Client-side toggle uses `fetch()` with `credentials: 'same-origin'`; button class, SVG fill, label, count text, and `title` attribute all updated in-place
+
+**Files changed:** `app/models.py`, `app/knowhow/routes.py`, `app/templates/knowhow/article_view.html`, `app/templates/knowhow/index.html`, `app/templates/knowhow/category.html`, `migrations/versions/9d38c69c3c02_add_knowhow_reactions.py` *(new)*
+
+---

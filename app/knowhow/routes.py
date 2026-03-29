@@ -8,7 +8,7 @@ from flask import render_template, request, flash, redirect, url_for, abort, mak
 from flask_login import login_required, current_user
 from . import knowhow_bp
 from ..audit_service import AuditService
-from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSubcategory, KnowhowBookmark, UserRole
+from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSubcategory, KnowhowBookmark, KnowhowReaction, UserRole
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -124,7 +124,7 @@ def _validate_subcategory(sub_id_raw, category):
 # ── Index ──────────────────────────────────────────────────────────────────────
 
 _KNOWHOW_SORT_COOKIE = 'knowhow_sort'
-_VALID_SORTS = {'position', 'label_asc', 'label_desc', 'most_content', 'recently_updated'}
+_VALID_SORTS = {'position', 'label_asc', 'label_desc', 'most_content', 'recently_updated', 'most_helpful'}
 _SEARCH_RESULT_LIMIT = 50
 _SNIPPET_RADIUS = 120  # plain-text chars either side of the match
 
@@ -210,6 +210,15 @@ def index():
                 latest[lnk.category] = t
         epoch = datetime.datetime.min
         categories = sorted(categories, key=lambda c: latest.get(c.slug, epoch), reverse=True)
+    elif sort == 'most_helpful':
+        from sqlalchemy import func
+        reaction_counts = dict(
+            db.session.query(KnowhowArticle.category, func.count(KnowhowReaction.id))
+            .join(KnowhowReaction, KnowhowReaction.article_id == KnowhowArticle.id)
+            .group_by(KnowhowArticle.category)
+            .all()
+        )
+        categories = sorted(categories, key=lambda c: reaction_counts.get(c.slug, 0), reverse=True)
     # 'position': already sorted by _get_categories()
 
     # {category_slug: {None | subcategory_id: [item, ...]}}
@@ -221,6 +230,14 @@ def index():
     for lnk in all_links:
         links_map.setdefault(lnk.category, {}).setdefault(lnk.subcategory_id, []).append(lnk)
 
+    # {article_id: reaction_count} for index card display
+    from sqlalchemy import func as _func
+    reaction_counts: dict = dict(
+        db.session.query(KnowhowReaction.article_id, _func.count(KnowhowReaction.id))
+        .group_by(KnowhowReaction.article_id)
+        .all()
+    )
+
     resp = make_response(render_template(
         'knowhow/index.html',
         categories=categories,
@@ -228,6 +245,7 @@ def index():
         links_map=links_map,
         subcategories_json=_subcategories_json(categories),
         sort=sort,
+        reaction_counts=reaction_counts,
     ))
     # Persist the chosen sort for future sessions (1 year, httponly)
     resp.set_cookie(_KNOWHOW_SORT_COOKIE, sort,
@@ -260,11 +278,24 @@ def category(slug):
         for sub in cat.subcategories
     ]
 
+    article_ids = [a.id for a in articles]
+    if article_ids:
+        from sqlalchemy import func as _func
+        reaction_counts: dict = dict(
+            db.session.query(KnowhowReaction.article_id, _func.count(KnowhowReaction.id))
+            .filter(KnowhowReaction.article_id.in_(article_ids))
+            .group_by(KnowhowReaction.article_id)
+            .all()
+        )
+    else:
+        reaction_counts = {}
+
     return render_template('knowhow/category.html',
                            category=cat,
                            articles_map=articles_map,
                            links_map=links_map,
-                           subcategories_json=subcategories_json)
+                           subcategories_json=subcategories_json,
+                           reaction_counts=reaction_counts)
 
 
 # ── Search ─────────────────────────────────────────────────────────────────────
@@ -440,9 +471,13 @@ def view_article(article_id):
                    if article.subcategory_id else None)
     bookmarked  = KnowhowBookmark.query.filter_by(
         user_id=current_user.id, article_id=article_id).first() is not None
+    reacted     = KnowhowReaction.query.filter_by(
+        user_id=current_user.id, article_id=article_id).first() is not None
+    reaction_count = article.reactions.count()
     return render_template('knowhow/article_view.html',
                            article=article, category=category,
-                           subcategory=subcategory, bookmarked=bookmarked)
+                           subcategory=subcategory, bookmarked=bookmarked,
+                           reacted=reacted, reaction_count=reaction_count)
 
 
 @knowhow_bp.route('/articles/<int:article_id>/edit', methods=['GET'])
@@ -500,6 +535,25 @@ def update_article(article_id):
     db.session.commit()
     flash('Article updated.', 'success')
     return redirect(url_for('knowhow.view_article', article_id=article.id))
+
+
+@knowhow_bp.route('/articles/<int:article_id>/react', methods=['POST'])
+@login_required
+def toggle_reaction(article_id):
+    """Toggle a ❤ Helpful reaction. Users cannot react to their own articles."""
+    article = KnowhowArticle.query.get_or_404(article_id)
+    if article.user_id == current_user.id:
+        return jsonify({'error': 'You cannot react to your own article.'}), 403
+    existing = KnowhowReaction.query.filter_by(
+        user_id=current_user.id, article_id=article_id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+    else:
+        db.session.add(KnowhowReaction(user_id=current_user.id, article_id=article_id))
+        db.session.commit()
+    count = article.reactions.count()
+    return jsonify({'reacted': existing is None, 'count': count})
 
 
 @knowhow_bp.route('/articles/<int:article_id>/bookmark', methods=['POST'])

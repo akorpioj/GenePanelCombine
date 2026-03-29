@@ -2058,6 +2058,26 @@ class KnowhowBookmark(db.Model):
         return f'<KnowhowBookmark user={self.user_id} article={self.article_id}>'
 
 
+class KnowhowReaction(db.Model):
+    """Single-click 'Helpful' reaction on a KnowHow article (one per user per article)"""
+    __tablename__ = 'knowhow_reactions'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    article_id = db.Column(db.Integer, db.ForeignKey('knowhow_articles.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'article_id', name='uq_knowhow_reaction_user_article'),
+    )
+
+    user    = db.relationship('User', backref=db.backref('knowhow_reactions', lazy='dynamic'))
+    article = db.relationship('KnowhowArticle', backref=db.backref('reactions', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<KnowhowReaction user={self.user_id} article={self.article_id}>'
+
+
 def db_init(app):
     """
     Initializes database connection. For testing, uses SQLite in-memory database.

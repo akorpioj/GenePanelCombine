@@ -54,6 +54,13 @@
                     {% if article.summary %}
                     <p class="text-xs text-gray-500 mt-0.5 truncate">{{ article.summary }}</p>
                     {% endif %}
+                    {% set rc = reaction_counts.get(article.id, 0) %}
+                    {% if rc > 0 %}
+                    <span class="inline-flex items-center gap-1 text-xs text-green-600 mt-0.5">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
+                        {{ rc }}
+                    </span>
+                    {% endif %}
                 </div>
                 {% if current_user.is_authenticated and current_user.is_admin() %}
                 <a href="{{ url_for('knowhow.edit_article', article_id=article.id) }}"
@@ -106,6 +113,13 @@
                            class="font-medium text-gray-800 hover:underline">{{ article.title }}</a>
                         {% if article.summary %}
                         <p class="text-xs text-gray-500 mt-0.5 truncate">{{ article.summary }}</p>
+                        {% endif %}
+                        {% set rc = reaction_counts.get(article.id, 0) %}
+                        {% if rc > 0 %}
+                        <span class="inline-flex items-center gap-1 text-xs text-green-600 mt-0.5">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
+                            {{ rc }}
+                        </span>
                         {% endif %}
                     </div>
                     {% if current_user.is_authenticated and current_user.is_admin() %}

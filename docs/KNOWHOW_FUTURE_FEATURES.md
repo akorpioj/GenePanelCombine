@@ -99,7 +99,7 @@ Currently all saved articles are immediately visible to all logged-in users. Dra
 
 ---
 
-## 6. "Helpful" Reactions
+## 6. "Helpful" Reactions ✅ _Implemented 29/03/2026_
 
 **Priority: Low–Medium**
 
@@ -113,6 +113,13 @@ A lightweight single-click reaction (e.g., "👍 Helpful") gives authors feedbac
 - Users cannot react to their own articles
 
 **DB changes:** New `knowhow_reactions` table.
+
+**Implementation notes:**
+- `KnowhowReaction` model in `models.py`; migration `9d38c69c3c02` applied
+- `toggle_reaction` route at `POST /knowhow/articles/<id>/react`; 403 if own article
+- Thumbs-up icon + count shown on article view, index cards, and category cards
+- `most_helpful` sort option added to the index sort selector; sorts categories by total reactions
+- Article authors see a read-only reaction count badge (no button)
 
 ---
 
@@ -229,4 +236,4 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 11 | Link preview cards | High | ★★☆☆☆ | Yes — 3 columns |
 | 12 | "New since last visit" badge | Medium | ★★☆☆☆ | Yes — 1 table |
 
-**Recommended next sprint:** Feature 6 (helpful reactions) is now the next lowest-complexity addition with a DB change. Feature 7 (related articles) requires no DB changes and could also be added quickly.
+**Recommended next sprint:** Feature 7 (related articles) requires no DB changes and could be added quickly. Feature 4 (article tags) provides more discoverability with moderate complexity.
