@@ -2078,6 +2078,29 @@ class KnowhowReaction(db.Model):
         return f'<KnowhowReaction user={self.user_id} article={self.article_id}>'
 
 
+# Association table — no model class needed (pure join table)
+knowhow_article_tags = db.Table(
+    'knowhow_article_tags',
+    db.Column('article_id', db.Integer, db.ForeignKey('knowhow_articles.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('tag_id',     db.Integer, db.ForeignKey('knowhow_tags.id',     ondelete='CASCADE'), primary_key=True),
+)
+
+
+class KnowhowTag(db.Model):
+    """Reusable cross-cutting tag that can be applied to KnowHow articles."""
+    __tablename__ = 'knowhow_tags'
+
+    id    = db.Column(db.Integer, primary_key=True)
+    label = db.Column(db.String(64), nullable=False, unique=True)
+
+    articles = db.relationship('KnowhowArticle', secondary='knowhow_article_tags',
+                               backref=db.backref('tags', lazy='dynamic'),
+                               lazy='dynamic')
+
+    def __repr__(self):
+        return f'<KnowhowTag {self.label}>'
+
+
 def db_init(app):
     """
     Initializes database connection. For testing, uses SQLite in-memory database.

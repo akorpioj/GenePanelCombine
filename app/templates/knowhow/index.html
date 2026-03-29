@@ -115,6 +115,15 @@
                             {{ rc }}
                         </span>
                         {% endif %}
+                        {% set atags = article_tags.get(article.id, []) %}
+                        {% if atags %}
+                        <div class="flex flex-wrap gap-1 mt-1">
+                            {% for tag in atags %}
+                            <a href="{{ url_for('knowhow.tag_articles', label=tag.label) }}"
+                               class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-sky-100 text-sky-600 hover:bg-sky-200 transition"># {{ tag.label }}</a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
                     {% if current_user.is_authenticated and current_user.is_admin() %}
                     <a href="{{ url_for('knowhow.edit_article', article_id=article.id) }}"
@@ -182,6 +191,15 @@
                                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
                                 {{ rc }}
                             </span>
+                            {% endif %}
+                            {% set atags = article_tags.get(article.id, []) %}
+                            {% if atags %}
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                {% for tag in atags %}
+                                <a href="{{ url_for('knowhow.tag_articles', label=tag.label) }}"
+                                   class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-sky-100 text-sky-600 hover:bg-sky-200 transition"># {{ tag.label }}</a>
+                                {% endfor %}
+                            </div>
                             {% endif %}
                         </div>
                         {% if current_user.is_authenticated and current_user.is_admin() %}

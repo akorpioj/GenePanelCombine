@@ -8,7 +8,7 @@ from flask import render_template, request, flash, redirect, url_for, abort, mak
 from flask_login import login_required, current_user
 from . import knowhow_bp
 from ..audit_service import AuditService
-from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSubcategory, KnowhowBookmark, KnowhowReaction, UserRole
+from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSubcategory, KnowhowBookmark, KnowhowReaction, KnowhowTag, UserRole
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -119,6 +119,30 @@ def _validate_subcategory(sub_id_raw, category):
     if not sub or sub.category_id != category.id:
         return None, 'Invalid subcategory.'
     return sub_id, None
+
+
+def _sync_tags(article, raw_tags: str):
+    """Parse a comma-separated tag string and update article.tags.
+    Creates any new KnowhowTag rows that don't yet exist.
+    Labels are normalised to lowercase, max 64 chars, non-empty.
+    """
+    labels = {t.strip().lower()[:64] for t in raw_tags.split(',') if t.strip()}
+    # Build or retrieve tag objects
+    tag_objs = []
+    for label in labels:
+        tag = KnowhowTag.query.filter_by(label=label).first()
+        if not tag:
+            tag = KnowhowTag(label=label)
+            db.session.add(tag)
+        tag_objs.append(tag)
+    # Flush so new tags get IDs before we update the relationship
+    db.session.flush()
+    # Replace the article's tag set
+    current_tags = article.tags.all()
+    for t in current_tags:
+        article.tags.remove(t)
+    for t in tag_objs:
+        article.tags.append(t)
 
 
 # ── Index ──────────────────────────────────────────────────────────────────────
@@ -238,6 +262,18 @@ def index():
         .all()
     )
 
+    # {article_id: [KnowhowTag, ...]} for tag badges on article cards
+    all_article_ids = [a.id for a in all_articles]
+    article_tags: dict = {aid: [] for aid in all_article_ids}
+    if all_article_ids:
+        from ..models import knowhow_article_tags
+        rows = (db.session.query(knowhow_article_tags.c.article_id, KnowhowTag)
+                .join(KnowhowTag, KnowhowTag.id == knowhow_article_tags.c.tag_id)
+                .filter(knowhow_article_tags.c.article_id.in_(all_article_ids))
+                .all())
+        for aid, tag in rows:
+            article_tags[aid].append(tag)
+
     resp = make_response(render_template(
         'knowhow/index.html',
         categories=categories,
@@ -246,6 +282,7 @@ def index():
         subcategories_json=_subcategories_json(categories),
         sort=sort,
         reaction_counts=reaction_counts,
+        article_tags=article_tags,
     ))
     # Persist the chosen sort for future sessions (1 year, httponly)
     resp.set_cookie(_KNOWHOW_SORT_COOKIE, sort,
@@ -287,15 +324,25 @@ def category(slug):
             .group_by(KnowhowReaction.article_id)
             .all()
         )
+        from ..models import knowhow_article_tags
+        article_tags: dict = {aid: [] for aid in article_ids}
+        rows = (db.session.query(knowhow_article_tags.c.article_id, KnowhowTag)
+                .join(KnowhowTag, KnowhowTag.id == knowhow_article_tags.c.tag_id)
+                .filter(knowhow_article_tags.c.article_id.in_(article_ids))
+                .all())
+        for aid, tag in rows:
+            article_tags[aid].append(tag)
     else:
         reaction_counts = {}
+        article_tags = {}
 
     return render_template('knowhow/category.html',
                            category=cat,
                            articles_map=articles_map,
                            links_map=links_map,
                            subcategories_json=subcategories_json,
-                           reaction_counts=reaction_counts)
+                           reaction_counts=reaction_counts,
+                           article_tags=article_tags)
 
 
 # ── Search ─────────────────────────────────────────────────────────────────────
@@ -427,6 +474,7 @@ def create_article():
     cat_slug   = request.form.get('category', '').strip()
     content    = request.form.get('content', '')
     sub_id_raw = request.form.get('subcategory_id', '').strip()
+    tags_raw   = request.form.get('tags', '')
 
     categories = _get_categories()
     category   = KnowhowCategory.query.filter_by(slug=cat_slug).first()
@@ -455,6 +503,8 @@ def create_article():
     article = KnowhowArticle(title=title, summary=summary, category=cat_slug, content=content,
                              user_id=current_user.id, subcategory_id=subcategory_id)
     db.session.add(article)
+    db.session.flush()  # get article.id before syncing tags
+    _sync_tags(article, tags_raw)
     db.session.commit()
     flash('Article published.', 'success')
     return redirect(url_for('knowhow.view_article', article_id=article.id))
@@ -511,6 +561,7 @@ def update_article(article_id):
     cat_slug   = request.form.get('category', '').strip()
     content    = request.form.get('content', '')
     sub_id_raw = request.form.get('subcategory_id', '').strip()
+    tags_raw   = request.form.get('tags', '')
 
     category = KnowhowCategory.query.filter_by(slug=cat_slug).first()
 
@@ -539,6 +590,7 @@ def update_article(article_id):
     article.category       = cat_slug
     article.content        = content
     article.subcategory_id = subcategory_id
+    _sync_tags(article, tags_raw)
     db.session.commit()
     flash('Article updated.', 'success')
     return redirect(url_for('knowhow.view_article', article_id=article.id))
@@ -598,6 +650,22 @@ def bookmarks():
     AuditService.log_view('knowhow_bookmarks', 'list', 'Viewed KnowHow reading list')
     return render_template('knowhow/bookmarks.html',
                            articles=articles, categories=categories)
+
+
+@knowhow_bp.route('/tags/<label>', methods=['GET'])
+@login_required
+def tag_articles(label):
+    """All articles tagged with a given label."""
+    tag = KnowhowTag.query.filter_by(label=label.lower()).first_or_404()
+    articles = (tag.articles
+                .order_by(KnowhowArticle.updated_at.desc())
+                .all())
+    slugs = {a.category for a in articles}
+    categories = {c.slug: c for c in KnowhowCategory.query.filter(
+        KnowhowCategory.slug.in_(slugs)).all()} if slugs else {}
+    AuditService.log_view('knowhow_tag', label, f'Viewed KnowHow tag: {label}')
+    return render_template('knowhow/tag_articles.html',
+                           tag=tag, articles=articles, categories=categories)
 
 
 @knowhow_bp.route('/articles/<int:article_id>/delete', methods=['POST'])

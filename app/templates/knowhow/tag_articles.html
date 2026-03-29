@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}#{{ tag.label }} - KnowHow - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-4xl">
+
+    <!-- Breadcrumb -->
+    <nav class="mb-5 text-sm text-gray-500 flex items-center space-x-2 flex-wrap">
+        <a href="{{ url_for('knowhow.index') }}" class="hover:text-sky-700 transition">KnowHow</a>
+        <span>›</span>
+        <span class="text-gray-700 font-medium">#{{ tag.label }}</span>
+    </nav>
+
+    <header class="mb-6 flex items-center justify-between flex-wrap gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-sky-700">#{{ tag.label }}</h1>
+            <p class="text-sm text-gray-500 mt-1">
+                {{ articles|length }} article{{ 's' if articles|length != 1 }} tagged with
+                <span class="font-medium text-sky-700">#{{ tag.label }}</span>
+            </p>
+        </div>
+        <a href="{{ url_for('knowhow.index') }}"
+           class="inline-flex items-center px-4 py-2 text-sm bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition">
+            ← Back to KnowHow
+        </a>
+    </header>
+
+    {% if articles %}
+    <ul class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
+        {% for article in articles %}
+        {% set cat = categories.get(article.category) %}
+        <li class="px-5 py-4 hover:bg-gray-50 transition">
+            <div class="flex items-start gap-3">
+                {% if cat %}
+                <span class="mt-1 text-lg font-bold flex-shrink-0" style="color: {{ cat.color }}">›</span>
+                {% endif %}
+                <div class="flex-1 min-w-0">
+                    <a href="{{ url_for('knowhow.view_article', article_id=article.id) }}"
+                       class="text-sky-700 font-semibold hover:underline">{{ article.title }}</a>
+                    {% if article.summary %}
+                    <p class="text-sm text-gray-500 mt-0.5 truncate">{{ article.summary }}</p>
+                    {% endif %}
+                    <div class="mt-1 flex items-center gap-3 flex-wrap text-xs text-gray-400">
+                        {% if cat %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-white text-xs font-medium"
+                              style="background-color: {{ cat.color }}">{{ cat.label }}</span>
+                        {% else %}
+                        <span class="text-gray-400">{{ article.category }}</span>
+                        {% endif %}
+                        <span>By {{ article.user.first_name or article.user.username }}</span>
+                        <span>{{ article.updated_at.strftime('%d %b %Y') }}</span>
+                    </div>
+                    <!-- Show other tags on this article -->
+                    {% set other_tags = article.tags.all() | selectattr('label', 'ne', tag.label) | list %}
+                    {% if other_tags %}
+                    <div class="flex flex-wrap gap-1 mt-1.5">
+                        {% for t in other_tags %}
+                        <a href="{{ url_for('knowhow.tag_articles', label=t.label) }}"
+                           class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-sky-100 text-sky-600 hover:bg-sky-200 transition"># {{ t.label }}</a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="text-center py-16 text-gray-400">
+        <p class="text-lg font-medium text-gray-500">No articles found for <span class="text-sky-700">#{{ tag.label }}</span>.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

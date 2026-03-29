@@ -80,6 +80,17 @@
             · <span class="italic">updated {{ article.updated_at.strftime('%B %d, %Y').replace(' 0', ' ') }}</span>
             {% endif %}
         </p>
+        {% set article_tags = article.tags.all() %}
+        {% if article_tags %}
+        <div class="flex flex-wrap gap-1.5 mt-2">
+            {% for tag in article_tags %}
+            <a href="{{ url_for('knowhow.tag_articles', label=tag.label) }}"
+               class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700 hover:bg-sky-200 transition">
+                # {{ tag.label }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
     </header>
 
     <!-- Article body rendered from Quill HTML -->

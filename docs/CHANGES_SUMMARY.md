@@ -96,3 +96,26 @@ Implemented Feature 7 from `KNOWHOW_FUTURE_FEATURES.md`. Each article view page 
 **Files changed:** `app/knowhow/routes.py`, `app/templates/knowhow/article_view.html`
 
 ---
+
+## Feature: KnowHow article tags (29/03/2026)
+
+Implemented Feature 4 from `KNOWHOW_FUTURE_FEATURES.md`. Articles can now be tagged with free-text labels; tags link to a filtered view of all articles sharing that tag.
+
+**User-facing behaviour:**
+- Article editor gains a **Tags** text input (comma-separated, e.g. `acmg, ngs, panelapp`); tags are normalised to lowercase
+- Tag badges (sky-blue pill links prefixed with `#`) shown in the article view header, on article cards in the KnowHow index, and on article cards in category pages
+- Clicking a tag badge navigates to `GET /knowhow/tags/<label>` — a page listing all articles with that tag, ordered most-recently-updated first
+- Tags on existing articles can be edited via the article editor; removing all tags from an article clears them
+
+**Implementation details:**
+- `KnowhowTag(id, label VARCHAR(64) unique)` model and `knowhow_article_tags(article_id FK, tag_id FK)` pure-join association table added to `app/models.py`; `KnowhowArticle.tags` relationship via `secondary='knowhow_article_tags'`
+- Alembic migration `a63cbbd8ad61_add_knowhow_tags.py` generated and applied via `flask db upgrade`
+- `_sync_tags(article, raw_tags)` helper parses comma-separated input, creates missing `KnowhowTag` rows, and replaces the article's tag set in one flush
+- `KnowhowTag` imported in `routes.py`; `create_article()` and `update_article()` both call `_sync_tags`
+- `GET /knowhow/tags/<label>` route (`tag_articles`) added; 404 if tag doesn't exist; audit-logged
+- `index()` and `category()` routes build `article_tags: dict[article_id → list[KnowhowTag]]` with a single batch query (no N+1) and pass it to templates
+- New template: `app/templates/knowhow/tag_articles.html`
+
+**Files changed:** `app/models.py`, `app/knowhow/routes.py`, `app/templates/knowhow/article_editor.html`, `app/templates/knowhow/article_view.html`, `app/templates/knowhow/index.html`, `app/templates/knowhow/category.html`, `app/templates/knowhow/tag_articles.html` *(new)*, `migrations/versions/a63cbbd8ad61_add_knowhow_tags.py` *(new)*
+
+---

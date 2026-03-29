@@ -64,7 +64,7 @@ Users can now bookmark articles for quick access via a personal reading list.
 
 ---
 
-## 4. Article Tags
+## 4. Article Tags ✅ _Implemented 29/03/2026_
 
 **Priority: Medium**
 
@@ -78,6 +78,14 @@ Categories and subcategories provide a fixed two-level hierarchy. Tags offer a f
 - Tags available as additional filter on the search results page (Feature 1)
 
 **DB changes:** `knowhow_tags` table + `knowhow_article_tags` association table.
+
+**Implementation notes:**
+- `KnowhowTag(id, label)` model and `knowhow_article_tags` association table added to `app/models.py`; migration `a63cbbd8ad61` applied
+- `_sync_tags(article, raw_tags)` helper normalises comma-separated input to lowercase, creates missing tags, and replaces the article's tag set
+- `create_article()` and `update_article()` both read a `tags` form field and call `_sync_tags`
+- `GET /knowhow/tags/<label>` route renders all articles with that tag, ordered by `updated_at DESC`
+- Tag badges (sky-blue pill links) shown on article cards in index and category pages (via batch-loaded `article_tags` dict), and in the article view header
+- `article_editor.html` gains a Tags text input; existing tags pre-populated on edit
 
 ---
 
@@ -231,7 +239,7 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 1 | ~~Full-text search~~ ✅ implemented | Low | ★★★★★ | No |
 | 2 | ~~Article summary field~~ ✅ implemented | Very low | ★★★★☆ | Yes — 1 column |
 | 3 | ~~Bookmarks / reading list~~ ✅ implemented | Medium | ★★★★☆ | Yes — 1 table |
-| 4 | Article tags | Medium | ★★★☆☆ | Yes — 2 tables |
+| 4 | ~~Article tags~~ ✅ implemented | Medium | ★★★☆☆ | Yes — 2 tables |
 | 5 | Draft / publish workflow | Medium | ★★★☆☆ | Yes — 1 column |
 | 6 | ~~"Helpful" reactions~~ ✅ implemented | Low | ★★★☆☆ | Yes — 1 table |
 | 7 | ~~Related articles~~ ✅ implemented | Low | ★★★☆☆ | No (basic) |
@@ -241,4 +249,4 @@ A small badge on the index category cards (e.g., "2 new") showing articles or li
 | 11 | Link preview cards | High | ★★☆☆☆ | Yes — 3 columns |
 | 12 | "New since last visit" badge | Medium | ★★☆☆☆ | Yes — 1 table |
 
-**Recommended next sprint:** Feature 7 (related articles) requires no DB changes and could be added quickly. Feature 4 (article tags) provides more discoverability with moderate complexity.
+**Recommended next sprint:** Feature 10 (print/PDF export) requires no DB changes and can be done with a `@media print` CSS block. Feature 12 ("new since last visit" badge) adds meaningful re-engagement with a single new table. Feature 5 (draft/publish workflow) is the most impactful remaining feature but requires careful filtering across all article list routes.
