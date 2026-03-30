@@ -325,7 +325,7 @@ External links currently show only a description and URL. Showing an Open Graph 
 
 ---
 
-### Step 4 — Render preview cards in templates
+### Step 4 — Render preview cards in templates ✅ IMPLEMENTED
 
 - In the link-list section of `category.html` (and `article_view.html` if links appear there), replace the plain `<a>` link item with a small preview card when OG data is present:
   ```html

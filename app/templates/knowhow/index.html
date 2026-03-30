@@ -165,8 +165,24 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                     </svg>
                     <div class="flex-1 min-w-0">
+                        {% if link.og_title %}
+                        <div class="flex gap-3">
+                            {% if link.og_image_url %}
+                            <img src="{{ link.og_image_url }}" class="w-16 h-16 object-cover rounded flex-shrink-0" alt="">
+                            {% endif %}
+                            <div class="min-w-0">
+                                <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
+                                   class="font-medium text-sky-700 hover:underline block truncate">{{ link.og_title }}</a>
+                                {% if link.og_description %}
+                                <p class="text-sm text-gray-600 mt-0.5">{{ link.og_description }}</p>
+                                {% endif %}
+                                <p class="text-xs text-gray-400 mt-0.5 truncate">{{ link.url }}</p>
+                            </div>
+                        </div>
+                        {% else %}
                         <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
                            class="text-gray-700 hover:text-sky-700 hover:underline">{{ link.description }}</a>
+                        {% endif %}
                     </div>
                     {% if current_user.is_authenticated and (current_user.is_admin() or link.user_id == current_user.id) %}
                     <form method="POST" action="{{ url_for('knowhow.delete_link', link_id=link.id) }}"
@@ -242,8 +258,24 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                         </svg>
                         <div class="flex-1 min-w-0">
+                            {% if link.og_title %}
+                            <div class="flex gap-3">
+                                {% if link.og_image_url %}
+                                <img src="{{ link.og_image_url }}" class="w-16 h-16 object-cover rounded flex-shrink-0" alt="">
+                                {% endif %}
+                                <div class="min-w-0">
+                                    <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
+                                       class="font-medium text-sky-700 hover:underline block truncate">{{ link.og_title }}</a>
+                                    {% if link.og_description %}
+                                    <p class="text-sm text-gray-600 mt-0.5">{{ link.og_description }}</p>
+                                    {% endif %}
+                                    <p class="text-xs text-gray-400 mt-0.5 truncate">{{ link.url }}</p>
+                                </div>
+                            </div>
+                            {% else %}
                             <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
                                class="text-gray-700 hover:text-sky-700 hover:underline">{{ link.description }}</a>
+                            {% endif %}
                         </div>
                         {% if current_user.is_authenticated and (current_user.is_admin() or link.user_id == current_user.id) %}
                         <form method="POST" action="{{ url_for('knowhow.delete_link', link_id=link.id) }}"
