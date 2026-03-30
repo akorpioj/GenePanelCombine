@@ -309,7 +309,7 @@ External links currently show only a description and URL. Showing an Open Graph 
 
 ---
 
-### Step 3 — Populate OG data when a link is saved
+### Step 3 — Populate OG data when a link is saved ✅ IMPLEMENTED
 
 - In the `add_link()` route (and `edit_link()` if one exists), after creating/updating the `KnowhowLink` object but before `db.session.commit()`, call `_fetch_og_data(link.url)` and apply the returned values to the model:
   ```python

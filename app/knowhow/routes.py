@@ -9,6 +9,7 @@ from flask_login import login_required, current_user
 from . import knowhow_bp
 from ..audit_service import AuditService
 from ..models import db, KnowhowLink, KnowhowArticle, KnowhowCategory, KnowhowSubcategory, KnowhowBookmark, KnowhowReaction, KnowhowTag, KnowhowLastVisit, UserRole
+from .og_utils import _fetch_og_data
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -514,10 +515,18 @@ def add_link():
         flash(err, 'danger')
         return redirect(url_for('knowhow.index'))
 
-    db.session.add(KnowhowLink(
+    link = KnowhowLink(
         category=cat_slug, url=url, description=description,
         user_id=current_user.id, subcategory_id=subcategory_id,
-    ))
+    )
+    try:
+        og = _fetch_og_data(url)
+        link.og_title       = og['og_title']
+        link.og_description = og['og_description']
+        link.og_image_url   = og['og_image_url']
+    except Exception:
+        pass  # OG fetch is best-effort; always save the link
+    db.session.add(link)
     db.session.commit()
     flash('Link added.', 'success')
     return redirect(url_for('knowhow.index') + f'#{cat_slug}')
