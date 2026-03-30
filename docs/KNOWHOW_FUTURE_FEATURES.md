@@ -294,21 +294,18 @@ External links currently show only a description and URL. Showing an Open Graph 
 
 ---
 
-### Step 2 — SSRF-safe URL fetcher helper
+### Step 2 — SSRF-safe URL fetcher helper ✅ _Implemented 30/03/2026_
 
-- Add `_fetch_og_data(url: str) -> dict` to `app/knowhow/routes.py` (or a separate `app/knowhow/og_utils.py`)
+- Added `app/knowhow/og_utils.py` containing `_fetch_og_data(url: str) -> dict`
 - Validation rules (SSRF prevention):
   - Reject any scheme other than `https`
   - Resolve the hostname with `socket.getaddrinfo` **before** opening the connection
   - Reject if the resolved IP falls in any RFC-1918 / loopback / link-local range (`ipaddress.ip_address(ip).is_private or .is_loopback or .is_link_local`)
-- Fetch with `httpx.get(url, timeout=5, follow_redirects=False, headers={'User-Agent': 'KnowHow-Preview/1.0'})`
-- Parse response HTML with `html.parser` (stdlib) or `BeautifulSoup` — extract `<meta property="og:title">`, `og:description`, `og:image`; fall back to `<title>` if `og:title` is absent
-- Return `{'og_title': ..., 'og_description': ..., 'og_image_url': ...}` (all keys present, values may be `None`)
-- On any exception (network error, timeout, invalid IP) return all-`None` dict silently — preview is optional
-
-**Files:** `app/knowhow/routes.py` (or `app/knowhow/og_utils.py`)
-
-**Security note:** Validate the resolved IP is not RFC-1918, loopback, or link-local *after* DNS resolution to prevent DNS-rebinding SSRF. Accept `https` scheme only.
+- Fetches with `httpx.get(url, timeout=5, follow_redirects=False, headers={'User-Agent': 'KnowHow-Preview/1.0'})`
+- Parses response HTML with `html.parser` (stdlib `HTMLParser`) — extracts `<meta property="og:title">`, `og:description`, `og:image`; falls back to `<title>` if `og:title` is absent
+- Returns `{'og_title': ..., 'og_description': ..., 'og_image_url': ...}` (all keys present, values may be `None`)
+- On any exception (network error, timeout, invalid IP) returns all-`None` dict silently
+- `httpx` added to `requirements.txt`
 
 ---
 
