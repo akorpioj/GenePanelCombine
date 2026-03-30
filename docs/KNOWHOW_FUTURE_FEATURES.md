@@ -275,15 +275,96 @@ Clinical geneticists may want a clean printable version of a protocol or guide t
 
 External links currently show only a description and URL. Showing an Open Graph title/description/favicon would make the resource immediately recognisable.
 
-**Suggested implementation:**
-- On link creation, fetch the target URL server-side with `httpx` (timeout 5 s, no redirects to private IPs — SSRF protection required) and extract `og:title`, `og:description`, `og:image`
-- Store as nullable columns on `KnowhowLink`: `og_title VARCHAR(256)`, `og_description VARCHAR(512)`, `og_image_url VARCHAR(2048)`
-- Background task (Celery or a simple deferred fetch on next page load) to avoid blocking the add-link form submission
-- Rendered as a small card with favicon in the link list items
+**DB changes:** Three nullable columns on `knowhow_links` (`og_title`, `og_description`, `og_image_url`).
 
-**Security note:** Any server-side URL fetching must validate the resolved IP is not RFC-1918 (private) to prevent SSRF. Use an allowlist of schemes (`https` only) and validate after DNS resolution.
+---
 
-**DB changes:** Three nullable columns on `knowhow_links`.
+### Step 1 — DB column & migration ✅ _Implemented 29/03/2026_
+
+- Added three nullable columns to `KnowhowLink` in `app/models.py`:
+  ```python
+  og_title       = db.Column(db.String(256),  nullable=True)
+  og_description = db.Column(db.String(512),  nullable=True)
+  og_image_url   = db.Column(db.String(2048), nullable=True)
+  ```
+- Migration `f1a2b3c4d5e6_add_og_columns_to_knowhow_links.py` generated and applied via `flask db upgrade`
+- Existing links default to `NULL` for all three fields (no preview rendered — handled in Step 4)
+
+**Files:** `app/models.py`, new migration file
+
+---
+
+### Step 2 — SSRF-safe URL fetcher helper
+
+- Add `_fetch_og_data(url: str) -> dict` to `app/knowhow/routes.py` (or a separate `app/knowhow/og_utils.py`)
+- Validation rules (SSRF prevention):
+  - Reject any scheme other than `https`
+  - Resolve the hostname with `socket.getaddrinfo` **before** opening the connection
+  - Reject if the resolved IP falls in any RFC-1918 / loopback / link-local range (`ipaddress.ip_address(ip).is_private or .is_loopback or .is_link_local`)
+- Fetch with `httpx.get(url, timeout=5, follow_redirects=False, headers={'User-Agent': 'KnowHow-Preview/1.0'})`
+- Parse response HTML with `html.parser` (stdlib) or `BeautifulSoup` — extract `<meta property="og:title">`, `og:description`, `og:image`; fall back to `<title>` if `og:title` is absent
+- Return `{'og_title': ..., 'og_description': ..., 'og_image_url': ...}` (all keys present, values may be `None`)
+- On any exception (network error, timeout, invalid IP) return all-`None` dict silently — preview is optional
+
+**Files:** `app/knowhow/routes.py` (or `app/knowhow/og_utils.py`)
+
+**Security note:** Validate the resolved IP is not RFC-1918, loopback, or link-local *after* DNS resolution to prevent DNS-rebinding SSRF. Accept `https` scheme only.
+
+---
+
+### Step 3 — Populate OG data when a link is saved
+
+- In the `add_link()` route (and `edit_link()` if one exists), after creating/updating the `KnowhowLink` object but before `db.session.commit()`, call `_fetch_og_data(link.url)` and apply the returned values to the model:
+  ```python
+  og = _fetch_og_data(link.url)
+  link.og_title       = og['og_title']
+  link.og_description = og['og_description']
+  link.og_image_url   = og['og_image_url']
+  ```
+- The fetch is synchronous but capped at 5 s — acceptable for an admin/author operation; no Celery required at this stage
+- If the fetch fails (all-`None` returned) the link is still saved; the preview simply won't render
+
+**Files:** `app/knowhow/routes.py`
+
+---
+
+### Step 4 — Render preview cards in templates
+
+- In the link-list section of `category.html` (and `article_view.html` if links appear there), replace the plain `<a>` link item with a small preview card when OG data is present:
+  ```html
+  {% if link.og_title %}
+    <div class="border rounded p-3 flex gap-3">
+      {% if link.og_image_url %}
+        <img src="{{ link.og_image_url }}" class="w-16 h-16 object-cover rounded" alt="">
+      {% endif %}
+      <div>
+        <a href="{{ link.url }}" target="_blank" class="font-medium text-blue-700 hover:underline">
+          {{ link.og_title }}
+        </a>
+        {% if link.og_description %}
+          <p class="text-sm text-gray-600 mt-1">{{ link.og_description }}</p>
+        {% endif %}
+        <p class="text-xs text-gray-400 mt-1 truncate">{{ link.url }}</p>
+      </div>
+    </div>
+  {% else %}
+    {# fallback: plain link with user-provided description #}
+    <a href="{{ link.url }}" target="_blank">{{ link.description or link.url }}</a>
+  {% endif %}
+  ```
+- The fallback ensures existing links (no OG data) continue to display normally
+
+**Files:** `app/templates/knowhow/category.html` (and any other template that lists `KnowhowLink` rows)
+
+---
+
+### Step 5 — Refresh stale or missing previews (optional)
+
+- Add a management route `POST /knowhow/admin/links/refresh-previews` (ADMIN only) that iterates all `KnowhowLink` rows where `og_title IS NULL`, calls `_fetch_og_data`, and commits updates in batches of 50
+- Useful for backfilling previews on existing links after the feature is deployed
+- Alternatively expose a per-link "Refresh preview" button in the link-edit UI that POSTs to `POST /knowhow/links/<id>/refresh-preview`
+
+**Files:** `app/knowhow/routes.py`, optionally `app/templates/knowhow/` (admin button)
 
 ---
 
