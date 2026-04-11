@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Confirm Gene: {{ search_term }} - LitReview - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-2xl">
+
+    <!-- Back link -->
+    <nav class="mb-6">
+        <a href="{{ url_for('litreview.search_results', search_id=search.id) }}"
+           class="text-sky-600 hover:underline text-sm">&larr; Back to results</a>
+    </nav>
+
+    <h1 class="text-2xl font-bold text-sky-700 mb-1">Confirm Gene</h1>
+    <p class="text-gray-600 mb-6">
+        Searching for Ensembl ID matching
+        <span class="font-semibold text-gray-800">"{{ search_term }}"</span>
+    </p>
+
+    <!-- ── Loading state ────────────────────────────────────────────── -->
+    <div id="state-loading" class="flex flex-col items-center py-12 gap-4 text-gray-500">
+        <svg class="animate-spin h-10 w-10 text-sky-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <span>Looking up gene…</span>
+    </div>
+
+    <!-- ── Error state ───────────────────────────────────────────────── -->
+    <div id="state-error" class="hidden rounded-lg bg-red-50 border border-red-200 p-4 text-red-700 text-sm"></div>
+
+    <!-- ── Single / multiple match ───────────────────────────────────── -->
+    <div id="state-candidates" class="hidden">
+        <div id="single-match" class="hidden">
+            <p class="text-sm text-gray-600 mb-4">One Ensembl ID found. Please confirm this is the correct gene.</p>
+            <div id="candidate-card"
+                 class="border border-gray-200 rounded-lg p-4 mb-6 space-y-2 text-sm">
+                <!-- filled by JS -->
+            </div>
+            <div class="flex gap-3">
+                <button id="btn-confirm-single"
+                        class="px-5 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium transition">
+                    Yes, this is correct
+                </button>
+                <button id="btn-wrong-single"
+                        class="px-5 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    Wrong gene
+                </button>
+            </div>
+        </div>
+
+        <div id="multi-match" class="hidden">
+            <p class="text-sm text-gray-600 mb-4">
+                Multiple Ensembl IDs found. Please select the correct gene.
+            </p>
+            <div id="candidate-list" class="space-y-3 mb-6">
+                <!-- filled by JS -->
+            </div>
+            <div class="flex gap-3">
+                <button id="btn-confirm-multi"
+                        class="px-5 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium transition">
+                    Confirm selection
+                </button>
+                <button id="btn-none-of-these"
+                        class="px-5 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    None of these
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Not found state ───────────────────────────────────────────── -->
+    <div id="state-not-found" class="hidden">
+        <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm mb-6">
+            No Ensembl ID was found for <strong>"{{ search_term }}"</strong>.
+            Please enter the Ensembl ID manually below.
+        </div>
+    </div>
+
+    <!-- ── Manual input ──────────────────────────────────────────────── -->
+    <div id="state-manual" class="hidden mt-4">
+        <hr class="mb-5 border-gray-200">
+        <h2 class="text-base font-semibold text-gray-800 mb-3">Enter Ensembl ID manually</h2>
+        <div class="flex gap-2 mb-4">
+            <input id="manual-ensembl-id" type="text" placeholder="e.g. ENSG00000012048"
+                   class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400">
+            <button id="btn-verify-manual"
+                    class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition text-sm font-medium">
+                Verify
+            </button>
+        </div>
+        <!-- verification result -->
+        <div id="manual-verify-result" class="hidden rounded-lg border p-3 mb-4 text-sm"></div>
+        <button id="btn-confirm-manual"
+                class="hidden px-5 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium transition">
+            Confirm &amp; Start Review
+        </button>
+    </div>
+
+    <!-- Hidden form — submitted programmatically -->
+    <form id="confirm-form" method="POST"
+          action="{{ url_for('litreview.review_confirm_gene', search_id=search.id) }}"
+          class="hidden">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" id="form-ensembl-id" name="ensembl_id" value="">
+        <input type="hidden" id="form-gene-symbol" name="gene_symbol" value="">
+    </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+    'use strict';
+
+    const LOOKUP_URL = "{{ url_for('litreview.api_gene_lookup') }}";
+    const SEARCH_TERM = {{ search_term | tojson }};
+
+    // ── State helpers ────────────────────────────────────────────────
+    const states = ['loading', 'error', 'candidates', 'not-found', 'manual'];
+    function showState(...active) {
+        states.forEach(s => {
+            document.getElementById('state-' + s).classList.toggle('hidden', !active.includes(s));
+        });
+    }
+    function showSubstate(id, visible) {
+        document.getElementById(id).classList.toggle('hidden', !visible);
+    }
+
+    // ── Candidate card builder ───────────────────────────────────────
+    function buildCandidateHtml(c) {
+        const omimLink = c.omim_url
+            ? `<a href="${c.omim_url}" target="_blank" rel="noopener"
+                  class="text-sky-600 hover:underline">OMIM ↗</a>`
+            : '<span class="text-gray-400">OMIM: n/a</span>';
+        const ensemblLink = `<a href="${c.ensembl_url}" target="_blank" rel="noopener"
+            class="text-sky-600 hover:underline">Ensembl ↗</a>`;
+        return `
+            <p><span class="font-medium">Ensembl ID:</span>
+               <code class="bg-gray-100 px-1 rounded">${c.ensembl_id}</code></p>
+            ${c.display_name ? `<p><span class="font-medium">Name:</span> ${c.display_name}</p>` : ''}
+            ${c.chromosome  ? `<p><span class="font-medium">Chromosome:</span> ${c.chromosome}</p>` : ''}
+            ${c.description ? `<p class="text-gray-600 italic">${c.description}</p>` : ''}
+            <div class="flex gap-4 mt-2">${ensemblLink} ${omimLink}</div>`;
+    }
+
+    // ── Submit hidden form ───────────────────────────────────────────
+    function submitGene(ensemblId, geneSymbol) {
+        document.getElementById('form-ensembl-id').value = ensemblId;
+        document.getElementById('form-gene-symbol').value = geneSymbol || '';
+        document.getElementById('confirm-form').submit();
+    }
+
+    // ── Run lookup ───────────────────────────────────────────────────
+    let _candidates = [];
+
+    function runLookup(query) {
+        showState('loading');
+        document.getElementById('state-error').classList.add('hidden');
+
+        fetch(`${LOOKUP_URL}?q=${encodeURIComponent(query)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+
+                _candidates = data.candidates || [];
+
+                if (data.not_found || _candidates.length === 0) {
+                    showState('not-found', 'manual');
+                    return;
+                }
+
+                showState('candidates');
+
+                if (_candidates.length === 1) {
+                    // Single match
+                    document.getElementById('candidate-card').innerHTML =
+                        buildCandidateHtml(_candidates[0]);
+                    showSubstate('single-match', true);
+                    showSubstate('multi-match', false);
+                } else {
+                    // Multiple matches — build radio list
+                    const list = document.getElementById('candidate-list');
+                    list.innerHTML = _candidates.map((c, i) => `
+                        <label class="flex items-start gap-3 border rounded-lg p-3 cursor-pointer
+                                      hover:bg-gray-50 has-[:checked]:ring-2 has-[:checked]:ring-teal-500">
+                            <input type="radio" name="candidate" value="${i}" class="mt-1 accent-teal-600">
+                            <div class="text-sm">${buildCandidateHtml(c)}</div>
+                        </label>`).join('');
+                    // default-select first
+                    list.querySelector('input[type=radio]').checked = true;
+                    showSubstate('single-match', false);
+                    showSubstate('multi-match', true);
+                }
+            })
+            .catch(err => {
+                showState('error', 'manual');
+                const el = document.getElementById('state-error');
+                el.classList.remove('hidden');
+                el.textContent = 'Error looking up gene: ' + err.message;
+            });
+    }
+
+    // ── Confirm single ───────────────────────────────────────────────
+    document.getElementById('btn-confirm-single').addEventListener('click', () => {
+        const c = _candidates[0];
+        submitGene(c.ensembl_id, c.display_name);
+    });
+
+    // ── Wrong gene (single) → show manual ───────────────────────────
+    document.getElementById('btn-wrong-single').addEventListener('click', () => {
+        showState('candidates', 'manual');
+        showSubstate('single-match', true);
+        showSubstate('multi-match', false);
+    });
+
+    // ── Confirm multi ────────────────────────────────────────────────
+    document.getElementById('btn-confirm-multi').addEventListener('click', () => {
+        const selected = document.querySelector('input[name="candidate"]:checked');
+        if (!selected) { alert('Please select a gene.'); return; }
+        const c = _candidates[parseInt(selected.value, 10)];
+        submitGene(c.ensembl_id, c.display_name);
+    });
+
+    // ── None of these → show manual ─────────────────────────────────
+    document.getElementById('btn-none-of-these').addEventListener('click', () => {
+        showState('candidates', 'manual');
+    });
+
+    // ── Manual verify ────────────────────────────────────────────────
+    let _manualCandidate = null;
+
+    document.getElementById('btn-verify-manual').addEventListener('click', () => {
+        const id = document.getElementById('manual-ensembl-id').value.trim();
+        if (!id) return;
+
+        const resultEl = document.getElementById('manual-verify-result');
+        const confirmBtn = document.getElementById('btn-confirm-manual');
+        resultEl.classList.remove('hidden');
+        resultEl.className = 'rounded-lg border p-3 mb-4 text-sm bg-gray-50 border-gray-200';
+        resultEl.textContent = 'Verifying…';
+        confirmBtn.classList.add('hidden');
+        _manualCandidate = null;
+
+        fetch(`${LOOKUP_URL}?q=${encodeURIComponent(id)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                const candidates = data.candidates || [];
+                if (data.not_found || candidates.length === 0) {
+                    resultEl.className = 'rounded-lg border p-3 mb-4 text-sm bg-red-50 border-red-200 text-red-700';
+                    resultEl.textContent = 'No gene found for "' + id + '". Please check and try again.';
+                } else {
+                    _manualCandidate = candidates[0];
+                    resultEl.className = 'rounded-lg border p-3 mb-4 text-sm bg-green-50 border-green-200 text-green-800';
+                    resultEl.innerHTML = buildCandidateHtml(_manualCandidate);
+                    confirmBtn.classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                resultEl.className = 'rounded-lg border p-3 mb-4 text-sm bg-red-50 border-red-200 text-red-700';
+                resultEl.textContent = 'Error: ' + err.message;
+            });
+    });
+
+    // Allow Enter key in manual input to trigger verify
+    document.getElementById('manual-ensembl-id').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btn-verify-manual').click(); }
+    });
+
+    // ── Confirm manual ───────────────────────────────────────────────
+    document.getElementById('btn-confirm-manual').addEventListener('click', () => {
+        if (!_manualCandidate) return;
+        submitGene(_manualCandidate.ensembl_id, _manualCandidate.display_name);
+    });
+
+    // ── Kick off lookup on page load ─────────────────────────────────
+    runLookup(SEARCH_TERM);
+})();
+</script>
+{% endblock %}

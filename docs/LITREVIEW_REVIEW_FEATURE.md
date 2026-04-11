@@ -96,7 +96,7 @@ If the categorization process is unfinished, the user can continue it from a but
 **routes.py**
 
 **4a. Gene lookup API** (called by JS during gene confirmation step)
-- [ ] `GET /litreview/api/gene-lookup` — query param `q=<symbol_or_ensembl_id>` — calls `genie_service.lookup_gene(q)`, then for each Ensembl ID calls `get_gene_detail()` + `get_omim_id()` in parallel; returns JSON list of candidates:
+- [X] `GET /litreview/api/gene-lookup` — query param `q=<symbol_or_ensembl_id>` — calls `genie_service.lookup_gene(q)`, then for each Ensembl ID calls `get_gene_detail()` + `get_omim_id()` in parallel; returns JSON list of candidates:
   ```json
   [{"ensembl_id": "ENSG...", "display_name": "BRCA1", "chromosome": "17",
     "description": "...", "ensembl_url": "https://www.ensembl.org/...",
@@ -105,22 +105,22 @@ If the categorization process is unfinished, the user can continue it from a but
   Returns `{"candidates": [], "not_found": true}` when Genie returns 404
 
 **4b. Start review** (gene confirmation page)
-- [ ] `GET /litreview/results/<int:search_id>/review/start` — `login_required`, ownership check; redirects to `/review` if a session already exists; renders `litreview/review_start.html` passing `search` and `search_term`
+- [X] `GET /litreview/results/<int:search_id>/review/start` — `login_required`, ownership check; redirects to `/review` if a session already exists; renders `litreview/review_start.html` passing `search` and `search_term`
 
 **4c. Confirm gene** (form POST from gene confirmation step)
-- [ ] `POST /litreview/results/<int:search_id>/review/confirm-gene` — `login_required`, ownership check; receives `ensembl_id` from form; creates `LitReviewSession`; bulk-inserts `LitReviewArticleCategory` rows (one per article from `search.results`, all `category=0`); also pre-populates from Genie API (`genie_service.get_categorizations(ensembl_id)`) to restore any prior submissions; redirects to `/review`
+- [X] `POST /litreview/results/<int:search_id>/review/confirm-gene` — `login_required`, ownership check; receives `ensembl_id` from form; creates `LitReviewSession`; bulk-inserts `LitReviewArticleCategory` rows (one per article from `search.results`, all `category=0`); also pre-populates from Genie API (`genie_service.get_categorizations(ensembl_id)`) to restore any prior submissions; redirects to `/review`
 
 **4d. Review UI** (categorization page)
-- [ ] `GET /litreview/results/<int:search_id>/review` — `login_required`, ownership check; redirects to `/review/start` if no session found; queries `LitReviewArticleCategory` joined with `LiteratureArticle`; passes `session`, `articles_with_categories` (ordered by rank), `total`, `categorized_count`, `remaining_count` to template `litreview/review.html`
+- [X] `GET /litreview/results/<int:search_id>/review` — `login_required`, ownership check; redirects to `/review/start` if no session found; queries `LitReviewArticleCategory` joined with `LiteratureArticle`; passes `session`, `articles_with_categories` (ordered by rank), `total`, `categorized_count`, `remaining_count` to template `litreview/review.html`
 
 **4e. Categorize one article** (AJAX)
-- [ ] `POST /litreview/results/<int:search_id>/review/categorize` — `login_required`, JSON in: `{"article_id": int, "category": int}` (1–4); validates `1 <= category <= 4`; updates `LitReviewArticleCategory.category` and `categorized_at`; returns JSON `{"ok": true, "remaining": int}`
+- [X] `POST /litreview/results/<int:search_id>/review/categorize` — `login_required`, JSON in: `{"article_id": int, "category": int}` (1–4); validates `1 <= category <= 4`; updates `LitReviewArticleCategory.category` and `categorized_at`; returns JSON `{"ok": true, "remaining": int}`
 
 **4f. Finish review**
-- [ ] `POST /litreview/results/<int:search_id>/review/finish` — `login_required`; calls `genie_service.save_categorizations_bulk(ensembl_id, [{pmid, category}, ...])` with all rows where `category > 0`; marks `session.status = 'complete'` and `session.submitted_to_genie = True`; logs to `AuditService`; redirects to `/litreview/results/<search_id>` with success flash
+- [X] `POST /litreview/results/<int:search_id>/review/finish` — `login_required`; calls `genie_service.save_categorizations_bulk(ensembl_id, [{pmid, category}, ...])` with all rows where `category > 0`; marks `session.status = 'complete'` and `session.submitted_to_genie = True`; logs to `AuditService`; redirects to `/litreview/results/<search_id>` with success flash
 
 **4g. Update `search_results()` route**
-- [ ] Query for existing `LitReviewSession` for `search_id + current_user.id`; pass `review_session` to template; if session exists also compute `categorized_count` and `total`
+- [X] Query for existing `LitReviewSession` for `search_id + current_user.id`; pass `review_session` to template; if session exists also compute `categorized_count` and `total`
 
 ---
 

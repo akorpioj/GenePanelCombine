@@ -5,16 +5,25 @@ Routes for the LitReview blueprint
 import io
 import csv
 import re
+import logging
 import click
 from datetime import datetime, timedelta
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 from flask import render_template, request, flash, redirect, url_for, jsonify, make_response, send_file
 from flask_login import login_required, current_user
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from . import litreview_bp
 from .pubmed_service import pubmed_service
-from ..models import db, LiteratureSearch, LiteratureArticle, UserArticleAction, AuditActionType
+from .genie_service import genie_service
+from ..models import (
+    db, LiteratureSearch, LiteratureArticle, UserArticleAction,
+    AuditActionType, LitReviewSession, LitReviewArticleCategory, SearchResult,
+)
 from ..audit_service import AuditService
+
+log = logging.getLogger(__name__)
 
 # Retention period: searches and article interactions older than this are eligible
 # for automated deletion via the `flask litreview cleanup` CLI command / scheduled job.
@@ -112,15 +121,36 @@ def search_results(search_id):
     
     # Get search results with articles
     results = search.results.order_by('rank').all()
-    
+
+    # Review session context for button state in results.html
+    review_session = LitReviewSession.query.filter_by(
+        search_id=search_id,
+        user_id=current_user.id,
+    ).first()
+
+    review_categorized_count = 0
+    review_total = len(results)
+    if review_session:
+        review_categorized_count = LitReviewArticleCategory.query.filter(
+            LitReviewArticleCategory.session_id == review_session.id,
+            LitReviewArticleCategory.category > 0,
+        ).count()
+
     # Log view
     AuditService.log_view(
         resource_type='search_results',
         resource_id=str(search_id),
         description=f'Viewed search results for "{search.search_query}"'
     )
-    
-    return render_template('litreview/results.html', search=search, results=results)
+
+    return render_template(
+        'litreview/results.html',
+        search=search,
+        results=results,
+        review_session=review_session,
+        review_categorized_count=review_categorized_count,
+        review_total=review_total,
+    )
 
 
 def _safe_filename(text):
@@ -234,7 +264,6 @@ def article_detail(article_id):
     article = LiteratureArticle.query.get_or_404(article_id)
     
     # Log article view
-    from ..models import UserArticleAction
     action = UserArticleAction.query.filter_by(
         user_id=current_user.id,
         article_id=article.id
@@ -416,3 +445,402 @@ def cleanup_old_data(days, dry_run):
     actions_q.delete(synchronize_session=False)
     db.session.commit()
     click.echo(f'Done. {search_count} searches and {action_count} action records deleted.')
+
+
+# ── Review feature routes ──────────────────────────────────────────────────────
+
+_ENSEMBL_BASE = 'https://www.ensembl.org/Homo_sapiens/Gene/Summary?g='
+_OMIM_BASE = 'https://www.omim.org/entry/'
+
+
+def _build_candidate(ensembl_id: str) -> dict:
+    """Fetch detail + OMIM for one Ensembl ID and return a candidate dict."""
+    try:
+        detail = genie_service.get_gene_detail(ensembl_id)
+        omim_id = genie_service.get_omim_id(ensembl_id)
+    except Exception:
+        detail = None
+        omim_id = None
+
+    candidate = {
+        'ensembl_id': ensembl_id,
+        'display_name': None,
+        'chromosome': None,
+        'description': None,
+        'ensembl_url': f'{_ENSEMBL_BASE}{ensembl_id}',
+        'omim_url': f'{_OMIM_BASE}{omim_id}' if omim_id else None,
+    }
+    if detail:
+        candidate['display_name'] = detail.get('display_name')
+        candidate['chromosome'] = detail.get('seq_region_name')
+        candidate['description'] = detail.get('description')
+    return candidate
+
+
+@litreview_bp.route('/api/gene-lookup')
+@login_required
+def api_gene_lookup():
+    """
+    GET /litreview/api/gene-lookup?q=<symbol>
+
+    Calls the Genie API to resolve a gene symbol to one or more Ensembl IDs,
+    then fetches detail and OMIM for each candidate in parallel.
+
+    Returns:
+        200  {"candidates": [...]}
+        200  {"candidates": [], "not_found": true}   — Genie returned nothing
+        400  {"error": "..."}                        — missing query param
+        500  {"error": "..."}                        — service error
+    """
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify({'error': 'Query parameter "q" is required'}), 400
+
+    try:
+        ensembl_ids = genie_service.lookup_gene(q)
+    except Exception as exc:
+        log.exception('Gene lookup failed for %r', q)
+        return jsonify({'error': str(exc)}), 500
+
+    if not ensembl_ids:
+        return jsonify({'candidates': [], 'not_found': True})
+
+    # Fetch detail + OMIM for each candidate in parallel
+    candidates = [None] * len(ensembl_ids)
+    with ThreadPoolExecutor(max_workers=min(len(ensembl_ids), 5)) as pool:
+        futures = {
+            pool.submit(_build_candidate, eid): idx
+            for idx, eid in enumerate(ensembl_ids)
+        }
+        for future in as_completed(futures):
+            candidates[futures[future]] = future.result()
+
+    return jsonify({'candidates': candidates})
+
+
+@litreview_bp.route('/results/<int:search_id>/review/start')
+@login_required
+def review_start(search_id):
+    """
+    GET /litreview/results/<search_id>/review/start
+
+    Gene-confirmation page. If a review session already exists for this
+    search + user, redirect straight to the review UI.
+    """
+    search = LiteratureSearch.query.get_or_404(search_id)
+
+    if search.user_id != current_user.id and not current_user.is_admin():
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('litreview.index'))
+
+    # If a session already exists, skip straight to the review page
+    existing = LitReviewSession.query.filter_by(
+        search_id=search_id,
+        user_id=current_user.id,
+    ).first()
+    if existing:
+        return redirect(url_for('litreview.review', search_id=search_id))
+
+    return render_template(
+        'litreview/review_start.html',
+        search=search,
+        search_term=search.search_query,
+    )
+
+
+@litreview_bp.route('/results/<int:search_id>/review/confirm-gene', methods=['POST'])
+@login_required
+def review_confirm_gene(search_id):
+    """
+    POST /litreview/results/<search_id>/review/confirm-gene
+
+    Receives ensembl_id (and optional gene_symbol) from the gene-confirmation
+    form, creates a LitReviewSession, bulk-inserts LitReviewArticleCategory
+    rows for every article in the search (all category=0), then applies any
+    previously stored categorizations fetched from the Genie API so that
+    an interrupted review can be resumed cleanly.
+    """
+    search = LiteratureSearch.query.get_or_404(search_id)
+
+    if search.user_id != current_user.id and not current_user.is_admin():
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('litreview.index'))
+
+    ensembl_id  = request.form.get('ensembl_id', '').strip()
+    gene_symbol = request.form.get('gene_symbol', '').strip() or search.search_query
+
+    if not ensembl_id:
+        flash('No Ensembl ID provided. Please confirm a gene before starting the review.', 'error')
+        return redirect(url_for('litreview.review_start', search_id=search_id))
+
+    # Prevent duplicate sessions — redirect if one already exists
+    existing = LitReviewSession.query.filter_by(
+        search_id=search_id,
+        user_id=current_user.id,
+    ).first()
+    if existing:
+        return redirect(url_for('litreview.review', search_id=search_id))
+
+    # Create session record
+    session_obj = LitReviewSession(
+        search_id=search_id,
+        user_id=current_user.id,
+        ensembl_id=ensembl_id,
+        gene_symbol=gene_symbol,
+        status='in_progress',
+        submitted_to_genie=False,
+    )
+    db.session.add(session_obj)
+    db.session.flush()  # populate session_obj.id
+
+    # Fetch articles ordered by rank
+    results = (
+        SearchResult.query
+        .filter_by(search_id=search_id)
+        .order_by(SearchResult.rank)
+        .all()
+    )
+
+    # Bulk-insert one LitReviewArticleCategory per article (all uncategorized)
+    category_rows = {
+        r.article_id: LitReviewArticleCategory(
+            session_id=session_obj.id,
+            article_id=r.article_id,
+            pmid=r.article.pubmed_id,
+            category=0,
+            categorized_at=None,
+        )
+        for r in results
+    }
+    db.session.bulk_save_objects(category_rows.values())
+    db.session.flush()
+
+    # Pre-populate from Genie API to restore any prior categorizations
+    try:
+        prior = genie_service.get_categorizations(ensembl_id)
+        if prior:
+            # Build pmid → article_id reverse map
+            pmid_to_article_id = {r.article.pubmed_id: r.article_id for r in results}
+            for entry in prior:
+                pmid = str(entry.get('pmid', ''))
+                cat  = entry.get('category', 0)
+                art_id = pmid_to_article_id.get(pmid)
+                if art_id and art_id in category_rows:
+                    row = category_rows[art_id]
+                    if isinstance(cat, int) and 1 <= cat <= 4:
+                        row.category = cat
+            # Re-save updated rows
+            db.session.bulk_save_objects(category_rows.values())
+    except Exception:
+        log.exception(
+            'Could not fetch prior Genie categorizations for %s (search %d); continuing.',
+            ensembl_id, search_id
+        )
+        # Non-fatal — the session is still created, just without prior data
+
+    db.session.commit()
+
+    AuditService.log_action(
+        action_type=AuditActionType.SEARCH,
+        action_description=(
+            f'Started LitReview session for gene {gene_symbol} '
+            f'(Ensembl {ensembl_id}) on search {search_id}'
+        ),
+        resource_type='litreview_session',
+        resource_id=str(session_obj.id),
+    )
+
+    return redirect(url_for('litreview.review', search_id=search_id))
+
+
+@litreview_bp.route('/results/<int:search_id>/review')
+@login_required
+def review(search_id):
+    """
+    GET /litreview/results/<search_id>/review
+
+    Main categorization page. Redirects to /review/start when no session
+    exists yet. Passes articles ordered by rank together with their current
+    categories so the template / JS can jump straight to the first uncategorized
+    article.
+    """
+    search = LiteratureSearch.query.get_or_404(search_id)
+
+    if search.user_id != current_user.id and not current_user.is_admin():
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('litreview.index'))
+
+    session_obj = LitReviewSession.query.filter_by(
+        search_id=search_id,
+        user_id=current_user.id,
+    ).first()
+
+    if not session_obj:
+        return redirect(url_for('litreview.review_start', search_id=search_id))
+
+    # Ordered list of (SearchResult, LitReviewArticleCategory, LiteratureArticle)
+    rows = (
+        db.session.query(SearchResult, LitReviewArticleCategory, LiteratureArticle)
+        .join(LitReviewArticleCategory, LitReviewArticleCategory.article_id == SearchResult.article_id)
+        .join(LiteratureArticle, LiteratureArticle.id == SearchResult.article_id)
+        .filter(
+            SearchResult.search_id == search_id,
+            LitReviewArticleCategory.session_id == session_obj.id,
+        )
+        .order_by(SearchResult.rank)
+        .all()
+    )
+
+    articles_with_categories = [
+        {
+            'article':   article,
+            'category':  cat_row.category,
+            'cat_id':    cat_row.id,
+            'rank':      sr.rank,
+        }
+        for sr, cat_row, article in rows
+    ]
+
+    total             = len(articles_with_categories)
+    categorized_count = sum(1 for a in articles_with_categories if a['category'] > 0)
+    remaining_count   = total - categorized_count
+
+    return render_template(
+        'litreview/review.html',
+        search=search,
+        session=session_obj,
+        articles_with_categories=articles_with_categories,
+        total=total,
+        categorized_count=categorized_count,
+        remaining_count=remaining_count,
+    )
+
+
+@litreview_bp.route('/results/<int:search_id>/review/categorize', methods=['POST'])
+@login_required
+def review_categorize(search_id):
+    """
+    POST /litreview/results/<search_id>/review/categorize
+    JSON body: {"article_id": <int>, "category": <int 1-4>}
+
+    Updates the LitReviewArticleCategory for the given article and returns
+    the number of still-uncategorized articles in this session.
+    """
+    search = LiteratureSearch.query.get_or_404(search_id)
+    if search.user_id != current_user.id and not current_user.is_admin():
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.get_json(silent=True) or {}
+    article_id = data.get('article_id')
+    category   = data.get('category')
+
+    if article_id is None or category is None:
+        return jsonify({'error': 'article_id and category are required'}), 400
+
+    if not isinstance(category, int) or not (1 <= category <= 4):
+        return jsonify({'error': 'category must be an integer between 1 and 4'}), 400
+
+    session_obj = LitReviewSession.query.filter_by(
+        search_id=search_id,
+        user_id=current_user.id,
+    ).first()
+    if not session_obj:
+        return jsonify({'error': 'No review session found'}), 404
+
+    cat_row = LitReviewArticleCategory.query.filter_by(
+        session_id=session_obj.id,
+        article_id=article_id,
+    ).first()
+    if not cat_row:
+        return jsonify({'error': 'Article not found in this session'}), 404
+
+    import datetime as _dt
+    cat_row.category       = category
+    cat_row.categorized_at = _dt.datetime.now()
+    db.session.commit()
+
+    remaining = LitReviewArticleCategory.query.filter_by(
+        session_id=session_obj.id,
+        category=0,
+    ).count()
+
+    return jsonify({'ok': True, 'remaining': remaining})
+
+
+@litreview_bp.route('/results/<int:search_id>/review/finish', methods=['POST'])
+@login_required
+def review_finish(search_id):
+    """
+    POST /litreview/results/<search_id>/review/finish
+
+    Submits all categorized articles (category > 0) to the Genie API in bulk,
+    marks the session as complete, and redirects back to the search results.
+    """
+    search = LiteratureSearch.query.get_or_404(search_id)
+    if search.user_id != current_user.id and not current_user.is_admin():
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('litreview.index'))
+
+    session_obj = LitReviewSession.query.filter_by(
+        search_id=search_id,
+        user_id=current_user.id,
+    ).first()
+    if not session_obj:
+        flash('No review session found.', 'error')
+        return redirect(url_for('litreview.search_results', search_id=search_id))
+
+    # Collect all rows with a non-zero category for submission
+    categorized = LitReviewArticleCategory.query.filter(
+        LitReviewArticleCategory.session_id == session_obj.id,
+        LitReviewArticleCategory.category > 0,
+    ).all()
+
+    payload = [
+        {'pmid': int(row.pmid), 'category': row.category}
+        for row in categorized
+    ]
+
+    if payload:
+        try:
+            result = genie_service.save_categorizations_bulk(session_obj.ensembl_id, payload)
+            added   = len(result.get('added',   []))
+            skipped = len(result.get('skipped', []))
+            log.info(
+                'Genie bulk submit for session %d: %d added, %d skipped',
+                session_obj.id, added, skipped,
+            )
+        except Exception:
+            log.exception(
+                'Genie bulk submit failed for session %d (ensembl %s)',
+                session_obj.id, session_obj.ensembl_id,
+            )
+            flash(
+                'Categorizations saved locally, but could not submit to Genie API. '
+                'Please try again later.',
+                'warning',
+            )
+            return redirect(url_for('litreview.review', search_id=search_id))
+
+    import datetime as _dt
+    session_obj.status             = 'complete'
+    session_obj.submitted_to_genie = True
+    session_obj.updated_at         = _dt.datetime.now()
+    db.session.commit()
+
+    AuditService.log_action(
+        action_type=AuditActionType.DATA_EXPORT,
+        action_description=(
+            f'Finished LitReview session {session_obj.id} for gene '
+            f'{session_obj.gene_symbol} (Ensembl {session_obj.ensembl_id}); '
+            f'{len(payload)} article(s) submitted to Genie.'
+        ),
+        resource_type='litreview_session',
+        resource_id=str(session_obj.id),
+    )
+
+    flash(
+        f'Review complete! {len(payload)} article(s) submitted to Genie.',
+        'success',
+    )
+    return redirect(url_for('litreview.search_results', search_id=search_id))
+
