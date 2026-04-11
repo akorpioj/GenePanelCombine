@@ -39,11 +39,11 @@ If the categorization process is unfinished, the user can continue it from a but
 ### Task 1 — Configuration
 
 **config_settings.py**
-- [ ] Add `GENIE_API_URL = os.getenv('GENIE_API_URL', 'http://127.0.0.1:8000')`
-- [ ] Add `GENIE_API_KEY = os.getenv('GENIE_SECRET_API_KEY')`
+- [X] Add `GENIE_API_URL = os.getenv('GENIE_API_URL', 'http://127.0.0.1:8000')`
+- [X] Add `GENIE_API_KEY = os.getenv('GENIE_SECRET_API_KEY')`
 
 **.env / docs**
-- [ ] Add `GENIE_API_URL` and `GENIE_SECRET_API_KEY` to the env variable docs / `CONFIGURATION_GUIDE.md`
+- [X] Add `GENIE_API_URL` and `GENIE_SECRET_API_KEY` to the env variable docs / `CONFIGURATION_GUIDE.md`
 
 ---
 
@@ -51,13 +51,13 @@ If the categorization process is unfinished, the user can continue it from a but
 
 **`app/litreview/genie_service.py`** (new file)
 
-- [ ] `GenieService.__init__()` — reads `base_url` and `api_key` from app config lazily (same `_configured` pattern as `PubMedService`); raises `RuntimeError` at first use if key is missing
-- [ ] `lookup_gene(gene_symbol) -> list[str]` — `GET /gene/{gene_symbol}`, returns list of Ensembl IDs; returns `[]` on 404
-- [ ] `get_gene_detail(ensembl_id) -> dict` — `GET /gene/id:{ensembl_id}`, returns `gene_info` dict (`display_name`, `seq_region_name`/chromosome, `description`); returns `None` on 404
-- [ ] `get_omim_id(ensembl_id) -> str | None` — `GET /gene/id:{ensembl_id}/omim`, returns OMIM ID string or `None` on 404
-- [ ] `get_categorizations(ensembl_id) -> list[dict]` — `GET /gene/id:{ensembl_id}/pmids`, returns `[{"pmid": int, "category": int}, ...]`; returns `[]` on 404
-- [ ] `save_categorizations_bulk(ensembl_id, pmid_category_list) -> dict` — `POST /gene/id:{ensembl_id}/pmids/bulk`, body: `[{"pmid": int, "category": int}, ...]`; returns `{"added": [...], "skipped": [...]}`
-- [ ] Module-level singleton: `genie_service = GenieService()`
+- [X] `GenieService.__init__()` — reads `base_url` and `api_key` from app config lazily (same `_configured` pattern as `PubMedService`); raises `RuntimeError` at first use if key is missing
+- [X] `lookup_gene(gene_symbol) -> list[str]` — `GET /gene/{gene_symbol}`, returns list of Ensembl IDs; returns `[]` on 404
+- [X] `get_gene_detail(ensembl_id) -> dict` — `GET /gene/id:{ensembl_id}`, returns `gene_info` dict (`display_name`, `seq_region_name`/chromosome, `description`); returns `None` on 404
+- [X] `get_omim_id(ensembl_id) -> str | None` — `GET /gene/id:{ensembl_id}/omim`, returns OMIM ID string or `None` on 404
+- [X] `get_categorizations(ensembl_id) -> list[dict]` — `GET /gene/id:{ensembl_id}/pmids`, returns `[{"pmid": int, "category": int}, ...]`; returns `[]` on 404
+- [X] `save_categorizations_bulk(ensembl_id, pmid_category_list) -> dict` — `POST /gene/id:{ensembl_id}/pmids/bulk`, body: `[{"pmid": int, "category": int}, ...]`; returns `{"added": [...], "skipped": [...]}`
+- [X] Module-level singleton: `genie_service = GenieService()`
 
 ---
 
