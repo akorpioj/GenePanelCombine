@@ -1221,16 +1221,33 @@ def api_panel_genie_status(panel_id):
         return jsonify({'error': 'Panel not found or access denied'}), 404
 
     genes = PanelGene.query.filter_by(panel_id=panel.id).all()
+
+    # Genes that already have a resolved Ensembl ID stored.
     id_to_symbol = {
         g.ensembl_id: g.gene_symbol
         for g in genes
         if g.ensembl_id and g.ensembl_id.strip()
     }
 
-    if not id_to_symbol:
-        return jsonify({'status': []}), 200
+    # Genes whose Ensembl ID has not yet been resolved — look them up by symbol.
+    unresolved_symbols = [
+        g.gene_symbol for g in genes
+        if (not g.ensembl_id or not g.ensembl_id.strip()) and g.gene_symbol
+    ]
 
     from ..litreview.genie_service import genie_service
+
+    if unresolved_symbols:
+        try:
+            resolved = genie_service.lookup_genes_bulk(unresolved_symbols)  # {symbol: ensembl_id}
+            for symbol, eid in resolved.items():
+                if eid and eid not in id_to_symbol:
+                    id_to_symbol[eid] = symbol
+        except Exception as exc:
+            logger.warning('Genie bulk symbol lookup failed for panel %s: %s', panel_id, exc)
+
+    if not id_to_symbol:
+        return jsonify({'status': []}), 200
 
     try:
         check_results = genie_service.check_genes(list(id_to_symbol.keys()))

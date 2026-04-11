@@ -638,9 +638,14 @@ class PanelActionsManager {
             const data = await response.json();
             const statusList = data.status || [];
 
-            statusList.forEach(({ ensembl_id, exists }) => {
+            statusList.forEach(({ ensembl_id, gene_symbol, exists }) => {
                 if (!ensembl_id) return;
-                const card = document.querySelector(`[data-ensembl-id="${ensembl_id}"]`);
+                // Primary: match by stored Ensembl ID attribute.
+                // Fallback: match by gene symbol (genes whose Ensembl ID wasn't yet stored).
+                let card = document.querySelector(`[data-ensembl-id="${ensembl_id}"]`);
+                if (!card && gene_symbol) {
+                    card = document.querySelector(`[data-gene-symbol="${gene_symbol}"]`);
+                }
                 if (!card) return;
                 const badge = card.querySelector('.genie-status-badge');
                 if (!badge) return;
@@ -648,6 +653,16 @@ class PanelActionsManager {
                     badge.innerHTML = '<span class="inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded bg-teal-100 text-teal-800 border border-teal-300" title="Already registered in Genie"><i class="fas fa-check-circle mr-1"></i>In Genie</span>';
                 }
             });
+
+            // Hide the "Add genes to Genie" button if every gene is already registered.
+            const allGeneCards = document.querySelectorAll('.genie-status-badge');
+            const allInGenie = allGeneCards.length > 0
+                && statusList.length === allGeneCards.length
+                && statusList.every(s => s.exists);
+            if (allInGenie) {
+                const genieBtn = document.getElementById('genie-add-btn');
+                if (genieBtn) genieBtn.style.display = 'none';
+            }
         } catch (err) {
             console.warn('Genie status check failed:', err);
         }
@@ -765,28 +780,34 @@ class PanelActionsManager {
         const hasMore = genes.length > 10;
 
         const renderGeneCard = (gene) => {
-            const confidenceBadge = gene.confidence_level ? 
-                `<span class="inline-flex px-1.5 py-0.5 text-xs font-medium rounded ${this.getConfidenceBadgeClass(gene.confidence_level)}">${gene.confidence_level}</span>` : '';
-            
+            const cl = parseInt(gene.confidence_level, 10);
+            const confidenceDot = cl ? (() => {
+                const [color, title] = cl === 3 ? ['bg-green-500', 'Confidence 3 – Green']
+                                     : cl === 2 ? ['bg-amber-400', 'Confidence 2 – Amber']
+                                     :            ['bg-red-500',   'Confidence 1 – Red'];
+                return `<span class="inline-block w-2.5 h-2.5 rounded-full ${color} ml-2 shrink-0" title="${title}"></span>`;
+            })() : '';
+
             const geneName = gene.name ? `<p class="text-xs text-gray-600 mt-1">${gene.name}</p>` : '';
             
             const ensemblInfo = gene.ensembl_id ? 
-                `<div class="text-right text-xs text-gray-500"><div class="font-mono">${gene.ensembl_id}</div></div>` : '';
+                `<div class="text-xs text-gray-500 mt-1"><div class="font-mono">${gene.ensembl_id}</div></div>` : '';
 
             const ensemblAttr = gene.ensembl_id ? ` data-ensembl-id="${gene.ensembl_id}"` : '';
+            const symbolAttr = gene.symbol ? ` data-gene-symbol="${gene.symbol}"` : '';
 
             return `
-                <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg"${ensemblAttr}>
-                    <div class="flex-1">
+                <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg"${ensemblAttr}${symbolAttr}>
+                    <div class="flex-1 min-w-0">
                         <div class="flex items-center">
                             <i class="fas fa-dna mr-2 text-blue-600"></i>
                             <span class="font-medium text-blue-800">${gene.symbol || 'Unknown'}</span>
-                            <span class="genie-status-badge ml-2"></span>
+                            ${confidenceDot}
                         </div>
                         ${geneName}
-                        ${confidenceBadge ? `<div class="mt-1">${confidenceBadge}</div>` : ''}
+                        ${ensemblInfo}
                     </div>
-                    ${ensemblInfo}
+                    <span class="genie-status-badge ml-3 shrink-0"></span>
                 </div>
             `;
         };
