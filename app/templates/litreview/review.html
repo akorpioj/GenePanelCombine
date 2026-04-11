@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Review: {{ session.gene_symbol }} - LitReview - PanelMerge{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
+
+    <!-- Header -->
+    <header class="mb-5">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+                <h1 class="text-2xl font-bold text-sky-700">
+                    LitReview: <span class="font-extrabold">{{ session.gene_symbol }}</span>
+                </h1>
+                <p class="text-sm text-gray-500 mt-0.5">
+                    Ensembl <code class="bg-gray-100 px-1 rounded">{{ session.ensembl_id }}</code>
+                    &nbsp;·&nbsp;
+                    <a href="{{ url_for('litreview.search_results', search_id=search.id) }}"
+                       class="text-sky-600 hover:underline">Back to results</a>
+                </p>
+            </div>
+            <!-- Save & exit -->
+            <button id="btn-save-exit"
+                    class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg
+                           hover:bg-gray-50 transition text-sm font-medium shrink-0">
+                Save &amp; exit
+            </button>
+        </div>
+    </header>
+
+    <!-- Progress bar -->
+    <div class="mb-6">
+        <div class="flex justify-between text-sm text-gray-600 mb-1">
+            <span id="progress-label">
+                {{ categorized_count }} of {{ total }} categorized
+            </span>
+            <span id="progress-pct">
+                {% if total > 0 %}{{ ((categorized_count / total) * 100)|int }}%{% else %}0%{% endif %}
+            </span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2.5">
+            <div id="progress-bar"
+                 class="bg-teal-500 h-2.5 rounded-full transition-all duration-300"
+                 style="width: {% if total > 0 %}{{ ((categorized_count / total) * 100)|int }}{% else %}0{% endif %}%">
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Article card ─────────────────────────────────────────────── -->
+    <div id="article-card" class="border border-gray-200 rounded-xl p-5 mb-5">
+
+        <!-- will be filled / swapped by JS; rendered server-side for first article -->
+        <div id="article-content">
+            <!-- filled by JS on initial render -->
+        </div>
+
+        <!-- "All done" state (hidden until all categorized) -->
+        <div id="all-done" class="hidden text-center py-10">
+            <p class="text-2xl font-bold text-teal-600 mb-2">All done! 🎉</p>
+            <p class="text-gray-600 mb-6">All {{ total }} articles have been categorized.</p>
+            <form method="POST"
+                  action="{{ url_for('litreview.review_finish', search_id=search.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit"
+                        class="px-6 py-3 bg-teal-600 text-white rounded-xl font-semibold
+                               hover:bg-teal-700 transition text-base">
+                    Submit to Genie &amp; Finish
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Category buttons (hidden when all done) ───────────────────── -->
+    <div id="cat-buttons" class="space-y-2 mb-4">
+        <button data-cat="1"
+                class="cat-btn w-full px-4 py-3 rounded-lg font-medium text-left transition
+                       bg-red-50 border border-red-200 text-red-700
+                       hover:bg-red-100 active:scale-95">
+            🔴 &nbsp;Not useful
+        </button>
+        <button data-cat="2"
+                class="cat-btn w-full px-4 py-3 rounded-lg font-medium text-left transition
+                       bg-orange-50 border border-orange-200 text-orange-700
+                       hover:bg-orange-100 active:scale-95">
+            🟠 &nbsp;Probably not useful
+        </button>
+        <button data-cat="3"
+                class="cat-btn w-full px-4 py-3 rounded-lg font-medium text-left transition
+                       bg-yellow-50 border border-yellow-200 text-yellow-700
+                       hover:bg-yellow-100 active:scale-95">
+            🟡 &nbsp;Possibly useful
+        </button>
+        <button data-cat="4"
+                class="cat-btn w-full px-4 py-3 rounded-lg font-medium text-left transition
+                       bg-green-50 border border-green-200 text-green-700
+                       hover:bg-green-100 active:scale-95">
+            🟢 &nbsp;Useful
+        </button>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast"
+         class="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-2.5
+                bg-gray-800 text-white rounded-lg shadow-lg text-sm
+                opacity-0 pointer-events-none transition-opacity duration-300">
+    </div>
+
+</div>
+
+<!-- Article data passed from server -->
+<script>
+const ARTICLES = {{ articles_with_categories | tojson }};
+const CATEGORIZE_URL = {{ url_for('litreview.review_categorize', search_id=search.id) | tojson }};
+const RESULTS_URL    = {{ url_for('litreview.search_results', search_id=search.id) | tojson }};
+const CSRF_TOKEN     = {{ csrf_token() | tojson }};
+const TOTAL          = {{ total }};
+</script>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+'use strict';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let currentIdx   = 0;   // index into ARTICLES array
+let pendingCat   = 0;   // category selected for current article (0 = none)
+let categorized  = {{ categorized_count }};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function showToast(msg, durationMs = 2200) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.remove('opacity-0');
+    el.classList.add('opacity-100');
+    setTimeout(() => {
+        el.classList.remove('opacity-100');
+        el.classList.add('opacity-0');
+    }, durationMs);
+}
+
+function updateProgress(newCategorized) {
+    categorized = newCategorized;
+    const pct   = TOTAL > 0 ? Math.round((categorized / TOTAL) * 100) : 0;
+    document.getElementById('progress-label').textContent =
+        `${categorized} of ${TOTAL} categorized`;
+    document.getElementById('progress-pct').textContent  = `${pct}%`;
+    document.getElementById('progress-bar').style.width  = `${pct}%`;
+}
+
+function renderArticle(idx) {
+    const a = ARTICLES[idx];
+    if (!a) return;
+
+    pendingCat = a.category;  // remember existing category
+
+    const authors = (a.article.authors || []);
+    const authorStr = authors.slice(0, 6).join(', ') + (authors.length > 6 ? ', et al.' : '');
+    const year      = a.article.publication_date
+                        ? a.article.publication_date.substring(0, 4) : '';
+    const pmidBadge = `<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                          PMID ${a.article.pubmed_id}</span>`;
+    const doiLink   = a.article.doi
+        ? `<a href="https://doi.org/${a.article.doi}" target="_blank" rel="noopener"
+              class="text-sky-600 hover:underline text-xs">DOI ↗</a>` : '';
+    const pubmedLink = `<a href="https://pubmed.ncbi.nlm.nih.gov/${a.article.pubmed_id}/"
+                           target="_blank" rel="noopener"
+                           class="text-sky-600 hover:underline text-xs">Open on PubMed ↗</a>`;
+    const abstract   = a.article.abstract || '<em class="text-gray-400">No abstract available.</em>';
+
+    // Highlight current category button
+    document.querySelectorAll('.cat-btn').forEach(btn => {
+        const cat = parseInt(btn.dataset.cat, 10);
+        btn.classList.toggle('ring-2',      cat === pendingCat);
+        btn.classList.toggle('ring-offset-1', cat === pendingCat);
+        btn.classList.toggle('ring-teal-500', cat === pendingCat);
+    });
+
+    document.getElementById('article-content').innerHTML = `
+        <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-gray-400">Article ${idx + 1} of ${TOTAL}</span>
+            ${a.category > 0
+                ? `<span class="text-xs px-2 py-0.5 bg-teal-100 text-teal-700 rounded">
+                       Already categorized (${catLabel(a.category)})
+                   </span>`
+                : ''}
+        </div>
+        <h2 class="text-lg font-bold text-gray-900 mb-2 leading-snug">${escHtml(a.article.title)}</h2>
+        <p class="text-sm text-gray-600 mb-1">${escHtml(authorStr)}</p>
+        <p class="text-sm text-gray-500 italic mb-3">
+            ${escHtml(a.article.journal || '')}${year ? ' · ' + year : ''}
+        </p>
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+            ${pmidBadge} ${doiLink} ${pubmedLink}
+        </div>
+        <div class="max-h-64 overflow-y-auto text-sm text-gray-700 leading-relaxed
+                    border-t border-gray-100 pt-3">
+            ${escHtml(a.article.abstract || '')}
+        </div>`;
+}
+
+function catLabel(n) {
+    return ['', 'Not useful', 'Probably not useful', 'Possibly useful', 'Useful'][n] || '?';
+}
+
+function escHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function nextUncategorized(fromIdx) {
+    // Search forward, then wrap around
+    for (let i = fromIdx; i < ARTICLES.length; i++) {
+        if (ARTICLES[i].category === 0) return i;
+    }
+    for (let i = 0; i < fromIdx; i++) {
+        if (ARTICLES[i].category === 0) return i;
+    }
+    return -1;  // all done
+}
+
+function showAllDone() {
+    document.getElementById('article-content').innerHTML = '';
+    document.getElementById('all-done').classList.remove('hidden');
+    document.getElementById('cat-buttons').classList.add('hidden');
+}
+
+async function submitCategory(articleId, cat) {
+    const resp = await fetch(CATEGORIZE_URL, {
+        method:  'POST',
+        headers: {
+            'Content-Type':  'application/json',
+            'X-CSRFToken':   CSRF_TOKEN,
+        },
+        body: JSON.stringify({ article_id: articleId, category: cat }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json();
+}
+
+// ── Category button click ────────────────────────────────────────────────────
+document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const cat     = parseInt(btn.dataset.cat, 10);
+        const article = ARTICLES[currentIdx];
+
+        // Optimistic UI: mark locally
+        article.category = cat;
+        pendingCat       = cat;
+
+        // Highlight selection
+        document.querySelectorAll('.cat-btn').forEach(b => {
+            const bc = parseInt(b.dataset.cat, 10);
+            b.classList.toggle('ring-2',        bc === cat);
+            b.classList.toggle('ring-offset-1', bc === cat);
+            b.classList.toggle('ring-teal-500', bc === cat);
+        });
+
+        try {
+            const data = await submitCategory(article.cat_id, cat);
+            updateProgress(TOTAL - data.remaining);
+
+            // Advance to next uncategorized
+            const next = nextUncategorized(currentIdx + 1);
+            if (next === -1) {
+                showAllDone();
+            } else {
+                currentIdx = next;
+                renderArticle(currentIdx);
+            }
+        } catch (err) {
+            showToast('Error saving — please try again.');
+            article.category = 0;  // rollback local state
+            pendingCat = 0;
+        }
+    });
+});
+
+// ── Keyboard shortcuts 1–4 ───────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    if (['1','2','3','4'].includes(e.key)
+        && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+        document.querySelector(`.cat-btn[data-cat="${e.key}"]`)?.click();
+    }
+});
+
+// ── Save & exit ──────────────────────────────────────────────────────────────
+document.getElementById('btn-save-exit').addEventListener('click', async () => {
+    const article = ARTICLES[currentIdx];
+    if (pendingCat && article && article.category !== pendingCat) {
+        try {
+            await submitCategory(article.cat_id, pendingCat);
+            article.category = pendingCat;
+        } catch (_) { /* ignore — still navigate away */ }
+    }
+    showToast('Progress saved');
+    setTimeout(() => { window.location.href = RESULTS_URL; }, 800);
+});
+
+// ── Initial render ───────────────────────────────────────────────────────────
+const firstIdx = nextUncategorized(0);
+if (firstIdx === -1) {
+    showAllDone();
+} else {
+    currentIdx = firstIdx;
+    renderArticle(currentIdx);
+}
+
+})();
+</script>
+{% endblock %}

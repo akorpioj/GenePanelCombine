@@ -128,41 +128,41 @@ If the categorization process is unfinished, the user can continue it from a but
 
 **`app/templates/litreview/review_start.html`** (new)
 
-- [ ] Page header: "Confirm Gene: `<search_term>`"
-- [ ] On page load, JS calls `GET /litreview/api/gene-lookup?q=<search_term>`
-- [ ] **Loading state**: spinner while waiting
-- [ ] **Single match**: show Ensembl ID, display name, chromosome, description, Ensembl link, OMIM link; "Yes, confirm" button (posts `ensembl_id` to `confirm-gene`); "Wrong gene" link → shows manual input
-- [ ] **Multiple matches**: radio list of candidates; "Confirm selection" button; "None of these" → manual input
-- [ ] **No match (not_found)**: "No Ensembl ID found" message; goes straight to manual input
-- [ ] **Manual input section**: text field for Ensembl ID; "Verify" button (calls gene-lookup with typed ID); shows name if found; "Confirm" button posts to `confirm-gene`
-- [ ] All states handled in JS without page reload
+- [X] Page header: "Confirm Gene: `<search_term>`"
+- [X] On page load, JS calls `GET /litreview/api/gene-lookup?q=<search_term>`
+- [X] **Loading state**: spinner while waiting
+- [X] **Single match**: show Ensembl ID, display name, chromosome, description, Ensembl link, OMIM link; "Yes, confirm" button (posts `ensembl_id` to `confirm-gene`); "Wrong gene" link → shows manual input
+- [X] **Multiple matches**: radio list of candidates; "Confirm selection" button; "None of these" → manual input
+- [X] **No match (not_found)**: "No Ensembl ID found" message; goes straight to manual input
+- [X] **Manual input section**: text field for Ensembl ID; "Verify" button (calls gene-lookup with typed ID); shows name if found; "Confirm" button posts to `confirm-gene`
+- [X] All states handled in JS without page reload
 
 **`app/templates/litreview/review.html`** (new)
 
-- [ ] Header: gene symbol + confirmed Ensembl ID
-- [ ] Progress bar: "X of N categorized" — percentage fill
-- [ ] Article card (full, not truncated):
+- [X] Header: gene symbol + confirmed Ensembl ID
+- [X] Progress bar: "X of N categorized" — percentage fill
+- [X] Article card (full, not truncated):
   - Title (large, bold)
   - Authors (up to 6, then "et al.")
   - Journal, year
   - PMID badge, DOI link, "Open on PubMed" link
   - Full abstract (scrollable if long)
-- [ ] Four category buttons, stacked full-width, colour-coded:
+- [X] Four category buttons, stacked full-width, colour-coded:
   - 🔴 `1` — Not useful
   - 🟠 `2` — Probably not useful
   - 🟡 `3` — Possibly useful
   - 🟢 `4` — Useful
-- [ ] Clicking a button: `fetch` → `POST /categorize` → on success, animate to next uncategorized article (JS advances index without page reload)
-- [ ] If all articles categorized: hide buttons, show "All done!" message + green "Submit to Genie & Finish" button → posts to `/finish`
-- [ ] "Save & exit" button (always visible): calls `POST /categorize` for current article if a category is selected, then redirects back to results page; shows "Progress saved" toast
-- [ ] On page load: JS skips already-categorized articles (starts at first `category == 0`)
-- [ ] Keyboard shortcuts (optional but useful): `1`–`4` keys trigger category buttons
+- [X] Clicking a button: `fetch` → `POST /categorize` → on success, animate to next uncategorized article (JS advances index without page reload)
+- [X] If all articles categorized: hide buttons, show "All done!" message + green "Submit to Genie & Finish" button → posts to `/finish`
+- [X] "Save & exit" button (always visible): calls `POST /categorize` for current article if a category is selected, then redirects back to results page; shows "Progress saved" toast
+- [X] On page load: JS skips already-categorized articles (starts at first `category == 0`)
+- [X] Keyboard shortcuts (optional but useful): `1`–`4` keys trigger category buttons
 
 **results.html** (update)
 
-- [ ] In button row: add "Start LitReview" button (teal/purple) linking to `/review/start`
-- [ ] If `review_session.status == 'in_progress'`: show "Continue Review" button instead, with sub-text "`categorized_count` / `total` categorized"
-- [ ] If `review_session.status == 'complete'`: show "Review complete ✓" badge (non-clickable, green)
+- [X] In button row: add "Start LitReview" button (teal/purple) linking to `/review/start`
+- [X] If `review_session.status == 'in_progress'`: show "Continue Review" button instead, with sub-text "`categorized_count` / `total` categorized"
+- [X] If `review_session.status == 'complete'`: show "Review complete ✓" badge (non-clickable, green)
 
 ---
 
