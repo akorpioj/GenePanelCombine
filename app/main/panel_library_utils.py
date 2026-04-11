@@ -4,7 +4,7 @@ import datetime
 from app.models import SavedPanel, PanelVersion, PanelGene, PanelStatus, PanelVisibility, db, AuditActionType, PanelChange, ChangeType
 from app.main.utils import logger
 from app.audit_service import AuditService
-from sqlalchemy import desc, exc
+from sqlalchemy import desc, exc, exists
 
 def _get_panel_query_base(user_id, include_deleted=False):
     """
@@ -36,10 +36,18 @@ def get_panels(request):
         # Get user's panels (exclude deleted panels)
         query = SavedPanel.query.filter_by(owner_id=current_user.id).filter(SavedPanel.status != PanelStatus.DELETED)
         
-        # Apply search filter if provided
+        # Apply search filter if provided — matches panel name OR gene symbol.
         search = request.args.get('search', '').strip()
         if search:
-            query = query.filter(SavedPanel.name.contains(search))
+            gene_match = exists().where(
+                (PanelGene.panel_id == SavedPanel.id) &
+                PanelGene.gene_symbol.ilike(f'%{search}%')
+            )
+            query = query.filter(
+                SavedPanel.name.ilike(f'%{search}%') |
+                SavedPanel.description.ilike(f'%{search}%') |
+                gene_match
+            )
         
         # Apply status filter if provided
         status = request.args.get('status', '').strip()
@@ -124,7 +132,15 @@ def get_panels(request):
         
         # Apply the same filters to the totals query
         if search:
-            total_query = total_query.filter(SavedPanel.name.contains(search))
+            gene_match_total = exists().where(
+                (PanelGene.panel_id == SavedPanel.id) &
+                PanelGene.gene_symbol.ilike(f'%{search}%')
+            )
+            total_query = total_query.filter(
+                SavedPanel.name.ilike(f'%{search}%') |
+                SavedPanel.description.ilike(f'%{search}%') |
+                gene_match_total
+            )
         if status:
             total_query = total_query.filter(SavedPanel.status == status)
         if visibility:
