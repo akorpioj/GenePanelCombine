@@ -67,19 +67,86 @@
             </div>
         </div>
     </header>
-    
+
+    {# ── Genie classification context bar ── #}
+    {% if genie_ensembl_id and not (review_session and review_session.status == 'complete') %}
+    <div class="flex items-center gap-2 mb-2 text-xs text-gray-500">
+        <span>Genie classifications for:</span>
+        <a href="https://www.ensembl.org/Homo_sapiens/Gene/Summary?g={{ genie_ensembl_id }}"
+           target="_blank" rel="noopener"
+           class="bg-gray-100 px-1.5 py-0.5 rounded text-sky-700 hover:underline font-mono">{{ genie_ensembl_id }}</a>
+        <button id="btn-wrong-gene"
+                class="text-sky-600 hover:underline focus:outline-none">Wrong gene?</button>
+    </div>
+    {% endif %}
+
     <!-- Results List -->
     {# Colour legend for Genie classifications #}
     {% if genie_categories %}
-    <div class="flex items-center gap-4 mb-4 text-xs text-gray-500">
+    <div class="flex items-center gap-4 mb-4 text-xs text-gray-500 flex-wrap">
         <span class="font-medium">Genie:</span>
         <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-green-500"></span>Useful</span>
         <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-amber-400"></span>Possibly useful</span>
         <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-orange-400"></span>Probably not useful</span>
         <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-red-400"></span>Not useful</span>
         <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-gray-200"></span>Unclassified</span>
+        <button id="btn-what-is-genie"
+                class="ml-2 text-sky-600 hover:underline focus:outline-none">What is Genie?</button>
     </div>
     {% endif %}
+
+    <!-- What is Genie? popup -->
+    <div id="genie-info-modal"
+         class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 relative">
+            <button id="genie-info-close"
+                    class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            <h2 class="text-lg font-bold text-sky-700 mb-3">What is Genie?</h2>
+            <div class="text-sm text-gray-700 space-y-3">
+                <p>
+                    <strong>Genie</strong> is a curated gene–literature knowledge base used by this
+                    application to store and share article classifications across users and searches.
+                </p>
+                <p>
+                    When you perform a LitReview on a gene, each article is assigned a relevance
+                    category (Useful → Not useful). These classifications are submitted to Genie and
+                    are then visible the next time anyone searches for the same gene.
+                </p>
+                <p>
+                    The coloured left border on each article card reflects the classification
+                    already stored in Genie for this gene, giving you an instant overview before
+                    you start a new review.
+                </p>
+                <div class="mt-4 space-y-1">
+                    <p class="font-medium text-gray-800">Category colours:</p>
+                    <p class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm bg-green-500 shrink-0"></span>Useful</p>
+                    <p class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm bg-amber-400 shrink-0"></span>Possibly useful</p>
+                    <p class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm bg-orange-400 shrink-0"></span>Probably not useful</p>
+                    <p class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm bg-red-400 shrink-0"></span>Not useful</p>
+                    <p class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm bg-gray-200 shrink-0"></span>Unclassified (not yet reviewed)</p>
+                </div>
+            </div>
+            <div class="mt-5 flex justify-end">
+                <button id="genie-info-ok"
+                        class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm font-medium transition">
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        const modal  = document.getElementById('genie-info-modal');
+        const open   = document.getElementById('btn-what-is-genie');
+        const close  = document.getElementById('genie-info-close');
+        const ok     = document.getElementById('genie-info-ok');
+        if (!open) return;
+        open.addEventListener('click',  () => modal.classList.remove('hidden'));
+        close.addEventListener('click', () => modal.classList.add('hidden'));
+        ok.addEventListener('click',    () => modal.classList.add('hidden'));
+        modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+    })();
+    </script>
     <div class="space-y-4">
         {% for result in results %}
         {%- set gcat = genie_categories.get(result.article.pubmed_id|string, 0) %}
@@ -192,4 +259,263 @@
     }
 })();
 </script>
+
+{% if genie_ensembl_id and not (review_session and review_session.status == 'complete') %}
+<!-- ── Wrong-gene modal ─────────────────────────────────────────────────── -->
+<div id="wrong-gene-modal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 relative">
+        <button id="modal-close"
+                class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+
+        <h2 class="text-lg font-bold text-sky-700 mb-1">Select correct gene</h2>
+        <p class="text-sm text-gray-600 mb-5">
+            Choosing a different Ensembl ID will reload the page with that gene's Genie classifications.
+        </p>
+
+        <!-- Loading -->
+        <div id="wg-loading" class="flex items-center gap-3 py-6 text-gray-500 text-sm">
+            <svg class="animate-spin h-5 w-5 text-sky-500 shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            Looking up gene…
+        </div>
+
+        <!-- Error -->
+        <div id="wg-error" class="hidden rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 text-sm mb-4"></div>
+
+        <!-- Candidates -->
+        <div id="wg-candidates" class="hidden">
+            <div id="wg-single" class="hidden">
+                <p class="text-sm text-gray-600 mb-3">One Ensembl ID found. Is this the correct gene?</p>
+                <div id="wg-candidate-card"
+                     class="border border-gray-200 rounded-lg p-3 mb-4 space-y-1 text-sm"></div>
+                <div class="flex gap-2">
+                    <button id="wg-confirm-single"
+                            class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium transition">
+                        Yes, use this gene
+                    </button>
+                    <button id="wg-wrong-single"
+                            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm transition">
+                        Wrong gene
+                    </button>
+                </div>
+            </div>
+            <div id="wg-multi" class="hidden">
+                <p class="text-sm text-gray-600 mb-3">Multiple Ensembl IDs found. Select the correct gene.</p>
+                <div id="wg-candidate-list" class="space-y-2 mb-4"></div>
+                <div class="flex gap-2">
+                    <button id="wg-confirm-multi"
+                            class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium transition">
+                        Use selected gene
+                    </button>
+                    <button id="wg-none-of-these"
+                            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm transition">
+                        None of these
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Not found -->
+        <div id="wg-not-found" class="hidden rounded-lg bg-amber-50 border border-amber-200 p-3 text-amber-800 text-sm mb-4">
+            No Ensembl ID found. Please enter one manually below.
+        </div>
+
+        <!-- Manual input (always accessible after not-found / wrong gene) -->
+        <div id="wg-manual" class="hidden mt-4">
+            <hr class="mb-4 border-gray-200">
+            <p class="text-sm font-medium text-gray-800 mb-2">Enter Ensembl ID manually</p>
+            <div class="flex gap-2 mb-3">
+                <input id="wg-manual-input" type="text" placeholder="e.g. ENSG00000012048"
+                       class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm
+                              focus:outline-none focus:ring-2 focus:ring-sky-400">
+                <button id="wg-verify"
+                        class="px-3 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm font-medium transition">
+                    Verify
+                </button>
+            </div>
+            <div id="wg-verify-result" class="hidden rounded-lg border p-3 mb-3 text-sm"></div>
+            <button id="wg-confirm-manual"
+                    class="hidden px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium transition">
+                Use this gene
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    const LOOKUP_URL  = {{ url_for('litreview.api_gene_lookup') | tojson }};
+    const SEARCH_TERM = {{ search.search_query | tojson }};
+    const BASE_URL    = window.location.pathname;
+
+    const modal    = document.getElementById('wrong-gene-modal');
+    const btnOpen  = document.getElementById('btn-wrong-gene');
+    const btnClose = document.getElementById('modal-close');
+
+    if (!btnOpen) return;  // guard: button only rendered when genie_ensembl_id set
+
+    // ── Show / hide sections inside modal ──────────────────────────────────
+    const wgEls = ['loading','error','candidates','not-found','manual'];
+    function wgShow(...ids) {
+        wgEls.forEach(id => {
+            const el = document.getElementById('wg-' + id);
+            if (el) el.classList.toggle('hidden', !ids.includes(id));
+        });
+    }
+    function wgSub(id, visible) {
+        const el = document.getElementById('wg-' + id);
+        if (el) el.classList.toggle('hidden', !visible);
+    }
+
+    // ── Build candidate card HTML (shared helper) ───────────────────────────
+    function buildCard(c) {
+        const omim = c.omim_url
+            ? `<a href="${c.omim_url}" target="_blank" rel="noopener" class="text-sky-600 hover:underline">OMIM ↗</a>`
+            : '<span class="text-gray-400">OMIM: n/a</span>';
+        const ensembl = `<a href="${c.ensembl_url}" target="_blank" rel="noopener" class="text-sky-600 hover:underline">Ensembl ↗</a>`;
+        return `
+            <p><span class="font-medium">Ensembl ID:</span>
+               <code class="bg-gray-100 px-1 rounded">${c.ensembl_id}</code></p>
+            ${c.display_name ? `<p><span class="font-medium">Name:</span> ${c.display_name}</p>` : ''}
+            ${c.chromosome   ? `<p><span class="font-medium">Chromosome:</span> ${c.chromosome}</p>` : ''}
+            ${c.description  ? `<p class="text-gray-500 italic">${c.description}</p>` : ''}
+            <div class="flex gap-4 mt-1">${ensembl} ${omim}</div>`;
+    }
+
+    // ── Navigate to results page with overridden Ensembl ID ────────────────
+    function applyGene(ensemblId) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('ensembl_id', ensemblId);
+        params.delete('save_exit');
+        window.location.href = BASE_URL + '?' + params.toString();
+    }
+
+    // ── Lookup ──────────────────────────────────────────────────────────────
+    let _candidates = [];
+
+    function runLookup(query) {
+        wgShow('loading');
+        document.getElementById('wg-error').classList.add('hidden');
+
+        fetch(`${LOOKUP_URL}?q=${encodeURIComponent(query)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                _candidates = data.candidates || [];
+
+                if (data.not_found || _candidates.length === 0) {
+                    wgShow('not-found', 'manual');
+                    return;
+                }
+
+                wgShow('candidates');
+                if (_candidates.length === 1) {
+                    document.getElementById('wg-candidate-card').innerHTML = buildCard(_candidates[0]);
+                    wgSub('single', true);
+                    wgSub('multi', false);
+                } else {
+                    const list = document.getElementById('wg-candidate-list');
+                    list.innerHTML = _candidates.map((c, i) => `
+                        <label class="flex items-start gap-3 border rounded-lg p-3 cursor-pointer
+                                      hover:bg-gray-50 has-[:checked]:ring-2 has-[:checked]:ring-teal-500">
+                            <input type="radio" name="wg-candidate" value="${i}" class="mt-0.5 accent-teal-600">
+                            <div class="text-sm">${buildCard(c)}</div>
+                        </label>`).join('');
+                    list.querySelector('input[type=radio]').checked = true;
+                    wgSub('single', false);
+                    wgSub('multi', true);
+                }
+            })
+            .catch(err => {
+                wgShow('manual');
+                const el = document.getElementById('wg-error');
+                el.classList.remove('hidden');
+                el.textContent = 'Error looking up gene: ' + err.message;
+            });
+    }
+
+    // ── Open / close modal ──────────────────────────────────────────────────
+    btnOpen.addEventListener('click', () => {
+        modal.classList.remove('hidden');
+        runLookup(SEARCH_TERM);
+    });
+    btnClose.addEventListener('click', () => modal.classList.add('hidden'));
+    modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+
+    // ── Confirm single ──────────────────────────────────────────────────────
+    document.getElementById('wg-confirm-single').addEventListener('click', () => {
+        applyGene(_candidates[0].ensembl_id);
+    });
+
+    // ── Wrong single → show manual ──────────────────────────────────────────
+    document.getElementById('wg-wrong-single').addEventListener('click', () => {
+        wgShow('candidates', 'manual');
+        wgSub('single', true);
+        wgSub('multi', false);
+    });
+
+    // ── Confirm multi ───────────────────────────────────────────────────────
+    document.getElementById('wg-confirm-multi').addEventListener('click', () => {
+        const sel = document.querySelector('input[name="wg-candidate"]:checked');
+        if (!sel) { alert('Please select a gene.'); return; }
+        applyGene(_candidates[parseInt(sel.value, 10)].ensembl_id);
+    });
+
+    // ── None of these → show manual ─────────────────────────────────────────
+    document.getElementById('wg-none-of-these').addEventListener('click', () => {
+        wgShow('candidates', 'manual');
+    });
+
+    // ── Manual verify ───────────────────────────────────────────────────────
+    let _manualCandidate = null;
+
+    document.getElementById('wg-verify').addEventListener('click', () => {
+        const id = document.getElementById('wg-manual-input').value.trim();
+        if (!id) return;
+
+        const resultEl  = document.getElementById('wg-verify-result');
+        const confirmBtn = document.getElementById('wg-confirm-manual');
+        resultEl.classList.remove('hidden');
+        resultEl.className = 'rounded-lg border p-3 mb-3 text-sm bg-gray-50 border-gray-200';
+        resultEl.textContent = 'Verifying…';
+        confirmBtn.classList.add('hidden');
+        _manualCandidate = null;
+
+        fetch(`${LOOKUP_URL}?q=${encodeURIComponent(id)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                const cands = data.candidates || [];
+                if (data.not_found || cands.length === 0) {
+                    resultEl.className = 'rounded-lg border p-3 mb-3 text-sm bg-red-50 border-red-200 text-red-700';
+                    resultEl.textContent = `No gene found for "${id}". Please check and try again.`;
+                } else {
+                    _manualCandidate = cands[0];
+                    resultEl.className = 'rounded-lg border p-3 mb-3 text-sm bg-green-50 border-green-200 text-green-800';
+                    resultEl.innerHTML = buildCard(_manualCandidate);
+                    confirmBtn.classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                resultEl.className = 'rounded-lg border p-3 mb-3 text-sm bg-red-50 border-red-200 text-red-700';
+                resultEl.textContent = 'Error: ' + err.message;
+            });
+    });
+
+    document.getElementById('wg-manual-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('wg-verify').click(); }
+    });
+
+    // ── Confirm manual ──────────────────────────────────────────────────────
+    document.getElementById('wg-confirm-manual').addEventListener('click', () => {
+        if (_manualCandidate) applyGene(_manualCandidate.ensembl_id);
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

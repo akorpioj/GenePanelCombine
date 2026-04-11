@@ -24,7 +24,7 @@
                 action="{{ url_for('litreview.clear_search_history') }}"
                 onsubmit="return confirm('Delete your entire search history? This cannot be undone.')"
             >
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
                 <button
                     type="submit"
                     class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
@@ -74,7 +74,7 @@
                         action="{{ url_for('litreview.delete_search', search_id=search.id) }}"
                         onsubmit="return confirm('Delete this search record? This cannot be undone.')"
                     >
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
                         <button
                             type="submit"
                             class="px-3 py-1 text-sm border border-red-300 text-red-600 rounded hover:bg-red-50 transition"

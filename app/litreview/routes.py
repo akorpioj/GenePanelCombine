@@ -139,14 +139,16 @@ def search_results(search_id):
 
     # Fetch Genie categorizations for colour-coded article cards (non-fatal)
     genie_categories = {}  # str(pmid) -> category int 1-4; absent means unclassified
-    genie_ensembl_id = review_session.ensembl_id if review_session else None
-    if not genie_ensembl_id:
-        try:
-            ids = genie_service.lookup_gene(search.search_query)
-            genie_ensembl_id = ids[0] if ids else None
-        except Exception:
-            pass
+    # Honour an explicit override from the query-string (user clicked "Wrong gene?")
+    _ensembl_override = request.args.get('ensembl_id', '').strip() or None
+    if _ensembl_override:
+        genie_ensembl_id = _ensembl_override
+    elif review_session:
+        genie_ensembl_id = review_session.ensembl_id
+    else:
+        genie_ensembl_id = None
     if genie_ensembl_id:
+        # Active session already resolved the Ensembl ID — fetch directly
         try:
             pmid_cats = genie_service.get_categorizations(genie_ensembl_id)
             genie_categories = {
@@ -155,7 +157,40 @@ def search_results(search_id):
                 if item.get('category', 0) > 0
             }
         except Exception:
-            log.debug('Could not fetch Genie categorizations for %s', genie_ensembl_id)
+            log.warning(
+                'Could not fetch Genie categorizations for ensembl_id %s',
+                genie_ensembl_id, exc_info=True,
+            )
+    else:
+        # No session (e.g. history deleted) — look up by gene symbol and try each
+        # Ensembl ID until we find one that has stored categorizations.
+        try:
+            ensembl_ids = genie_service.lookup_gene(search.search_query)
+        except Exception:
+            ensembl_ids = []
+            log.warning(
+                'Could not look up gene "%s" in Genie', search.search_query, exc_info=True,
+            )
+        for eid in ensembl_ids:
+            try:
+                pmid_cats = genie_service.get_categorizations(eid)
+                cats = {
+                    str(item['pmid']): item['category']
+                    for item in pmid_cats
+                    if item.get('category', 0) > 0
+                }
+                if cats:
+                    genie_categories = cats
+                    genie_ensembl_id = eid
+                    break
+            except Exception:
+                log.warning(
+                    'Could not fetch Genie categorizations for %s', eid, exc_info=True,
+                )
+        # If no Ensembl ID had data, fall back to the first one so the
+        # unclassified count and "Start LitReview" button still work.
+        if ensembl_ids and not genie_ensembl_id:
+            genie_ensembl_id = ensembl_ids[0]
 
     genie_unclassified_count = sum(
         1 for r in results
@@ -178,6 +213,7 @@ def search_results(search_id):
         review_total=review_total,
         genie_categories=genie_categories,
         genie_unclassified_count=genie_unclassified_count,
+        genie_ensembl_id=genie_ensembl_id,
     )
 
 
