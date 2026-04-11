@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Review: {{ session.gene_symbol }} - LitReview - PanelMerge{% endblock %}
+{% block title %}Review: {{ review_session.gene_symbol }} - LitReview - PanelMerge{% endblock %}
 
 {% block content %}
 <div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
@@ -10,10 +10,10 @@
         <div class="flex items-start justify-between gap-4 flex-wrap">
             <div>
                 <h1 class="text-2xl font-bold text-sky-700">
-                    LitReview: <span class="font-extrabold">{{ session.gene_symbol }}</span>
+                    LitReview: <span class="font-extrabold">{{ review_session.gene_symbol }}</span>
                 </h1>
                 <p class="text-sm text-gray-500 mt-0.5">
-                    Ensembl <code class="bg-gray-100 px-1 rounded">{{ session.ensembl_id }}</code>
+                    Ensembl <code class="bg-gray-100 px-1 rounded">{{ review_session.ensembl_id }}</code>
                     &nbsp;·&nbsp;
                     <a href="{{ url_for('litreview.search_results', search_id=search.id) }}"
                        class="text-sky-600 hover:underline">Back to results</a>
@@ -60,7 +60,7 @@
             <p class="text-gray-600 mb-6">All {{ total }} articles have been categorized.</p>
             <form method="POST"
                   action="{{ url_for('litreview.review_finish', search_id=search.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
                 <button type="submit"
                         class="px-6 py-3 bg-teal-600 text-white rounded-xl font-semibold
                                hover:bg-teal-700 transition text-base">
@@ -112,7 +112,7 @@
 const ARTICLES = {{ articles_with_categories | tojson }};
 const CATEGORIZE_URL = {{ url_for('litreview.review_categorize', search_id=search.id) | tojson }};
 const RESULTS_URL    = {{ url_for('litreview.search_results', search_id=search.id) | tojson }};
-const CSRF_TOKEN     = {{ csrf_token() | tojson }};
+const CSRF_TOKEN     = {{ session['csrf_token'] | tojson }};
 const TOTAL          = {{ total }};
 </script>
 {% endblock %}
@@ -287,16 +287,19 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Save & exit ──────────────────────────────────────────────────────────────
-document.getElementById('btn-save-exit').addEventListener('click', async () => {
+document.getElementById('btn-save-exit').addEventListener('click', () => {
     const article = ARTICLES[currentIdx];
     if (pendingCat && article && article.category !== pendingCat) {
-        try {
-            await submitCategory(article.cat_id, pendingCat);
-            article.category = pendingCat;
-        } catch (_) { /* ignore — still navigate away */ }
+        // Fire-and-forget: keepalive ensures the request completes after navigation
+        fetch(CATEGORIZE_URL, {
+            method:   'POST',
+            headers:  { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+            body:     JSON.stringify({ article_id: article.cat_id, category: pendingCat }),
+            keepalive: true,
+        });
     }
-    showToast('Progress saved');
-    setTimeout(() => { window.location.href = RESULTS_URL; }, 800);
+    // Navigate immediately; results page will show a confirmation toast
+    window.location.href = RESULTS_URL + '?save_exit=1';
 });
 
 // ── Initial render ───────────────────────────────────────────────────────────

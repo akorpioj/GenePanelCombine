@@ -102,7 +102,7 @@
     <form id="confirm-form" method="POST"
           action="{{ url_for('litreview.review_confirm_gene', search_id=search.id) }}"
           class="hidden">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
         <input type="hidden" id="form-ensembl-id" name="ensembl_id" value="">
         <input type="hidden" id="form-gene-symbol" name="gene_symbol" value="">
     </form>

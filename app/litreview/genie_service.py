@@ -54,11 +54,11 @@ class GenieService:
             api_key  = None
 
         self.base_url = (base_url or os.environ.get('GENIE_API_URL', 'http://127.0.0.1:8000')).rstrip('/')
-        self.api_key  = api_key  or os.environ.get('GENIE_SECRET_API_KEY', '')
+        self.api_key  = api_key  or os.environ.get('GENIE_API_KEY', '')
 
         if not self.api_key:
             raise RuntimeError(
-                "GENIE_SECRET_API_KEY is not set. "
+                "GENIE_API_KEY is not set. "
                 "Add it to your .env file or environment variables."
             )
 

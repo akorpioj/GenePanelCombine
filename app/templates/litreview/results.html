@@ -146,4 +146,28 @@
         </a>
     </div>
 </div>
+
+<!-- Save-exit toast -->
+<div id="save-exit-toast"
+     class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-teal-700 text-white text-sm font-medium
+            px-5 py-2.5 rounded-full shadow-lg opacity-0 transition-opacity duration-500 pointer-events-none z-50">
+    Progress saved ✓
+</div>
+
+<script>
+(function () {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('save_exit') === '1') {
+        // Clean the URL without reloading
+        const clean = window.location.pathname +
+            (window.location.search.replace(/[?&]save_exit=1/, '') || '');
+        history.replaceState({}, '', clean);
+
+        // Show toast
+        const toast = document.getElementById('save-exit-toast');
+        toast.classList.replace('opacity-0', 'opacity-100');
+        setTimeout(() => toast.classList.replace('opacity-100', 'opacity-0'), 3000);
+    }
+})();
+</script>
 {% endblock %}

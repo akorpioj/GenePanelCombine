@@ -13,6 +13,7 @@ from openpyxl.styles import Font, PatternFill
 from flask import render_template, request, flash, redirect, url_for, jsonify, make_response, send_file
 from flask_login import login_required, current_user
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 
 from . import litreview_bp
 from .pubmed_service import pubmed_service
@@ -693,7 +694,16 @@ def review(search_id):
 
     articles_with_categories = [
         {
-            'article':   article,
+            'article': {
+                'id':               article.id,
+                'pubmed_id':        article.pubmed_id,
+                'title':            article.title,
+                'abstract':         article.abstract,
+                'authors':          article.authors or [],
+                'journal':          article.journal,
+                'publication_date': article.publication_date.isoformat() if article.publication_date else None,
+                'doi':              article.doi,
+            },
             'category':  cat_row.category,
             'cat_id':    cat_row.id,
             'rank':      sr.rank,
@@ -708,7 +718,7 @@ def review(search_id):
     return render_template(
         'litreview/review.html',
         search=search,
-        session=session_obj,
+        review_session=session_obj,
         articles_with_categories=articles_with_categories,
         total=total,
         categorized_count=categorized_count,
@@ -748,12 +758,12 @@ def review_categorize(search_id):
         return jsonify({'error': 'No review session found'}), 404
 
     cat_row = LitReviewArticleCategory.query.filter_by(
+        id=article_id,
         session_id=session_obj.id,
-        article_id=article_id,
     ).first()
     if not cat_row:
+        log.debug('No category row found for cat_id %d in session %d', article_id, session_obj.id)
         return jsonify({'error': 'Article not found in this session'}), 404
-
     import datetime as _dt
     cat_row.category       = category
     cat_row.categorized_at = _dt.datetime.now()
@@ -800,6 +810,25 @@ def review_finish(search_id):
         for row in categorized
     ]
 
+    # Mark session complete first so the UI reflects done state
+    # regardless of whether the Genie submission succeeds.
+    import datetime as _dt
+    session_obj.status             = 'complete'
+    session_obj.submitted_to_genie = False
+    session_obj.updated_at         = _dt.datetime.now()
+    db.session.commit()
+
+    AuditService.log_action(
+        action_type=AuditActionType.DATA_EXPORT,
+        action_description=(
+            f'Finished LitReview session {session_obj.id} for gene '
+            f'{session_obj.gene_symbol} (Ensembl {session_obj.ensembl_id}); '
+            f'{len(payload)} article(s) queued for Genie submission.'
+        ),
+        resource_type='litreview_session',
+        resource_id=str(session_obj.id),
+    )
+
     if payload:
         try:
             result = genie_service.save_categorizations_bulk(session_obj.ensembl_id, payload)
@@ -809,34 +838,18 @@ def review_finish(search_id):
                 'Genie bulk submit for session %d: %d added, %d skipped',
                 session_obj.id, added, skipped,
             )
+            session_obj.submitted_to_genie = True
+            db.session.commit()
         except Exception:
             log.exception(
                 'Genie bulk submit failed for session %d (ensembl %s)',
                 session_obj.id, session_obj.ensembl_id,
             )
             flash(
-                'Categorizations saved locally, but could not submit to Genie API. '
-                'Please try again later.',
+                'Review marked complete, but could not submit to Genie API. '
+                'Please contact support to retry the submission.',
                 'warning',
             )
-            return redirect(url_for('litreview.review', search_id=search_id))
-
-    import datetime as _dt
-    session_obj.status             = 'complete'
-    session_obj.submitted_to_genie = True
-    session_obj.updated_at         = _dt.datetime.now()
-    db.session.commit()
-
-    AuditService.log_action(
-        action_type=AuditActionType.DATA_EXPORT,
-        action_description=(
-            f'Finished LitReview session {session_obj.id} for gene '
-            f'{session_obj.gene_symbol} (Ensembl {session_obj.ensembl_id}); '
-            f'{len(payload)} article(s) submitted to Genie.'
-        ),
-        resource_type='litreview_session',
-        resource_id=str(session_obj.id),
-    )
 
     flash(
         f'Review complete! {len(payload)} article(s) submitted to Genie.',
