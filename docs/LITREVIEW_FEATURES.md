@@ -10,13 +10,12 @@ The Literature Review module provides comprehensive tools for searching, analyzi
 ### 1. Literature Search & Discovery
 
 #### 1.1 PubMed Integration
-- **Automated PubMed Search**: Search PubMed using gene names, panel names, or conditions
+- **Automated PubMed Search**: Search PubMed using gene name, keyword, author (IMPLEMENTED)
 - **Advanced Filters**:
   - Date range filtering (last 6 months, 1 year, 5 years, custom)
   - Article type (Review, Clinical Trial, Meta-Analysis, Case Report)
   - Publication status (Published, Preprint, In-Press)
   - Language filtering
-  - Impact factor threshold
 - **Batch Search**: Search for multiple genes simultaneously
 - **Smart Query Builder**: AI-assisted query construction with MeSH term suggestions
 - **Search History**: Save and replay previous searches

@@ -48,6 +48,10 @@ def search():
         search_term = request.form.get('search_term', '').strip()
         search_type = request.form.get('search_type', 'gene')
         max_results = int(request.form.get('max_results', 50))
+        date_range   = request.form.get('date_range') or None
+        article_type = request.form.get('article_type') or None
+        pub_status   = request.form.get('pub_status') or None
+        language     = request.form.get('language') or None
         
         if not search_term:
             flash('Please enter a search term', 'error')
@@ -57,7 +61,11 @@ def search():
             # Perform PubMed search
             pmids, total_count = pubmed_service.search_by_gene(
                 gene_name=search_term,
-                max_results=max_results
+                max_results=max_results,
+                date_range=date_range,
+                article_type=article_type,
+                pub_status=pub_status,
+                language=language,
             )
             
             # Fetch article details
@@ -69,7 +77,13 @@ def search():
                 search_term=search_term,
                 search_type=search_type,
                 results_count=len(articles),
-                search_params={'max_results': max_results}
+                search_params={
+                    'max_results': max_results,
+                    'date_range': date_range,
+                    'article_type': article_type,
+                    'pub_status': pub_status,
+                    'language': language,
+                }
             )
             
             # Save articles
