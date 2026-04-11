@@ -56,3 +56,28 @@
 - 20 unit tests in `test_knowhow_link_preview_step4.py`, all passing
 
 
+## LitReview Advanced Filters (v1.6)
+
+### Overview
+Extended the PubMed search with four optional filters: date range, article type, publication status, and language. Filters are translated into PubMed E-utilities query clauses and are stored alongside each saved search for history display.
+
+### `app/litreview/pubmed_service.py`
+- Added class-level lookup tables `_DATE_RANGE_DAYS` and `_ARTICLE_TYPE_FILTERS`
+- `search_by_gene()` gains four new optional parameters: `date_range`, `article_type`, `pub_status`, `language`
+  - `date_range` (`6months` / `1year` / `5years`) appends a `[PDAT]` date-range clause
+  - `article_type` (`review` / `clinical_trial` / `meta_analysis` / `case_report`) appends a publication-type `[pt]` clause
+  - `pub_status` (`preprint` / `inpress`) appends `preprint[sb]` or `inprocess[sb]`; `published` requires no extra clause
+  - `language` (e.g. `english`) appends a `[la]` language clause
+- Redis cache key now includes all four filter values so different filter combinations are cached independently
+
+### `app/litreview/routes.py`
+- `search()` route reads the four new form fields (`date_range`, `article_type`, `pub_status`, `language`) from `request.form`
+- All four are forwarded to `pubmed_service.search_by_gene()`
+- All four are stored in the `search_params` JSON field of the saved `LiteratureSearch` record
+
+### `app/templates/litreview/search.html`
+- Added collapsible "Advanced Filters" section (toggle button with animated chevron) between the Max Results field and the Submit button
+- Four `<select>` fields inside the panel: Date Range, Article Type, Publication Status, Language
+- Inline JavaScript auto-expands the panel if any filter is already selected (e.g. after a validation error round-trip)
+
+

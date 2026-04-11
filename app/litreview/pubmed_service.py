@@ -43,23 +43,50 @@ class PubMedService:
             Entrez.api_key = self.api_key
         self._configured = True
     
+    # Mapping from UI date-range value to number of days
+    _DATE_RANGE_DAYS: Dict[str, int] = {
+        '6months': 183,
+        '1year':   365,
+        '5years':  1825,
+    }
+
+    # PubMed publication-type filter strings for each UI article-type value
+    _ARTICLE_TYPE_FILTERS: Dict[str, str] = {
+        'review':          'Review[pt]',
+        'clinical_trial':  'Clinical Trial[pt]',
+        'meta_analysis':   'Meta-Analysis[pt]',
+        'case_report':     'Case Reports[pt]',
+    }
+
     def search_by_gene(self, gene_name: str, max_results: int = 100,
-                       retstart: int = 0) -> Tuple[List[str], int]:
+                       retstart: int = 0,
+                       date_range: Optional[str] = None,
+                       article_type: Optional[str] = None,
+                       pub_status: Optional[str] = None,
+                       language: Optional[str] = None) -> Tuple[List[str], int]:
         """
-        Search PubMed for articles related to a specific gene
-        
+        Search PubMed for articles related to a specific gene.
+
         Args:
-            gene_name: Gene symbol (e.g., 'BRCA1')
-            max_results: Maximum number of results to return
-            retstart: Starting position for pagination
-            
+            gene_name:    Gene symbol or free-text term.
+            max_results:  Maximum number of results to return.
+            retstart:     Starting position for pagination.
+            date_range:   One of '6months', '1year', '5years', or None (no limit).
+            article_type: One of 'review', 'clinical_trial', 'meta_analysis',
+                          'case_report', or None (all types).
+            pub_status:   One of 'published', 'preprint', 'inpress', or None (all).
+            language:     ISO-639-1 language code, e.g. 'english', or None (all).
+
         Returns:
             Tuple of (list of PMIDs, total count)
         """
         self._configure()
 
         # Layer 1: Redis cache — avoid repeat API calls for the same query
-        cache_key = f'pubmed_search:{gene_name.lower()}:{max_results}:{retstart}'
+        cache_key = (
+            f'pubmed_search:{gene_name.lower()}:{max_results}:{retstart}'
+            f':{date_range}:{article_type}:{pub_status}:{language}'
+        )
         try:
             cached = flask_cache.get(cache_key)
             if cached is not None:
@@ -70,8 +97,29 @@ class PubMedService:
 
         try:
             # Construct search query
-            query = f"{gene_name}[Gene Name] AND (humans[MeSH Terms])"
-            
+            query = f"{gene_name}[Gene Name]"
+
+            # --- Date range filter ---
+            if date_range and date_range in self._DATE_RANGE_DAYS:
+                days = self._DATE_RANGE_DAYS[date_range]
+                from_date = (datetime.utcnow() - timedelta(days=days)).strftime('%Y/%m/%d')
+                query += f' AND ("{from_date}"[PDAT] : "3000"[PDAT])'
+
+            # --- Article type filter ---
+            if article_type and article_type in self._ARTICLE_TYPE_FILTERS:
+                query += f' AND {self._ARTICLE_TYPE_FILTERS[article_type]}'
+
+            # --- Publication status filter ---
+            if pub_status == 'preprint':
+                query += ' AND preprint[sb]'
+            elif pub_status == 'inpress':
+                query += ' AND inprocess[sb]'
+            # 'published' requires no extra clause (default PubMed behaviour)
+
+            # --- Language filter ---
+            if language:
+                query += f' AND {language}[la]'
+
             # Execute search
             handle = Entrez.esearch(
                 db="pubmed",
