@@ -81,3 +81,52 @@ Extended the PubMed search with four optional filters: date range, article type,
 - Inline JavaScript auto-expands the panel if any filter is already selected (e.g. after a validation error round-trip)
 
 
+## LitReview Review Feature — Genie Integration (v1.7)
+
+### Overview
+Adds a full article-categorization workflow ("LitReview Review") that lets users classify each article in a PubMed search result set (Useful / Possibly useful / Probably not useful / Not useful) and submit the classifications to the **Genie** gene-literature knowledge base. Genie classifications stored by previous reviews are fetched and displayed on the search-results page for instant context.
+
+### Database
+- New model `LitReviewSession` (`litreview_review_sessions`): tracks a gene-focused review session linked to a `LiteratureSearch`, storing the resolved Ensembl ID, gene symbol, status (`in_progress` / `complete`), and `submitted_to_genie` flag
+- New model `LitReviewArticleCategory` (`litreview_article_categories`): one row per article per session, storing the integer category (0–4) and timestamp; unique constraint `(session_id, article_id)`
+- Alembic migration `g2h3i4j5k6l7_add_litreview_review_tables.py` generated and applied
+
+### `app/litreview/genie_service.py` (new)
+- Singleton `GenieService` with lazy configuration from `GENIE_API_URL` / `GENIE_API_KEY`
+- `lookup_gene(symbol)` → list of Ensembl IDs
+- `get_gene_detail(ensembl_id)` → gene annotation dict (display name, chromosome, description)
+- `get_omim_id(ensembl_id)` → OMIM ID string or `None`
+- `get_categorizations(ensembl_id)` → list of `{pmid, category}` dicts stored in Genie
+- `save_categorizations_bulk(ensembl_id, pmid_category_list)` → bulk-submit to Genie
+- All methods are non-fatal wrappers with structured logging
+
+### `app/litreview/routes.py` — new routes
+- `GET /api/gene-lookup?q=<symbol>` — resolves gene symbol to Ensembl candidates with parallel detail+OMIM fetch via `ThreadPoolExecutor`
+- `POST /api/reclassify` — saves a single PMID/category directly to Genie; used by the inline reclassify strip on the results page
+- `GET /results/<id>/review/start` — gene-confirmation page (redirects to review if session exists)
+- `POST /results/<id>/review/confirm-gene` — creates `LitReviewSession`, bulk-inserts category rows (pre-populated from Genie in a single write), redirects to review UI
+- `GET /results/<id>/review` — main categorization UI; serializes articles to plain dicts for JSON safety
+- `POST /results/<id>/review/categorize` — AJAX endpoint; updates `LitReviewArticleCategory` by PK + session ownership check
+- `POST /results/<id>/review/finish` — commits `status='complete'` first (so UI reflects done regardless), then submits to Genie; `submitted_to_genie` flag updated on success
+- `GET /results/<id>` (`search_results`) updated: resolves `genie_ensembl_id` from session or by iterating all Ensembl IDs returned by `lookup_gene` (picks first with data); honours `?ensembl_id=` query-param override; passes `genie_categories`, `genie_unclassified_count`, `genie_ensembl_id` to template
+
+### Templates
+- **`review_start.html`** (new): gene-confirmation page with 5-state JS machine (loading → single match / multiple matches / not found / manual entry); hidden form POSTs `ensembl_id` + `gene_symbol`
+- **`review.html`** (new): article-by-article categorization with progress bar, 4 category buttons, keyboard shortcuts 1–4, "Save & exit" (navigates immediately, saves in background with `keepalive: true`)
+- **`results.html`** updated:
+  - Each article card has a **clickable colored left strip** (green/amber/orange/red/gray) reflecting its Genie category; clicking opens an inline reclassify dialog that saves to Genie without a page reload
+  - Ensembl ID shown as a link to Ensembl (e.g. `https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG…`) with a **"Wrong gene?"** button that opens a gene-lookup modal (same UX as `review_start.html`) and reloads with `?ensembl_id=<new>`
+  - Color legend row with **"What is Genie?"** button that opens an explanatory popup
+  - **Start LitReview** button only shown when `genie_unclassified_count > 0` (hidden when all articles are already classified); sub-label shows unclassified count
+  - **Continue Review** button with `N / total categorized` sub-label when a session is `in_progress`
+  - **Review complete ✓** badge when session is `complete`
+  - Save-exit toast: `?save_exit=1` query param triggers "Progress saved ✓" notification on the results page after background save
+- **`history.html`** updated: fixed `csrf_token()` → `session['csrf_token']` (app uses custom session-based CSRF, not Flask-WTF)
+
+### Bug fixes during development
+- `logging().debug(…)` → `log.debug(…)` (module was being called as a function)
+- `LitReviewArticleCategory` lookup used `article_id` FK column instead of `id` PK — fixed to match what the frontend sends (`cat_id`)
+- `status='complete'` now committed before Genie submission so the UI always reflects the final state; Genie failure is non-fatal with a warning flash
+- Duplicate `bulk_save_objects` call on same objects caused `23505 unique constraint` violation — fixed by fetching Genie prior categorizations before any DB write and applying them at construction time (single write)
+- Missing `@litreview_bp.route` decorator on `review_start` (accidentally dropped during editing) restored
+

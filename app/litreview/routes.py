@@ -582,6 +582,39 @@ def api_gene_lookup():
     return jsonify({'candidates': candidates})
 
 
+@litreview_bp.route('/api/reclassify', methods=['POST'])
+@login_required
+def api_reclassify():
+    """
+    POST /litreview/api/reclassify
+    JSON body: {ensembl_id, pmid, category}  category 1-4 or 0 to clear
+
+    Saves a single PMID/category directly to the Genie API.
+    Used by the inline reclassify dialog on the search-results page.
+    """
+    data       = request.get_json(silent=True) or {}
+    ensembl_id = data.get('ensembl_id', '').strip()
+    pmid       = data.get('pmid')
+    category   = data.get('category')
+
+    if not ensembl_id:
+        return jsonify({'error': 'ensembl_id is required'}), 400
+    if pmid is None or category is None:
+        return jsonify({'error': 'pmid and category are required'}), 400
+    if not isinstance(category, int) or not (0 <= category <= 4):
+        return jsonify({'error': 'category must be 0–4'}), 400
+
+    try:
+        result = genie_service.save_categorizations_bulk(
+            ensembl_id, [{'pmid': int(pmid), 'category': category}]
+        )
+    except Exception:
+        log.exception('Genie reclassify failed for ensembl=%s pmid=%s', ensembl_id, pmid)
+        return jsonify({'error': 'Failed to save to Genie API'}), 502
+
+    return jsonify({'ok': True, 'category': category, 'result': result})
+
+
 @litreview_bp.route('/results/<int:search_id>/review/start')
 @login_required
 def review_start(search_id):
@@ -665,43 +698,33 @@ def review_confirm_gene(search_id):
         .all()
     )
 
-    # Bulk-insert one LitReviewArticleCategory per article (all uncategorized)
-    category_rows = {
-        r.article_id: LitReviewArticleCategory(
-            session_id=session_obj.id,
-            article_id=r.article_id,
-            pmid=r.article.pubmed_id,
-            category=0,
-            categorized_at=None,
-        )
-        for r in results
-    }
-    db.session.bulk_save_objects(category_rows.values())
-    db.session.flush()
-
-    # Pre-populate from Genie API to restore any prior categorizations
+    # Pre-fetch Genie categorizations so we can apply them before any DB write
+    prior_by_pmid = {}  # str(pmid) -> int category
     try:
         prior = genie_service.get_categorizations(ensembl_id)
-        if prior:
-            # Build pmid → article_id reverse map
-            pmid_to_article_id = {r.article.pubmed_id: r.article_id for r in results}
-            for entry in prior:
-                pmid = str(entry.get('pmid', ''))
-                cat  = entry.get('category', 0)
-                art_id = pmid_to_article_id.get(pmid)
-                if art_id and art_id in category_rows:
-                    row = category_rows[art_id]
-                    if isinstance(cat, int) and 1 <= cat <= 4:
-                        row.category = cat
-            # Re-save updated rows
-            db.session.bulk_save_objects(category_rows.values())
+        prior_by_pmid = {
+            str(entry['pmid']): entry['category']
+            for entry in prior
+            if isinstance(entry.get('category'), int) and 1 <= entry['category'] <= 4
+        }
     except Exception:
         log.exception(
             'Could not fetch prior Genie categorizations for %s (search %d); continuing.',
-            ensembl_id, search_id
+            ensembl_id, search_id,
         )
-        # Non-fatal — the session is still created, just without prior data
 
+    # Build one LitReviewArticleCategory per article, applying any prior Genie category
+    category_rows = [
+        LitReviewArticleCategory(
+            session_id=session_obj.id,
+            article_id=r.article_id,
+            pmid=r.article.pubmed_id,
+            category=prior_by_pmid.get(str(r.article.pubmed_id), 0),
+            categorized_at=None,
+        )
+        for r in results
+    ]
+    db.session.bulk_save_objects(category_rows)
     db.session.commit()
 
     AuditService.log_action(
