@@ -1962,6 +1962,112 @@ class UserArticleAction(db.Model):
         }
 
 
+class LitReviewSession(db.Model):
+    """Tracks a gene-focused review session over a literature search result set."""
+    __tablename__ = 'litreview_review_sessions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    search_id = db.Column(
+        db.Integer,
+        db.ForeignKey('literature_searches.id', ondelete='CASCADE'),
+        nullable=False, index=True
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('user.id', ondelete='CASCADE'),
+        nullable=False, index=True
+    )
+
+    # Gene context resolved via Genie API
+    ensembl_id = db.Column(db.String(50), nullable=False)
+    gene_symbol = db.Column(db.String(100), nullable=False)
+
+    # Session state
+    status = db.Column(db.String(20), default='in_progress', nullable=False)  # 'in_progress' | 'complete'
+    submitted_to_genie = db.Column(db.Boolean, default=False, nullable=False)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now, nullable=False)
+
+    # Relationships
+    search = db.relationship('LiteratureSearch', backref=db.backref('review_sessions', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('litreview_sessions', lazy='dynamic'))
+    categorizations = db.relationship(
+        'LitReviewArticleCategory', backref='session',
+        lazy='dynamic', cascade='all, delete-orphan'
+    )
+
+    __table_args__ = (
+        db.Index('idx_litreview_sessions_search', 'search_id'),
+        db.Index('idx_litreview_sessions_user', 'user_id'),
+        db.Index('idx_litreview_sessions_status', 'status'),
+    )
+
+    def __repr__(self):
+        return f'<LitReviewSession {self.id}: gene={self.gene_symbol} search={self.search_id} status={self.status}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'search_id': self.search_id,
+            'user_id': self.user_id,
+            'ensembl_id': self.ensembl_id,
+            'gene_symbol': self.gene_symbol,
+            'status': self.status,
+            'submitted_to_genie': self.submitted_to_genie,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class LitReviewArticleCategory(db.Model):
+    """Records a user's category rating for an article within a review session."""
+    __tablename__ = 'litreview_article_categories'
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(
+        db.Integer,
+        db.ForeignKey('litreview_review_sessions.id', ondelete='CASCADE'),
+        nullable=False, index=True
+    )
+    article_id = db.Column(
+        db.Integer,
+        db.ForeignKey('literature_articles.id', ondelete='CASCADE'),
+        nullable=False, index=True
+    )
+
+    # Denormalised for easy Genie API submission
+    pmid = db.Column(db.String(20), nullable=False)
+
+    # 0=Uncategorized, 1=Not useful, 2=Probably not useful, 3=Possibly useful, 4=Useful
+    category = db.Column(db.Integer, default=0, nullable=False)
+
+    categorized_at = db.Column(db.DateTime, nullable=True)
+
+    # Relationships
+    article = db.relationship('LiteratureArticle', backref=db.backref('review_categories', lazy='dynamic'))
+
+    __table_args__ = (
+        db.UniqueConstraint('session_id', 'article_id', name='uq_session_article_category'),
+        db.Index('idx_litreview_categories_session', 'session_id'),
+        db.Index('idx_litreview_categories_article', 'article_id'),
+    )
+
+    def __repr__(self):
+        return f'<LitReviewArticleCategory session:{self.session_id} article:{self.article_id} cat:{self.category}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'session_id': self.session_id,
+            'article_id': self.article_id,
+            'pmid': self.pmid,
+            'category': self.category,
+            'categorized_at': self.categorized_at.isoformat() if self.categorized_at else None,
+        }
+
+
 class KnowhowCategory(db.Model):
     """Dynamic KnowHow category, managed by admins"""
     __tablename__ = 'knowhow_categories'

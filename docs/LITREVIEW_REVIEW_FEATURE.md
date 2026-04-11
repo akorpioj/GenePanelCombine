@@ -65,7 +65,7 @@ If the categorization process is unfinished, the user can continue it from a but
 
 **models.py**
 
-- [ ] `LitReviewSession` model (`__tablename__ = 'litreview_review_sessions'`):
+- [X] `LitReviewSession` model (`__tablename__ = 'litreview_review_sessions'`):
   - `id` SERIAL PK
   - `search_id` FK → `literature_searches.id` ON DELETE CASCADE, indexed
   - `user_id` FK → `users.id` ON DELETE CASCADE, indexed
@@ -76,7 +76,7 @@ If the categorization process is unfinished, the user can continue it from a but
   - `created_at`, `updated_at`
   - Relationship: `categories` → `LitReviewArticleCategory` (cascade delete)
 
-- [ ] `LitReviewArticleCategory` model (`__tablename__ = 'litreview_article_categories'`):
+- [X] `LitReviewArticleCategory` model (`__tablename__ = 'litreview_article_categories'`):
   - `id` SERIAL PK
   - `session_id` FK → `litreview_review_sessions.id` ON DELETE CASCADE, indexed
   - `article_id` FK → `literature_articles.id` ON DELETE CASCADE, indexed
@@ -86,8 +86,8 @@ If the categorization process is unfinished, the user can continue it from a but
   - UniqueConstraint on `(session_id, article_id)`
 
 **`migrations/versions/xxx_add_litreview_review_tables.py`** (new Alembic migration)
-- [ ] `upgrade()` creates both tables with indexes and constraints
-- [ ] `downgrade()` drops both tables in reverse order
+- [X] `upgrade()` creates both tables with indexes and constraints
+- [X] `downgrade()` drops both tables in reverse order
 
 ---
 
