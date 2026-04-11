@@ -54,11 +54,14 @@
                         {{ review_categorized_count }}&thinsp;/&thinsp;{{ review_total }} categorized
                     </span>
                 </a>
-                {% else %}
+                {% elif genie_unclassified_count > 0 %}
                 <a href="{{ url_for('litreview.review_start', search_id=search.id) }}"
-                   class="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700
-                          transition text-sm font-medium">
-                    Start LitReview
+                   class="inline-flex flex-col items-center px-4 py-1.5 bg-violet-600 text-white
+                          rounded-lg hover:bg-violet-700 transition text-sm font-medium leading-tight">
+                    <span>Start LitReview</span>
+                    <span class="text-violet-200 text-xs font-normal">
+                        {{ genie_unclassified_count }} unclassified
+                    </span>
                 </a>
                 {% endif %}
             </div>
@@ -66,9 +69,28 @@
     </header>
     
     <!-- Results List -->
+    {# Colour legend for Genie classifications #}
+    {% if genie_categories %}
+    <div class="flex items-center gap-4 mb-4 text-xs text-gray-500">
+        <span class="font-medium">Genie:</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-green-500"></span>Useful</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-amber-400"></span>Possibly useful</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-orange-400"></span>Probably not useful</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-red-400"></span>Not useful</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-gray-200"></span>Unclassified</span>
+    </div>
+    {% endif %}
     <div class="space-y-4">
         {% for result in results %}
-        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+        {%- set gcat = genie_categories.get(result.article.pubmed_id|string, 0) %}
+        {%- if gcat == 4 %}{% set cat_cls = "border-l-4 border-l-green-500" %}
+        {%- elif gcat == 3 %}{% set cat_cls = "border-l-4 border-l-amber-400" %}
+        {%- elif gcat == 2 %}{% set cat_cls = "border-l-4 border-l-orange-400" %}
+        {%- elif gcat == 1 %}{% set cat_cls = "border-l-4 border-l-red-400" %}
+        {%- else %}{% set cat_cls = "border-l-4 border-l-gray-200" %}{% endif %}
+        {%- set cat_title = {0: 'Unclassified', 1: 'Not useful', 2: 'Probably not useful', 3: 'Possibly useful', 4: 'Useful'} %}
+        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition {{ cat_cls }}"
+             title="Genie: {{ cat_title[gcat] }}">
             <!-- Title -->
             <h3 class="text-lg font-semibold text-gray-900 mb-2">
                 <a 

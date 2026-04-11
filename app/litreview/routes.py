@@ -137,6 +137,31 @@ def search_results(search_id):
             LitReviewArticleCategory.category > 0,
         ).count()
 
+    # Fetch Genie categorizations for colour-coded article cards (non-fatal)
+    genie_categories = {}  # str(pmid) -> category int 1-4; absent means unclassified
+    genie_ensembl_id = review_session.ensembl_id if review_session else None
+    if not genie_ensembl_id:
+        try:
+            ids = genie_service.lookup_gene(search.search_query)
+            genie_ensembl_id = ids[0] if ids else None
+        except Exception:
+            pass
+    if genie_ensembl_id:
+        try:
+            pmid_cats = genie_service.get_categorizations(genie_ensembl_id)
+            genie_categories = {
+                str(item['pmid']): item['category']
+                for item in pmid_cats
+                if item.get('category', 0) > 0
+            }
+        except Exception:
+            log.debug('Could not fetch Genie categorizations for %s', genie_ensembl_id)
+
+    genie_unclassified_count = sum(
+        1 for r in results
+        if genie_categories.get(str(r.article.pubmed_id), 0) == 0
+    )
+
     # Log view
     AuditService.log_view(
         resource_type='search_results',
@@ -151,6 +176,8 @@ def search_results(search_id):
         review_session=review_session,
         review_categorized_count=review_categorized_count,
         review_total=review_total,
+        genie_categories=genie_categories,
+        genie_unclassified_count=genie_unclassified_count,
     )
 
 
