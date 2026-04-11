@@ -11,10 +11,17 @@
 
 <!-- Gene List Section -->
 <div>
-    <h4 class="text-lg font-medium text-gray-900 mb-3">
-        Gene List 
-        <span class="text-sm font-normal text-gray-500">({{GENE_COUNT}} genes)</span>
-    </h4>
+    <div class="flex items-center justify-between mb-3">
+        <h4 class="text-lg font-medium text-gray-900">
+            Gene List 
+            <span class="text-sm font-normal text-gray-500">({{GENE_COUNT}} genes)</span>
+        </h4>
+        <a href="/panels/{{PANEL_ID}}/add-to-genie"
+           class="inline-flex items-center px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-md transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+            <i class="fas fa-dna mr-1.5"></i>
+            Add genes to Genie
+        </a>
+    </div>
     <div class="bg-white border border-gray-200 rounded-lg">
         {{GENE_LIST_CONTENT}}
     </div>

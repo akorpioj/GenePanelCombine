@@ -149,6 +149,18 @@ class GenieService:
             return None
         return str(data.get('omim_id')) if data.get('omim_id') else None
 
+    def get_omim_ids_bulk(self, ensembl_ids: list) -> dict:
+        """
+        Fetch OMIM IDs for multiple Ensembl IDs in one API call.
+
+        Args:
+            ensembl_ids: List of Ensembl gene IDs.
+
+        Returns:
+            Dict mapping ensembl_id -> omim_id string (or None if not found).
+        """
+        return self._post('/genes/omim-ids', ensembl_ids)
+
     def get_categorizations(self, ensembl_id: str) -> list[dict]:
         """
         Fetch stored PMID/category pairs for an Ensembl ID.
@@ -189,6 +201,62 @@ class GenieService:
             for item in pmid_category_list
         ]
         return self._post(f'/gene/id:{ensembl_id}/pmids/bulk', payload)
+
+    def register_gene(self, ensembl_id: str) -> dict:
+        """
+        Register a gene in Genie by Ensembl ID.
+
+        Creates (or ensures the existence of) the gene entry in Genie
+        with no PMID categorizations.  Can safely be called more than
+        once for the same gene.
+
+        Args:
+            ensembl_id: Ensembl gene ID, e.g. 'ENSG00000012048'.
+
+        Returns:
+            dict with keys 'added' and 'skipped' (both typically empty lists).
+        """
+        return self._post(f'/gene/id:{ensembl_id}/pmids/bulk', [])
+
+    def check_genes(self, ensembl_ids: list) -> list:
+        """
+        Check which Ensembl IDs already exist in Genie.
+
+        Args:
+            ensembl_ids: List of Ensembl gene IDs, e.g. ['ENSG00000012048'].
+
+        Returns:
+            List of dicts with keys 'ensembl_id' (str) and 'exists' (bool).
+        """
+        return self._post('/genes/check', ensembl_ids)
+
+    def lookup_genes_bulk(self, symbols: list) -> dict:
+        """
+        Resolve multiple gene symbols to Ensembl IDs in one API call.
+
+        Args:
+            symbols: List of HGNC gene symbols, e.g. ['BRCA1', 'TP53'].
+
+        Returns:
+            Dict mapping symbol -> Ensembl ID string for found genes.
+            Symbols not found in Genie are absent from the returned dict.
+        """
+        return self._post('/genes/ensembl-ids', symbols)
+
+    def create_genes_bulk(self, ensembl_ids: list) -> list:
+        """
+        Create gene records for a list of Ensembl IDs in one API call.
+
+        Already-existing entries are skipped server-side.
+
+        Args:
+            ensembl_ids: List of Ensembl gene IDs, e.g. ['ENSG00000012048'].
+
+        Returns:
+            List of dicts with keys 'ensembl_id' (str) and 'exists' (bool).
+            'exists': True means the gene already existed; False means newly created.
+        """
+        return self._post('/genes', ensembl_ids)
 
 
 # Module-level singleton — import and use directly in routes/services

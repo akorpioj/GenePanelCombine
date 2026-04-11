@@ -1,4 +1,4 @@
-from flask import request, jsonify
+from flask import request, jsonify, render_template, abort
 from flask_login import current_user, login_required
 import datetime
 from app.extensions import limiter, cache
@@ -1068,3 +1068,183 @@ def api_restore_version(panel_id, version_id):
         db.session.rollback()
         logger.error(f"Error restoring version: {e}")
         return jsonify({'error': 'Failed to restore version'}), 500
+
+
+# ============================================================================
+# Genie Gene Registration
+# ============================================================================
+
+@main_bp.route('/panels/<int:panel_id>/add-to-genie')
+@login_required
+def panel_add_to_genie(panel_id):
+    """
+    GET /panels/<panel_id>/add-to-genie
+
+    Renders a full-page wizard that lets the user look up an Ensembl ID
+    for each gene in the panel and register all resolved genes in Genie.
+    """
+    panel = SavedPanel.query.filter_by(
+        id=panel_id, owner_id=current_user.id
+    ).filter(SavedPanel.status != PanelStatus.DELETED).first()
+    if not panel:
+        abort(404)
+
+    genes = PanelGene.query.filter_by(panel_id=panel.id).order_by(PanelGene.gene_symbol).all()
+    gene_list = [
+        {
+            'symbol': g.gene_symbol,
+            'name': g.gene_name or '',
+            'ensembl_id': g.ensembl_id or '',
+        }
+        for g in genes
+    ]
+
+    return render_template(
+        'main/panel_genie_export.html',
+        panel=panel,
+        genes=gene_list,
+    )
+
+
+@main_bp.route('/api/user/panels/<int:panel_id>/add-to-genie', methods=['POST'])
+@login_required
+@limiter.limit("10 per minute")
+def api_panel_add_to_genie(panel_id):
+    """
+    POST /api/user/panels/<panel_id>/add-to-genie
+    JSON body: {"genes": [{"gene_symbol": "BRCA1", "ensembl_id": "ENSG..."}]}
+
+    Registers each supplied gene (by Ensembl ID) in Genie.
+    Returns per-gene status.
+    """
+    panel = SavedPanel.query.filter_by(
+        id=panel_id, owner_id=current_user.id
+    ).filter(SavedPanel.status != PanelStatus.DELETED).first()
+    if not panel:
+        return jsonify({'error': 'Panel not found or access denied'}), 404
+
+    data = request.get_json(silent=True) or {}
+    genes = data.get('genes')
+    if not isinstance(genes, list) or len(genes) == 0:
+        return jsonify({'error': 'genes list is required'}), 400
+
+    from ..litreview.genie_service import genie_service
+
+    # Partition genes into those with/without an Ensembl ID
+    skipped = []
+    to_register = []  # {gene_symbol, ensembl_id}
+    for gene in genes:
+        ensembl_id  = (gene.get('ensembl_id')  or '').strip()
+        gene_symbol = (gene.get('gene_symbol') or '').strip()
+        if not ensembl_id:
+            skipped.append({'gene_symbol': gene_symbol, 'ensembl_id': '',
+                            'status': 'skipped', 'message': 'No Ensembl ID provided'})
+        else:
+            to_register.append({'gene_symbol': gene_symbol, 'ensembl_id': ensembl_id})
+
+    results = list(skipped)
+
+    if to_register:
+        ensembl_ids = [g['ensembl_id'] for g in to_register]
+        try:
+            genie_service.create_genes_bulk(ensembl_ids)
+
+            # Persist resolved Ensembl IDs back to PanelGene records where blank
+            for g in to_register:
+                pg = PanelGene.query.filter_by(
+                    panel_id=panel.id, gene_symbol=g['gene_symbol']
+                ).first()
+                if pg and not pg.ensembl_id:
+                    pg.ensembl_id = g['ensembl_id']
+
+            results.extend({
+                'gene_symbol': g['gene_symbol'],
+                'ensembl_id': g['ensembl_id'],
+                'status': 'registered',
+            } for g in to_register)
+
+        except Exception as exc:
+            logger.error('Genie create_genes_bulk failed for panel %s: %s', panel_id, exc)
+            results.extend({
+                'gene_symbol': g['gene_symbol'],
+                'ensembl_id': g['ensembl_id'],
+                'status': 'error',
+                'message': str(exc),
+            } for g in to_register)
+
+    db.session.commit()
+
+    AuditService.log_action(
+        action_type=AuditActionType.PANEL_DOWNLOAD,
+        action_description=(
+            f"Added {sum(1 for r in results if r['status'] == 'registered')} "
+            f"gene(s) from panel '{panel.name}' to Genie"
+        ),
+        user_id=current_user.id,
+        resource_id=panel.id,
+        resource_type='panel',
+        details={
+            'panel_id': panel_id,
+            'panel_name': panel.name,
+            'gene_count': len(genes),
+            'registered': sum(1 for r in results if r['status'] == 'registered'),
+            'skipped': sum(1 for r in results if r['status'] == 'skipped'),
+            'errors': sum(1 for r in results if r['status'] == 'error'),
+        },
+    )
+
+    return jsonify({'results': results}), 200
+
+
+@main_bp.route('/api/user/panels/<int:panel_id>/genie-status', methods=['GET'])
+@login_required
+@limiter.limit("60 per minute")
+def api_panel_genie_status(panel_id):
+    """
+    GET /api/user/panels/<panel_id>/genie-status
+
+    Returns Genie registration status for all genes in the panel that have
+    an Ensembl ID stored.  Genes without an Ensembl ID are omitted.
+
+    Response JSON:
+        {
+            "status": [
+                {"ensembl_id": "ENSG...", "gene_symbol": "BRCA1", "exists": true},
+                ...
+            ]
+        }
+    """
+    panel = SavedPanel.query.filter_by(
+        id=panel_id, owner_id=current_user.id
+    ).filter(SavedPanel.status != PanelStatus.DELETED).first()
+    if not panel:
+        return jsonify({'error': 'Panel not found or access denied'}), 404
+
+    genes = PanelGene.query.filter_by(panel_id=panel.id).all()
+    id_to_symbol = {
+        g.ensembl_id: g.gene_symbol
+        for g in genes
+        if g.ensembl_id and g.ensembl_id.strip()
+    }
+
+    if not id_to_symbol:
+        return jsonify({'status': []}), 200
+
+    from ..litreview.genie_service import genie_service
+
+    try:
+        check_results = genie_service.check_genes(list(id_to_symbol.keys()))
+    except Exception as exc:
+        logger.error('Genie check_genes failed for panel %s: %s', panel_id, exc)
+        return jsonify({'error': 'Genie service unavailable'}), 502
+
+    status = [
+        {
+            'ensembl_id': item['ensembl_id'],
+            'gene_symbol': id_to_symbol.get(item['ensembl_id'], ''),
+            'exists': item.get('exists', False),
+        }
+        for item in check_results
+    ]
+
+    return jsonify({'status': status}), 200

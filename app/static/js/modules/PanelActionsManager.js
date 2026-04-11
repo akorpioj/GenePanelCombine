@@ -626,6 +626,31 @@ class PanelActionsManager {
             const closeButton = document.getElementById('close-details-modal');
             if (closeButton) closeButton.focus();
         }, 100);
+
+        // Async: check Genie registration status for genes with Ensembl IDs
+        this._updateGenieStatusBadges(panel.id);
+    }
+
+    async _updateGenieStatusBadges(panelId) {
+        try {
+            const response = await fetch(`/api/user/panels/${panelId}/genie-status`);
+            if (!response.ok) return;
+            const data = await response.json();
+            const statusList = data.status || [];
+
+            statusList.forEach(({ ensembl_id, exists }) => {
+                if (!ensembl_id) return;
+                const card = document.querySelector(`[data-ensembl-id="${ensembl_id}"]`);
+                if (!card) return;
+                const badge = card.querySelector('.genie-status-badge');
+                if (!badge) return;
+                if (exists) {
+                    badge.innerHTML = '<span class="inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded bg-teal-100 text-teal-800 border border-teal-300" title="Already registered in Genie"><i class="fas fa-check-circle mr-1"></i>In Genie</span>';
+                }
+            });
+        } catch (err) {
+            console.warn('Genie status check failed:', err);
+        }
     }
 
     renderPanelOverview(panel) {
@@ -705,7 +730,8 @@ class PanelActionsManager {
                 .replace(/\{\{TAGS_SECTION\}\}/g, tagsSection)
                 .replace(/\{\{SOURCE_INFO_SECTION\}\}/g, sourceInfoSection)
                 .replace(/\{\{GENE_COUNT\}\}/g, panel.gene_count || 0)
-                .replace(/\{\{GENE_LIST_CONTENT\}\}/g, geneListContent);
+                .replace(/\{\{GENE_LIST_CONTENT\}\}/g, geneListContent)
+                .replace(/\{\{PANEL_ID\}\}/g, panel.id || '');
         }
     }
 
@@ -747,12 +773,15 @@ class PanelActionsManager {
             const ensemblInfo = gene.ensembl_id ? 
                 `<div class="text-right text-xs text-gray-500"><div class="font-mono">${gene.ensembl_id}</div></div>` : '';
 
+            const ensemblAttr = gene.ensembl_id ? ` data-ensembl-id="${gene.ensembl_id}"` : '';
+
             return `
-                <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg"${ensemblAttr}>
                     <div class="flex-1">
                         <div class="flex items-center">
                             <i class="fas fa-dna mr-2 text-blue-600"></i>
                             <span class="font-medium text-blue-800">${gene.symbol || 'Unknown'}</span>
+                            <span class="genie-status-badge ml-2"></span>
                         </div>
                         ${geneName}
                         ${confidenceBadge ? `<div class="mt-1">${confidenceBadge}</div>` : ''}

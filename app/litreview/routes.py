@@ -541,6 +541,50 @@ def _build_candidate(ensembl_id: str) -> dict:
     return candidate
 
 
+def _build_candidates_bulk(ensembl_ids: list) -> dict:
+    """
+    Fetch detail for each Ensembl ID in parallel, then fetch all OMIM IDs
+    in a single bulk call.  Returns a dict of ensembl_id -> candidate dict.
+    """
+    # Fetch gene detail for each ID in parallel (Ensembl API, no rate limit concern)
+    def _get_detail(eid):
+        try:
+            return eid, genie_service.get_gene_detail(eid)
+        except Exception:
+            return eid, None
+
+    details: dict = {}
+    with ThreadPoolExecutor(max_workers=min(len(ensembl_ids), 5)) as pool:
+        for eid, detail in pool.map(_get_detail, ensembl_ids):
+            details[eid] = detail
+
+    # Fetch all OMIM IDs in one Genie API call
+    try:
+        omim_map = genie_service.get_omim_ids_bulk(ensembl_ids)  # {eid: omim_id or None}
+    except Exception:
+        omim_map = {}
+
+    candidates = {}
+    for eid in ensembl_ids:
+        detail  = details.get(eid)
+        omim_id = omim_map.get(eid)
+        omim_id = str(omim_id) if omim_id else None
+        c = {
+            'ensembl_id': eid,
+            'display_name': None,
+            'chromosome': None,
+            'description': None,
+            'ensembl_url': f'{_ENSEMBL_BASE}{eid}',
+            'omim_url': f'{_OMIM_BASE}{omim_id}' if omim_id else None,
+        }
+        if detail:
+            c['display_name'] = detail.get('display_name')
+            c['chromosome']   = detail.get('seq_region_name')
+            c['description']  = detail.get('description')
+        candidates[eid] = c
+    return candidates
+
+
 @litreview_bp.route('/api/gene-lookup')
 @login_required
 def api_gene_lookup():
@@ -569,17 +613,55 @@ def api_gene_lookup():
     if not ensembl_ids:
         return jsonify({'candidates': [], 'not_found': True})
 
-    # Fetch detail + OMIM for each candidate in parallel
-    candidates = [None] * len(ensembl_ids)
-    with ThreadPoolExecutor(max_workers=min(len(ensembl_ids), 5)) as pool:
-        futures = {
-            pool.submit(_build_candidate, eid): idx
-            for idx, eid in enumerate(ensembl_ids)
-        }
-        for future in as_completed(futures):
-            candidates[futures[future]] = future.result()
+    eid_to_candidate = _build_candidates_bulk(ensembl_ids)
+    candidates = [eid_to_candidate[eid] for eid in ensembl_ids]
 
     return jsonify({'candidates': candidates})
+
+
+@litreview_bp.route('/api/gene-lookup-bulk', methods=['POST'])
+@login_required
+def api_gene_lookup_bulk():
+    """
+    POST /litreview/api/gene-lookup-bulk
+    JSON body: {"symbols": ["BRCA1", "TP53", ...]}
+
+    Resolves all symbols in one Genie API call, then fetches detail + OMIM
+    for each found gene in parallel.  Returns per-symbol candidate lists in
+    the same shape as api_gene_lookup so the client can reuse the same logic.
+
+    Returns:
+        200  {"results": {"BRCA1": {"candidates": [...]}, "UNKNOWNGENE": {"candidates": [], "not_found": true}}}
+        400  {"error": "..."}
+        500  {"error": "..."}
+    """
+    data = request.get_json(silent=True) or {}
+    symbols = [s.strip() for s in (data.get('symbols') or []) if s and s.strip()]
+    if not symbols:
+        return jsonify({'error': 'symbols list is required'}), 400
+
+    try:
+        bulk = genie_service.lookup_genes_bulk(symbols)
+    except Exception as exc:
+        log.exception('Bulk gene lookup failed')
+        return jsonify({'error': str(exc)}), 500
+
+    # bulk is {symbol: ensembl_id} — missing keys = not found
+    symbol_to_eid = {sym: eid for sym, eid in bulk.items() if eid}
+    unique_eids = list(set(symbol_to_eid.values()))
+
+    # Fetch detail + OMIM for all unique Ensembl IDs (one bulk OMIM call)
+    eid_to_candidate = _build_candidates_bulk(unique_eids) if unique_eids else {}
+
+    results = {}
+    for sym in symbols:
+        eid = symbol_to_eid.get(sym)
+        if eid and eid in eid_to_candidate:
+            results[sym] = {'candidates': [eid_to_candidate[eid]]}
+        else:
+            results[sym] = {'candidates': [], 'not_found': True}
+
+    return jsonify({'results': results})
 
 
 @litreview_bp.route('/api/reclassify', methods=['POST'])

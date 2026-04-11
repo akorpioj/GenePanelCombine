@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+
+{% block title %}Add Genes to Genie – {{ panel.name }} – PanelMerge{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
+
+    <!-- Back link -->
+    <nav class="mb-6">
+        <a href="{{ url_for('auth.profile') }}#my-panels"
+           class="text-sky-600 hover:underline text-sm">&larr; Back to My Panels</a>
+    </nav>
+
+    <h1 class="text-2xl font-bold text-sky-700 mb-1">Add Genes to Genie</h1>
+    <p class="text-gray-600 mb-6">
+        Panel: <span class="font-semibold text-gray-800">{{ panel.name }}</span>
+        <span class="text-gray-400 ml-2">({{ genes | length }} gene{{ 's' if genes | length != 1 }})</span>
+    </p>
+
+    {% if not genes %}
+    <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm">
+        This panel has no genes to add.
+    </div>
+    {% else %}
+
+    <!-- Phase banner -->
+    <div id="phase-banner" class="mb-6 text-sm text-gray-500 italic">
+        Looking up Ensembl IDs&hellip;
+    </div>
+
+    <!-- Gene cards list -->
+    <div id="gene-list" class="space-y-3 mb-8">
+        {% for gene in genes %}
+        <div class="gene-card border border-gray-200 rounded-lg p-4"
+             data-symbol="{{ gene.symbol }}"
+             data-name="{{ gene.name }}"
+             data-known-ensembl="{{ gene.ensembl_id }}">
+
+            <!-- Header row -->
+            <div class="flex items-center justify-between mb-2">
+                <div>
+                    <span class="font-semibold text-gray-800">{{ gene.symbol }}</span>
+                    {% if gene.name %}
+                    <span class="ml-2 text-sm text-gray-500">{{ gene.name }}</span>
+                    {% endif %}
+                </div>
+                <!-- Status badge – updated by JS -->
+                <span class="status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                    <svg class="animate-spin -ml-0.5 mr-1.5 h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    Looking up…
+                </span>
+            </div>
+
+            <!-- Resolution area – populated by JS -->
+            <div class="resolution-area hidden text-sm"></div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Submit row -->
+    <div id="submit-row" class="hidden flex items-center gap-4">
+        <button id="btn-submit"
+                class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed">
+            Register in Genie
+        </button>
+        <span id="submit-hint" class="text-sm text-gray-500"></span>
+    </div>
+
+    <!-- Results banner (after submission) -->
+    <div id="results-banner" class="hidden mt-6 rounded-lg border p-4 text-sm"></div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+    'use strict';
+
+    // ── Constants ────────────────────────────────────────────────────
+    const LOOKUP_URL      = {{ url_for('litreview.api_gene_lookup') | tojson }};
+    const BULK_LOOKUP_URL = {{ url_for('litreview.api_gene_lookup_bulk') | tojson }};
+    const SUBMIT_URL      = {{ url_for('main.api_panel_add_to_genie', panel_id=panel.id) | tojson }};
+    const CSRF_TOKEN      = {{ session['csrf_token'] | tojson }};
+
+    // Per-card state  {symbol -> {ensembl_id, status: 'pending'|'auto'|'chosen'|'manual'|'notfound'|'skipped'}}
+    const geneState = {};
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    function setBadge(card, cls, text) {
+        const badge = card.querySelector('.status-badge');
+        badge.className = 'status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' + cls;
+        badge.innerHTML = text;
+    }
+
+    function buildCandidateHtml(c) {
+        const ensemblLink = c.ensembl_url
+            ? `<a href="${c.ensembl_url}" target="_blank" rel="noopener" class="text-sky-600 hover:underline">${c.ensembl_id} ↗</a>`
+            : `<code>${c.ensembl_id}</code>`;
+        const omimLink = c.omim_url
+            ? `<a href="${c.omim_url}" target="_blank" rel="noopener" class="text-sky-600 hover:underline">OMIM ↗</a>`
+            : '';
+        return `
+            <div>
+                <div>${ensemblLink}</div>
+                ${c.display_name ? `<div class="text-gray-700">${c.display_name}</div>` : ''}
+                ${c.chromosome  ? `<div class="text-gray-500">Chr ${c.chromosome}</div>` : ''}
+                ${c.description ? `<div class="text-gray-500 italic">${c.description}</div>` : ''}
+                ${omimLink ? `<div>${omimLink}</div>` : ''}
+            </div>`;
+    }
+
+    // ── Per-gene lookup ──────────────────────────────────────────────
+    // prefetchedData: optional {candidates, not_found} already fetched by bulk lookup
+    async function processGene(card, prefetchedData) {
+        const symbol      = card.dataset.symbol;
+        const knownId     = card.dataset.knownEnsembl.trim();
+        const area        = card.querySelector('.resolution-area');
+
+        geneState[symbol] = { ensembl_id: '', status: 'pending' };
+
+        try {
+            // If the panel gene already has an Ensembl ID, use it directly
+            if (knownId) {
+                geneState[symbol] = { ensembl_id: knownId, status: 'auto' };
+                setBadge(card, 'bg-green-100 text-green-800',
+                    '✓ Auto-resolved');
+                area.innerHTML = `
+                    <div class="text-gray-700">
+                        Using stored Ensembl ID:
+                        <a href="https://www.ensembl.org/id/${knownId}" target="_blank" rel="noopener"
+                           class="font-mono text-sky-600 hover:underline">${knownId} ↗</a>
+                    </div>`;
+                area.classList.remove('hidden');
+                return;
+            }
+
+            // Use pre-fetched bulk result if available, otherwise single lookup
+            let data;
+            if (prefetchedData !== undefined) {
+                data = prefetchedData;
+            } else {
+                const resp = await fetch(`${LOOKUP_URL}?q=${encodeURIComponent(symbol)}`);
+                if (!resp.ok) throw new Error(`Lookup failed (HTTP ${resp.status})`);
+                data = await resp.json();
+            }
+            if (data.error) throw new Error(data.error);
+
+            const candidates = data.candidates || [];
+
+            if (data.not_found || candidates.length === 0) {
+                // Not found → allow manual entry
+                geneState[symbol].status = 'notfound';
+                setBadge(card, 'bg-amber-100 text-amber-800', '⚠ Not found');
+                renderManualInput(card, symbol, area, candidates);
+                return;
+            }
+
+            if (candidates.length === 1) {
+                // Auto-resolved
+                geneState[symbol] = { ensembl_id: candidates[0].ensembl_id, status: 'auto' };
+                setBadge(card, 'bg-green-100 text-green-800', '✓ Auto-resolved');
+                area.innerHTML = buildCandidateHtml(candidates[0]);
+                area.classList.remove('hidden');
+                // Add "Wrong gene?" link
+                addWrongGeneLink(card, symbol, area, candidates);
+            } else {
+                // Multiple matches → ask user to choose
+                geneState[symbol].status = 'pending';
+                setBadge(card, 'bg-blue-100 text-blue-800', '⚡ Choose Ensembl ID');
+                renderCandidatePicker(card, symbol, area, candidates);
+            }
+
+        } catch (err) {
+            geneState[symbol].status = 'notfound';
+            setBadge(card, 'bg-red-100 text-red-700', '✗ Lookup error');
+            renderManualInput(card, symbol, area, []);
+            area.innerHTML += `<p class="mt-1 text-red-600">Error: ${err.message}</p>`;
+        }
+
+        updateSubmitRow();
+    }
+
+    // ── Candidate picker (multiple matches) ──────────────────────────
+    function renderCandidatePicker(card, symbol, area, candidates) {
+        area.innerHTML = `
+            <p class="mb-2 text-gray-600">Multiple Ensembl IDs found. Select the correct gene:</p>
+            <div class="candidate-picker space-y-2 mb-3">
+                ${candidates.map((c, i) => `
+                    <label class="flex items-start gap-3 border rounded-lg p-3 cursor-pointer
+                                  hover:bg-gray-50 has-[:checked]:ring-2 has-[:checked]:ring-teal-500">
+                        <input type="radio" name="cand_${symbol.replace(/[^a-z0-9]/gi,'_')}" value="${i}"
+                               class="mt-1 accent-teal-600">
+                        <div>${buildCandidateHtml(c)}</div>
+                    </label>`).join('')}
+            </div>
+            <div class="flex gap-2">
+                <button type="button" class="btn-choose-cand px-4 py-1.5 bg-teal-600 hover:bg-teal-700
+                         text-white text-sm rounded-lg transition">
+                    Confirm selection
+                </button>
+                <button type="button" class="btn-skip-gene px-4 py-1.5 border border-gray-300
+                         text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition">
+                    Skip this gene
+                </button>
+                <button type="button" class="btn-manual-instead px-4 py-1.5 border border-gray-300
+                         text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition">
+                    Enter manually
+                </button>
+            </div>`;
+        area.classList.remove('hidden');
+
+        area.querySelector('.btn-choose-cand').addEventListener('click', () => {
+            const sel = area.querySelector(`input[name="cand_${symbol.replace(/[^a-z0-9]/gi,'_')}"]:checked`);
+            if (!sel) { alert('Please select a gene.'); return; }
+            const c = candidates[parseInt(sel.value, 10)];
+            geneState[symbol] = { ensembl_id: c.ensembl_id, status: 'chosen' };
+            setBadge(card, 'bg-green-100 text-green-800', '✓ Selected');
+            area.innerHTML = buildCandidateHtml(c);
+            addWrongGeneLink(card, symbol, area, candidates);
+            updateSubmitRow();
+        });
+
+        area.querySelector('.btn-skip-gene').addEventListener('click', () => {
+            geneState[symbol] = { ensembl_id: '', status: 'skipped' };
+            setBadge(card, 'bg-gray-100 text-gray-500', '— Skipped');
+            area.innerHTML = '<p class="text-gray-500 italic">This gene will not be added to Genie.</p>';
+            area.classList.remove('hidden');
+            updateSubmitRow();
+        });
+
+        area.querySelector('.btn-manual-instead').addEventListener('click', () => {
+            geneState[symbol].status = 'notfound';
+            renderManualInput(card, symbol, area, candidates);
+        });
+    }
+
+    // ── "Wrong gene?" link under auto-resolved card ──────────────────
+    function addWrongGeneLink(card, symbol, area, candidates) {
+        const link = document.createElement('div');
+        link.className = 'mt-2';
+        link.innerHTML = `<button type="button" class="text-xs text-gray-400 hover:text-gray-600 underline">
+            Wrong gene?
+        </button>`;
+        link.querySelector('button').addEventListener('click', () => {
+            if (candidates.length > 1) {
+                geneState[symbol].status = 'pending';
+                setBadge(card, 'bg-blue-100 text-blue-800', '⚡ Choose Ensembl ID');
+                renderCandidatePicker(card, symbol, area, candidates);
+            } else {
+                geneState[symbol].status = 'notfound';
+                renderManualInput(card, symbol, area, candidates);
+            }
+            updateSubmitRow();
+        });
+        area.appendChild(link);
+    }
+
+    // ── Manual Ensembl ID input ──────────────────────────────────────
+    function renderManualInput(card, symbol, area, candidates) {
+        const safeId = symbol.replace(/[^a-z0-9]/gi, '_');
+        area.innerHTML = `
+            <p class="mb-2 text-gray-600">Enter Ensembl ID manually:</p>
+            <div class="flex gap-2 mb-2">
+                <input id="manual_${safeId}" type="text" placeholder="e.g. ENSG00000012048"
+                       class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm
+                              focus:outline-none focus:ring-2 focus:ring-sky-400">
+                <button type="button" class="btn-verify-manual px-3 py-1.5 bg-sky-600 hover:bg-sky-700
+                         text-white text-sm rounded-lg transition">Verify</button>
+            </div>
+            <div class="verify-result hidden text-sm rounded-lg border p-3 mb-2"></div>
+            <div class="flex gap-2">
+                <button type="button" class="btn-confirm-manual hidden px-4 py-1.5 bg-teal-600 hover:bg-teal-700
+                         text-white text-sm rounded-lg transition">Use this ID</button>
+                <button type="button" class="btn-skip-gene px-4 py-1.5 border border-gray-300
+                         text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition">
+                    Skip this gene
+                </button>
+            </div>`;
+        area.classList.remove('hidden');
+
+        let _verified = null;
+
+        const verifyBtn = area.querySelector('.btn-verify-manual');
+        const resultEl  = area.querySelector('.verify-result');
+        const confirmBtn = area.querySelector('.btn-confirm-manual');
+        const input     = area.querySelector(`#manual_${safeId}`);
+
+        const doVerify = async () => {
+            const id = input.value.trim();
+            if (!id) return;
+            resultEl.className = 'verify-result text-sm rounded-lg border p-3 mb-2 bg-gray-50 border-gray-200';
+            resultEl.classList.remove('hidden');
+            resultEl.textContent = 'Verifying…';
+            confirmBtn.classList.add('hidden');
+            _verified = null;
+
+            try {
+                const r = await fetch(`${LOOKUP_URL}?q=${encodeURIComponent(id)}`);
+                if (!r.ok) throw new Error(`Lookup failed (HTTP ${r.status})`);
+                const d = await r.json();
+                if (d.error) throw new Error(d.error);
+                const cands = d.candidates || [];
+                if (d.not_found || cands.length === 0) {
+                    resultEl.className = 'verify-result text-sm rounded-lg border p-3 mb-2 bg-red-50 border-red-200 text-red-700';
+                    resultEl.textContent = `No gene found for "${id}". Please check and try again.`;
+                } else {
+                    _verified = cands[0];
+                    resultEl.className = 'verify-result text-sm rounded-lg border p-3 mb-2 bg-green-50 border-green-200 text-green-800';
+                    resultEl.innerHTML = buildCandidateHtml(_verified);
+                    confirmBtn.classList.remove('hidden');
+                }
+            } catch (err) {
+                resultEl.className = 'verify-result text-sm rounded-lg border p-3 mb-2 bg-red-50 border-red-200 text-red-700';
+                resultEl.textContent = 'Error: ' + err.message;
+            }
+        };
+
+        verifyBtn.addEventListener('click', doVerify);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doVerify(); } });
+
+        confirmBtn.addEventListener('click', () => {
+            if (!_verified) return;
+            geneState[symbol] = { ensembl_id: _verified.ensembl_id, status: 'manual' };
+            setBadge(card, 'bg-green-100 text-green-800', '✓ Manual');
+            area.innerHTML = buildCandidateHtml(_verified);
+            addWrongGeneLink(card, symbol, area, []);
+            updateSubmitRow();
+        });
+
+        area.querySelector('.btn-skip-gene').addEventListener('click', () => {
+            geneState[symbol] = { ensembl_id: '', status: 'skipped' };
+            setBadge(card, 'bg-gray-100 text-gray-500', '— Skipped');
+            area.innerHTML = '<p class="text-gray-500 italic">This gene will not be added to Genie.</p>';
+            area.classList.remove('hidden');
+            updateSubmitRow();
+        });
+    }
+
+    // ── Submit row visibility ────────────────────────────────────────
+    function allResolved() {
+        return Object.values(geneState).every(s =>
+            ['auto', 'chosen', 'manual', 'skipped'].includes(s.status));
+    }
+
+    function pendingCount() {
+        return Object.values(geneState).filter(s => s.status === 'pending').length;
+    }
+
+    function updateSubmitRow() {
+        const row     = document.getElementById('submit-row');
+        const btn     = document.getElementById('btn-submit');
+        const hint    = document.getElementById('submit-hint');
+        const banner  = document.getElementById('phase-banner');
+
+        if (allResolved()) {
+            row.classList.remove('hidden');
+            banner.textContent = 'All genes resolved. Review and click "Register in Genie".';
+            const toRegister = Object.values(geneState).filter(s =>
+                ['auto', 'chosen', 'manual'].includes(s.status)).length;
+            const skipped = Object.values(geneState).filter(s => s.status === 'skipped').length;
+            hint.textContent = `${toRegister} gene(s) will be registered` +
+                (skipped ? `; ${skipped} skipped.` : '.');
+            btn.disabled = toRegister === 0;
+        } else {
+            row.classList.add('hidden');
+            const left = pendingCount();
+            banner.textContent = left > 0
+                ? `Looking up Ensembl IDs… (${left} remaining)`
+                : 'Resolving ambiguities — please make selections above.';
+        }
+    }
+
+    // ── Submit handler ───────────────────────────────────────────────
+    document.getElementById('btn-submit').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-submit');
+        btn.disabled = true;
+        btn.textContent = 'Registering…';
+
+        const genes = Object.entries(geneState)
+            .filter(([, s]) => ['auto', 'chosen', 'manual'].includes(s.status))
+            .map(([symbol, s]) => ({ gene_symbol: symbol, ensembl_id: s.ensembl_id }));
+
+        try {
+            const resp = await fetch(SUBMIT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN,
+                },
+                body: JSON.stringify({ genes }),
+            });
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                throw new Error(data.error || `HTTP ${resp.status}`);
+            }
+
+            // Mark each card with the final status
+            const results = data.results || [];
+            results.forEach(r => {
+                const card = document.querySelector(`.gene-card[data-symbol="${CSS.escape(r.gene_symbol)}"]`);
+                if (!card) return;
+                if (r.status === 'registered') {
+                    setBadge(card, 'bg-teal-100 text-teal-800', '✓ Registered in Genie');
+                } else if (r.status === 'error') {
+                    setBadge(card, 'bg-red-100 text-red-700', '✗ Error');
+                    const area = card.querySelector('.resolution-area');
+                    area.innerHTML += `<p class="mt-1 text-red-600 text-sm">Error: ${r.message}</p>`;
+                    area.classList.remove('hidden');
+                }
+            });
+
+            const registered = results.filter(r => r.status === 'registered').length;
+            const errors     = results.filter(r => r.status === 'error').length;
+            const banner     = document.getElementById('results-banner');
+            banner.classList.remove('hidden');
+            if (errors === 0) {
+                banner.className = 'mt-6 rounded-lg border p-4 text-sm bg-green-50 border-green-200 text-green-800';
+                banner.textContent = `${registered} gene(s) successfully registered in Genie.`;
+            } else {
+                banner.className = 'mt-6 rounded-lg border p-4 text-sm bg-amber-50 border-amber-200 text-amber-800';
+                banner.textContent = `${registered} gene(s) registered; ${errors} error(s). See details above.`;
+            }
+
+            document.getElementById('submit-row').classList.add('hidden');
+
+        } catch (err) {
+            const banner = document.getElementById('results-banner');
+            banner.classList.remove('hidden');
+            banner.className = 'mt-6 rounded-lg border p-4 text-sm bg-red-50 border-red-200 text-red-700';
+            banner.textContent = 'Submission failed: ' + err.message;
+            btn.disabled = false;
+            btn.textContent = 'Register in Genie';
+        }
+    });
+
+    // ── Kick off lookups ─────────────────────────────────────────────
+    const cards = document.querySelectorAll('.gene-card');
+    cards.forEach(card => {
+        geneState[card.dataset.symbol] = { ensembl_id: '', status: 'pending' };
+    });
+
+    (async () => {
+        const allCards = Array.from(cards);
+        const knownCards   = allCards.filter(c => c.dataset.knownEnsembl.trim());
+        const unknownCards = allCards.filter(c => !c.dataset.knownEnsembl.trim());
+
+        // Known-ID cards resolve immediately with no HTTP call
+        knownCards.forEach(card => processGene(card));
+
+        if (unknownCards.length === 0) {
+            updateSubmitRow();
+            return;
+        }
+
+        // Single bulk request for all symbols needing lookup
+        let prefetched = {};
+        try {
+            const symbols = unknownCards.map(c => c.dataset.symbol);
+            const resp = await fetch(BULK_LOOKUP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify({ symbols }),
+            });
+            if (!resp.ok) throw new Error(`Bulk lookup failed (HTTP ${resp.status})`);
+            const data = await resp.json();
+            prefetched = data.results || {};
+        } catch (err) {
+            console.warn('Bulk lookup failed, falling back to individual lookups:', err);
+            await Promise.all(unknownCards.map(card => processGene(card)));
+            updateSubmitRow();
+            return;
+        }
+
+        // Render each card from the prefetched result
+        await Promise.all(unknownCards.map(card =>
+            processGene(card, prefetched[card.dataset.symbol] || { candidates: [], not_found: true })
+        ));
+        updateSubmitRow();
+    })();
+
+})();
+</script>
+{% endblock %}
