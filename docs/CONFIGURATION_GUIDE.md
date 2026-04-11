@@ -559,6 +559,12 @@ For detailed troubleshooting, see the [Google Cloud Storage Setup Guide](GOOGLE_
 ### External API Settings
 
 ```bash
+# Genie API (gene identity lookup & PMID categorization storage)
+# Development default: http://127.0.0.1:8000
+# Production: https://genie-api-533077204761.europe-north1.run.app
+GENIE_API_URL=http://127.0.0.1:8000
+GENIE_SECRET_API_KEY=your-genie-api-key-here
+
 # PanelApp UK
 PANELAPP_UK_BASE_URL=https://panelapp.genomicsengland.co.uk/api/v1
 PANELAPP_UK_TIMEOUT=30

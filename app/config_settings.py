@@ -116,6 +116,10 @@ class Config:
     PUBMED_TOOL_NAME = os.getenv('PUBMED_TOOL_NAME', 'PanelMerge-LitReview')
     PUBMED_MAX_RESULTS = int(os.getenv('PUBMED_MAX_RESULTS', 200))
 
+    # Genie API Configuration (gene lookup & PMID categorization storage)
+    GENIE_API_URL = os.getenv('GENIE_API_URL', 'http://127.0.0.1:8000')
+    GENIE_API_KEY = os.getenv('GENIE_SECRET_API_KEY')
+
 # Add other application-wide configurations here
 class DevelopmentConfig(Config):
     DEBUG = True
