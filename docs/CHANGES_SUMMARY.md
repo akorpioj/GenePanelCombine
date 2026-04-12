@@ -215,3 +215,29 @@ Adds a full article-categorization workflow ("LitReview Review") that lets users
   - Recent searches table (last 5): query, result count, date, and direct "View results" link per row
   - Empty state with "Start your first search" CTA when no searches exist yet
 
+## LitReview Search Results — Client-side Sorting
+
+### Sort toolbar added to results page
+- Five sort modes accessible via a compact button group above the article list:
+  - **Relevance** (default) — PubMed rank order (`data-rank`)
+  - **Newest / Oldest** — by `publication_date` ISO string (`data-date`); articles with no date sort last
+  - **Genie: most relevant** — descending Genie category (4 = Useful first)
+  - **Genie: least relevant** — ascending Genie category (1 = Not useful first, unclassified last)
+- Genie sort buttons are disabled (greyed out, `cursor-not-allowed`) on page load with a "Waiting for Genie…" tooltip; they unlock automatically once the async Genie context fetch completes
+- If the user clicks a Genie sort button before data has arrived it remains disabled; after load the page re-sorts immediately if a Genie sort mode was selected
+
+### Data attributes on article cards
+- Each article card wrapper gains three server-rendered `data-*` attributes:
+  - `data-rank` — integer PubMed result rank from `SearchResult.rank`
+  - `data-date` — ISO date string from `Article.publication_date.isoformat()` (empty string when null)
+  - `data-gcat="0"` — Genie category (updated client-side by the async Genie loader and by the reclassify handler)
+
+### JS sort engine
+- Pure DOM sort (moves existing nodes, no re-rendering) in an IIFE scoped to the page
+- `window._sortResults(mode)` and `window._getCurrentSort()` exposed so the Genie async loader can trigger a re-sort after data arrives without tight coupling
+- Active button highlighted with `bg-sky-600 text-white`; inactive buttons use `bg-gray-100 text-gray-600`
+
+### Genie loader and reclassify handler updated
+- `applyGenieContext()` now also sets `data-gcat` on each article card (alongside updating `data-current` on the strip) so Genie sorts work correctly
+- The reclassify modal's success handler also updates `data-gcat` on the parent card when a user manually changes a classification, keeping sort order consistent without a page reload
+

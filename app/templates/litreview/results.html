@@ -154,9 +154,32 @@
         modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
     })();
     </script>
-    <div class="space-y-4">
+
+    {# ── Sort controls ──────────────────────────────────────────────────────── #}
+    <div class="flex items-center gap-3 mb-3">
+        <span class="text-sm text-gray-500 font-medium shrink-0">Sort:</span>
+        <div class="flex gap-1.5 flex-wrap" id="sort-btn-group">
+            <button class="sort-btn px-3 py-1.5 text-xs font-medium rounded-md bg-sky-600 text-white transition"
+                    data-sort="relevance">Relevance</button>
+            <button class="sort-btn px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition"
+                    data-sort="newest">Newest</button>
+            <button class="sort-btn px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition"
+                    data-sort="oldest">Oldest</button>
+            <button id="sort-genie-desc"
+                    class="sort-btn px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-400 transition cursor-not-allowed"
+                    data-sort="genie-desc" disabled title="Waiting for Genie…">Genie: most relevant</button>
+            <button id="sort-genie-asc"
+                    class="sort-btn px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-400 transition cursor-not-allowed"
+                    data-sort="genie-asc" disabled title="Waiting for Genie…">Genie: least relevant</button>
+        </div>
+    </div>
+
+    <div id="results-list" class="space-y-4">
         {% for result in results %}
-        <div class="relative border border-gray-200 rounded-lg hover:shadow-md transition overflow-hidden">
+        <div class="relative border border-gray-200 rounded-lg hover:shadow-md transition overflow-hidden"
+             data-rank="{{ result.rank }}"
+             data-date="{{ result.article.publication_date.isoformat() if result.article.publication_date else '' }}"
+             data-gcat="0">
         {# Clickable colour strip — colour applied asynchronously by Genie fetch #}
         <button class="reclass-strip absolute left-0 inset-y-0 w-1.5 bg-gray-200 hover:w-3 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-400"
                 data-pmid="{{ result.article.pubmed_id }}"
@@ -661,6 +684,9 @@
                 Object.values(CAT_BG).forEach(cls => strip.classList.remove(cls));
                 strip.classList.add(CAT_BG[cat]);
                 strip.dataset.current = cat;
+                // Keep card's data-gcat in sync for client-side sorting
+                const _card = strip.closest('[data-gcat]');
+                if (_card) _card.dataset.gcat = cat;
 
                 const labels = {0:'Unclassified',1:'Not useful',2:'Probably not useful',3:'Possibly useful',4:'Useful'};
                 strip.title = `Genie: ${labels[cat]} — click to reclassify`;
@@ -674,6 +700,83 @@
             }
         });
     });
+})();
+</script>
+
+{# ── Client-side sort ────────────────────────────────────────────────────────── #}
+<script>
+(function () {
+    'use strict';
+
+    let currentSort = 'relevance';
+    const list = document.getElementById('results-list');
+
+    function setActive(mode) {
+        document.querySelectorAll('.sort-btn').forEach(btn => {
+            const active = btn.dataset.sort === mode && !btn.disabled;
+            btn.classList.toggle('bg-sky-600',  active);
+            btn.classList.toggle('text-white',  active);
+            btn.classList.toggle('bg-gray-100', !active && !btn.disabled);
+            btn.classList.toggle('text-gray-600', !active && !btn.disabled);
+        });
+    }
+
+    function sortResults(mode) {
+        if (!list) return;
+        const cards = [...list.querySelectorAll('[data-rank]')];
+
+        cards.sort((a, b) => {
+            if (mode === 'newest') {
+                // Descending date — empty dates go to end
+                const da = a.dataset.date || '';
+                const db = b.dataset.date || '';
+                if (!da && !db) return 0;
+                if (!da) return 1;
+                if (!db) return -1;
+                return db.localeCompare(da);
+            }
+            if (mode === 'oldest') {
+                const da = a.dataset.date || '';
+                const db = b.dataset.date || '';
+                if (!da && !db) return 0;
+                if (!da) return 1;
+                if (!db) return -1;
+                return da.localeCompare(db);
+            }
+            if (mode === 'genie-desc') {
+                // High category (4=Useful) first; unclassified (0) last
+                return Number(b.dataset.gcat) - Number(a.dataset.gcat);
+            }
+            if (mode === 'genie-asc') {
+                // Low category (1=Not useful) first; unclassified (0) last
+                const ca = Number(a.dataset.gcat);
+                const cb = Number(b.dataset.gcat);
+                // Push 0 (unclassified) to the end in both Genie sorts
+                if (!ca && cb) return 1;
+                if (ca && !cb) return -1;
+                return ca - cb;
+            }
+            // Default: relevance (PubMed rank, ascending)
+            return Number(a.dataset.rank) - Number(b.dataset.rank);
+        });
+
+        // Re-insert cards in sorted order (moves existing DOM nodes — no clone needed)
+        cards.forEach(c => list.appendChild(c));
+        currentSort = mode;
+        setActive(mode);
+    }
+
+    // Attach click listeners
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            if (this.disabled) return;
+            sortResults(this.dataset.sort);
+        });
+    });
+
+    // Expose for Genie loader to call after async data arrives
+    window._sortResults      = sortResults;
+    window._getCurrentSort   = () => currentSort;
 })();
 </script>
 
@@ -703,6 +806,9 @@
             strip.dataset.current = cat;
             strip.title         = `Genie: ${CAT_LABEL[cat]} \u2014 click to reclassify`;
             strip.setAttribute('aria-label', `Reclassify: ${CAT_LABEL[cat]}`);
+            // Sync card's data-gcat so client-side sorting can use Genie categories
+            const _card = strip.closest('[data-gcat]');
+            if (_card) _card.dataset.gcat = cat;
         });
 
         // ── Colour legend ─────────────────────────────────────────────────
@@ -739,6 +845,21 @@
                     btnDiv.classList.remove('hidden');
                 }
             }
+        }
+
+        // ── Unlock Genie sort buttons ─────────────────────────────────────
+        ['sort-genie-desc', 'sort-genie-asc'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.disabled = false;
+            btn.classList.remove('text-gray-400', 'cursor-not-allowed');
+            btn.classList.add('text-gray-600', 'hover:bg-gray-200');
+            btn.title = '';
+        });
+        // Re-sort immediately if the user chose a Genie sort before data arrived
+        if (window._sortResults && window._getCurrentSort &&
+            window._getCurrentSort().startsWith('genie')) {
+            window._sortResults(window._getCurrentSort());
         }
     }
 
