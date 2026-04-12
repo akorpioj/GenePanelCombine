@@ -113,17 +113,27 @@ def search():
 @login_required
 def search_results(search_id):
     """Display search results"""
+    from sqlalchemy.orm import joinedload
+
     search = LiteratureSearch.query.get_or_404(search_id)
-    
+
     # Verify user owns search
     if search.user_id != current_user.id and not current_user.is_admin():
         flash('Unauthorized access', 'error')
         return redirect(url_for('litreview.index'))
-    
-    # Get search results with articles
-    results = search.results.order_by('rank').all()
 
-    # Review session context for button state in results.html
+    # Load results + articles in a single JOIN query.
+    # Avoids N+1: dynamic relationships are incompatible with joinedload, so
+    # we query SearchResult directly rather than going through search.results.
+    results = (
+        db.session.query(SearchResult)
+        .options(joinedload(SearchResult.article))
+        .filter(SearchResult.search_id == search_id)
+        .order_by(SearchResult.rank)
+        .all()
+    )
+
+    # Review session context for button state
     review_session = LitReviewSession.query.filter_by(
         search_id=search_id,
         user_id=current_user.id,
@@ -137,18 +147,48 @@ def search_results(search_id):
             LitReviewArticleCategory.category > 0,
         ).count()
 
-    # Fetch Genie categorizations for colour-coded article cards (non-fatal)
-    genie_categories = {}  # str(pmid) -> category int 1-4; absent means unclassified
-    # Honour an explicit override from the query-string (user clicked "Wrong gene?")
+    # Genie data is fetched asynchronously by the client via /api/results/<id>/genie-context
+    # so we pass empty defaults here — the template populates them via JavaScript after load.
+
+    # Log view (AuditService.log_action is non-blocking; DB write runs in background pool)
+    AuditService.log_view(
+        resource_type='search_results',
+        resource_id=str(search_id),
+        description=f'Viewed search results for "{search.search_query}"',
+    )
+
+    return render_template(
+        'litreview/results.html',
+        search=search,
+        results=results,
+        review_session=review_session,
+        review_categorized_count=review_categorized_count,
+        review_total=review_total,
+    )
+
+
+@litreview_bp.route('/api/results/<int:search_id>/genie-context')
+@login_required
+def api_genie_context(search_id):
+    """Return Genie categorizations for a search's articles (used by async client fetch)."""
+    search = LiteratureSearch.query.get_or_404(search_id)
+
+    if search.user_id != current_user.id and not current_user.is_admin():
+        return jsonify(error='Unauthorized'), 403
+
     _ensembl_override = request.args.get('ensembl_id', '').strip() or None
-    if _ensembl_override:
-        genie_ensembl_id = _ensembl_override
-    elif review_session:
-        genie_ensembl_id = review_session.ensembl_id
-    else:
-        genie_ensembl_id = None
+    review_session = LitReviewSession.query.filter_by(
+        search_id=search_id,
+        user_id=current_user.id,
+    ).first()
+
+    genie_ensembl_id = (
+        _ensembl_override
+        or (review_session.ensembl_id if review_session else None)
+    )
+    genie_categories = {}
+
     if genie_ensembl_id:
-        # Active session already resolved the Ensembl ID — fetch directly
         try:
             pmid_cats = genie_service.get_categorizations(genie_ensembl_id)
             genie_categories = {
@@ -158,35 +198,25 @@ def search_results(search_id):
             }
         except Exception:
             log.warning(
-                'Could not fetch Genie categorizations for ensembl_id %s',
-                genie_ensembl_id, exc_info=True,
+                'Genie get_categorizations failed for %s', genie_ensembl_id, exc_info=True,
             )
     else:
-        # No session (e.g. history deleted) — look up by gene symbol, then do a
-        # single bulk check to find which Ensembl IDs are registered in Genie,
-        # and fetch categorizations only for the first one that has data.
-        # This replaces the old sequential per-ID fan-out which could stall for
-        # N × timeout seconds.
         try:
             ensembl_ids = genie_service.lookup_gene(search.search_query)
         except Exception:
             ensembl_ids = []
             log.warning(
-                'Could not look up gene "%s" in Genie', search.search_query, exc_info=True,
+                'Genie lookup_gene failed for "%s"', search.search_query, exc_info=True,
             )
 
         if ensembl_ids:
-            # Bulk-check which IDs exist in Genie (one API call).
             try:
                 check_results = genie_service.check_genes(ensembl_ids)
                 existing_ids = [r['ensembl_id'] for r in check_results if r.get('exists')]
             except Exception:
-                existing_ids = ensembl_ids  # fall back to trying all
-                log.warning(
-                    'Genie check_genes failed for gene "%s"', search.search_query, exc_info=True,
-                )
+                existing_ids = ensembl_ids
+                log.warning('Genie check_genes failed for "%s"', search.search_query, exc_info=True)
 
-            # Fetch categorizations for the first Ensembl ID that is in Genie.
             for eid in existing_ids:
                 try:
                     pmid_cats = genie_service.get_categorizations(eid)
@@ -200,39 +230,16 @@ def search_results(search_id):
                         genie_ensembl_id = eid
                         break
                 except Exception:
-                    log.warning(
-                        'Could not fetch Genie categorizations for %s', eid, exc_info=True,
-                    )
+                    log.warning('Genie get_categorizations failed for %s', eid, exc_info=True)
 
-            # If no categorized ID was found, use the first registered ID so the
-            # "Start LitReview" button and unclassified count still work.
-            if not genie_ensembl_id and existing_ids:
-                genie_ensembl_id = existing_ids[0]
-            elif not genie_ensembl_id and ensembl_ids:
-                genie_ensembl_id = ensembl_ids[0]
+            if not genie_ensembl_id:
+                genie_ensembl_id = existing_ids[0] if existing_ids else (
+                    ensembl_ids[0] if ensembl_ids else None
+                )
 
-    genie_unclassified_count = sum(
-        1 for r in results
-        if genie_categories.get(str(r.article.pubmed_id), 0) == 0
-    )
-
-    # Log view
-    AuditService.log_view(
-        resource_type='search_results',
-        resource_id=str(search_id),
-        description=f'Viewed search results for "{search.search_query}"'
-    )
-
-    return render_template(
-        'litreview/results.html',
-        search=search,
-        results=results,
-        review_session=review_session,
-        review_categorized_count=review_categorized_count,
-        review_total=review_total,
-        genie_categories=genie_categories,
-        genie_unclassified_count=genie_unclassified_count,
-        genie_ensembl_id=genie_ensembl_id,
+    return jsonify(
+        ensembl_id=genie_ensembl_id,
+        categories=genie_categories,
     )
 
 
@@ -692,6 +699,10 @@ def api_reclassify():
 
     Saves a single PMID/category directly to the Genie API.
     Used by the inline reclassify dialog on the search-results page.
+
+    Strategy:
+    1. PATCH the single-PMID endpoint to update an existing entry.
+    2. If Genie returns 404 (PMID not yet stored), fall back to POST bulk to create it.
     """
     data       = request.get_json(silent=True) or {}
     ensembl_id = data.get('ensembl_id', '').strip()
@@ -705,15 +716,28 @@ def api_reclassify():
     if not isinstance(category, int) or not (0 <= category <= 4):
         return jsonify({'error': 'category must be 0–4'}), 400
 
-    try:
-        result = genie_service.save_categorizations_bulk(
-            ensembl_id, [{'pmid': int(pmid), 'category': category}]
-        )
-    except Exception:
-        log.exception('Genie reclassify failed for ensembl=%s pmid=%s', ensembl_id, pmid)
-        return jsonify({'error': 'Failed to save to Genie API'}), 502
+    pmid = int(pmid)
 
-    return jsonify({'ok': True, 'category': category, 'result': result})
+    # ── Attempt 1: PATCH (update existing entry) ──────────────────────────────
+    try:
+        genie_service.update_categorization(ensembl_id, pmid, category)
+        return jsonify({'ok': True, 'category': category})
+    except Exception as exc:
+        import requests as _req
+        if not (hasattr(exc, 'response') and exc.response is not None and exc.response.status_code == 404):
+            log.exception('Genie PATCH failed for ensembl=%s pmid=%s', ensembl_id, pmid)
+            return jsonify({'error': 'Failed to save to Genie API'}), 502
+        # 404 → PMID not yet stored; fall through to create it
+
+    # ── Attempt 2: POST bulk to create the entry ──────────────────────────────
+    try:
+        genie_service.save_categorizations_bulk(
+            ensembl_id, [{'pmid': pmid, 'category': category}]
+        )
+        return jsonify({'ok': True, 'category': category})
+    except Exception:
+        log.exception('Genie bulk-create failed for ensembl=%s pmid=%s', ensembl_id, pmid)
+        return jsonify({'error': 'Failed to save to Genie API'}), 502
 
 
 @litreview_bp.route('/results/<int:search_id>/review/start')
