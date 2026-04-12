@@ -1991,7 +1991,7 @@ class LitReviewSession(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now, nullable=False)
 
     # Relationships
-    search = db.relationship('LiteratureSearch', backref=db.backref('review_sessions', lazy='dynamic'))
+    search = db.relationship('LiteratureSearch', backref=db.backref('review_sessions', lazy='dynamic', passive_deletes=True))
     user = db.relationship('User', backref=db.backref('litreview_sessions', lazy='dynamic'))
     categorizations = db.relationship(
         'LitReviewArticleCategory', backref='session',

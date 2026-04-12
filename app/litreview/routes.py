@@ -10,7 +10,7 @@ import click
 from datetime import datetime, timedelta
 import openpyxl
 from openpyxl.styles import Font, PatternFill
-from flask import render_template, request, flash, redirect, url_for, jsonify, make_response, send_file
+from flask import render_template, request, flash, redirect, url_for, jsonify, make_response, send_file, current_app
 from flask_login import login_required, current_user
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
@@ -825,41 +825,31 @@ def review_confirm_gene(search_id):
     db.session.add(session_obj)
     db.session.flush()  # populate session_obj.id
 
-    # Fetch articles ordered by rank
-    results = (
-        SearchResult.query
-        .filter_by(search_id=search_id)
+    # Fetch articles in one JOIN query — avoids N+1 lazy loads on the dynamic
+    # `article` backref.  We only need article_id and pubmed_id.
+    article_rows = (
+        db.session.query(SearchResult.article_id, LiteratureArticle.pubmed_id)
+        .join(LiteratureArticle, LiteratureArticle.id == SearchResult.article_id)
+        .filter(SearchResult.search_id == search_id)
         .order_by(SearchResult.rank)
         .all()
     )
 
-    # Pre-fetch Genie categorizations so we can apply them before any DB write
-    prior_by_pmid = {}  # str(pmid) -> int category
-    try:
-        prior = genie_service.get_categorizations(ensembl_id)
-        prior_by_pmid = {
-            str(entry['pmid']): entry['category']
-            for entry in prior
-            if isinstance(entry.get('category'), int) and 1 <= entry['category'] <= 4
+    # Build one LitReviewArticleCategory per article, all starting at category=0.
+    # SQLAlchemy Core insert() emits a single multi-value INSERT statement —
+    # one round-trip to Cloud SQL regardless of article count.
+    all_rows = [
+        {
+            'session_id':     session_obj.id,
+            'article_id':     article_id,
+            'pmid':           str(pubmed_id),
+            'category':       0,
+            'categorized_at': None,
         }
-    except Exception:
-        log.exception(
-            'Could not fetch prior Genie categorizations for %s (search %d); continuing.',
-            ensembl_id, search_id,
-        )
-
-    # Build one LitReviewArticleCategory per article, applying any prior Genie category
-    category_rows = [
-        LitReviewArticleCategory(
-            session_id=session_obj.id,
-            article_id=r.article_id,
-            pmid=r.article.pubmed_id,
-            category=prior_by_pmid.get(str(r.article.pubmed_id), 0),
-            categorized_at=None,
-        )
-        for r in results
+        for article_id, pubmed_id in article_rows
     ]
-    db.session.bulk_save_objects(category_rows)
+    if all_rows:
+        db.session.execute(LitReviewArticleCategory.__table__.insert(), all_rows)
     db.session.commit()
 
     AuditService.log_action(
@@ -873,6 +863,69 @@ def review_confirm_gene(search_id):
     )
 
     return redirect(url_for('litreview.review', search_id=search_id))
+
+
+@litreview_bp.route('/results/<int:search_id>/review/genie-prefill')
+@login_required
+def review_genie_prefill(search_id):
+    """
+    GET /litreview/results/<search_id>/review/genie-prefill
+
+    Called asynchronously by the review page on first load.
+    Fetches prior Genie categorizations for the session's gene and applies
+    them to any LitReviewArticleCategory rows still at category=0 (i.e. rows
+    the user has not yet touched).
+
+    Returns:
+        JSON: {"prefilled": {"<cat_id>": <category_int>, ...}}
+        An empty dict means no prior data or Genie is unavailable.
+    """
+    search = LiteratureSearch.query.get_or_404(search_id)
+    if search.user_id != current_user.id and not current_user.is_admin():
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    session_obj = LitReviewSession.query.filter_by(
+        search_id=search_id,
+        user_id=current_user.id,
+    ).first()
+    if not session_obj:
+        return jsonify({'error': 'No review session'}), 404
+
+    try:
+        prior = genie_service.get_categorizations(session_obj.ensembl_id)
+    except Exception:
+        log.warning(
+            'Genie prefill fetch failed for %s (search %d)',
+            session_obj.ensembl_id, search_id, exc_info=True,
+        )
+        return jsonify({'prefilled': {}})
+
+    cat_by_pmid = {
+        str(entry['pmid']): entry['category']
+        for entry in (prior or [])
+        if isinstance(entry.get('category'), int) and 1 <= entry['category'] <= 4
+    }
+    if not cat_by_pmid:
+        return jsonify({'prefilled': {}})
+
+    # Only update rows the user hasn't categorized yet (still at 0)
+    rows = (
+        LitReviewArticleCategory.query
+        .filter_by(session_id=session_obj.id, category=0)
+        .all()
+    )
+
+    prefilled = {}
+    for row in rows:
+        new_cat = cat_by_pmid.get(str(row.pmid))
+        if new_cat:
+            row.category = new_cat
+            prefilled[str(row.id)] = new_cat
+
+    if prefilled:
+        db.session.commit()
+
+    return jsonify({'prefilled': prefilled})
 
 
 @litreview_bp.route('/results/<int:search_id>/review')

@@ -109,11 +109,12 @@
 
 <!-- Article data passed from server -->
 <script>
-const ARTICLES = {{ articles_with_categories | tojson }};
-const CATEGORIZE_URL = {{ url_for('litreview.review_categorize', search_id=search.id) | tojson }};
-const RESULTS_URL    = {{ url_for('litreview.search_results', search_id=search.id) | tojson }};
-const CSRF_TOKEN     = {{ session['csrf_token'] | tojson }};
-const TOTAL          = {{ total }};
+const ARTICLES           = {{ articles_with_categories | tojson }};
+const CATEGORIZE_URL     = {{ url_for('litreview.review_categorize', search_id=search.id) | tojson }};
+const PREFILL_URL        = {{ url_for('litreview.review_genie_prefill', search_id=search.id) | tojson }};
+const RESULTS_URL        = {{ url_for('litreview.search_results', search_id=search.id) | tojson }};
+const CSRF_TOKEN         = {{ session['csrf_token'] | tojson }};
+const TOTAL              = {{ total }};
 </script>
 {% endblock %}
 
@@ -310,6 +311,47 @@ if (firstIdx === -1) {
     currentIdx = firstIdx;
     renderArticle(currentIdx);
 }
+
+// ── Async Genie prefill ───────────────────────────────────────────────────────
+// Fetch prior Genie categorizations in the background and apply them to
+// any articles that haven't been touched yet (category === 0).
+fetch(PREFILL_URL)
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => {
+        const prefilled = data.prefilled || {};
+        if (!Object.keys(prefilled).length) return;
+
+        // Apply to in-memory ARTICLES (only where user hasn't set a category)
+        let newlyCategorized = 0;
+        ARTICLES.forEach(a => {
+            const newCat = prefilled[String(a.cat_id)];
+            if (newCat && a.category === 0) {
+                a.category = newCat;
+                newlyCategorized++;
+            }
+        });
+
+        if (!newlyCategorized) return;
+
+        // Update progress bar
+        const nowCategorized = ARTICLES.filter(a => a.category > 0).length;
+        updateProgress(nowCategorized);
+
+        // Re-render current article in case its category just changed
+        // (e.g. it was pre-filled by Genie while user was reading it)
+        renderArticle(currentIdx);
+
+        // If we were at the start and nothing was uncategorized before, re-check
+        const next = nextUncategorized(currentIdx);
+        if (next === -1) {
+            showAllDone();
+        } else if (currentIdx !== next && ARTICLES[currentIdx].category > 0) {
+            // Current article got pre-filled — jump to next uncategorized
+            currentIdx = next;
+            renderArticle(currentIdx);
+        }
+    })
+    .catch(() => { /* Genie unavailable — user reviews from scratch */ });
 
 })();
 </script>
