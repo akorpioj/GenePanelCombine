@@ -1,4 +1,4 @@
-# Summary of Changes: v1.5.6
+# Summary of Changes: v1.6
 
 ## KnowHow Draft / Publish Workflow (Feature 5)
 
@@ -56,7 +56,7 @@
 - 20 unit tests in `test_knowhow_link_preview_step4.py`, all passing
 
 
-## LitReview Advanced Filters (v1.6)
+## LitReview Advanced Filters
 
 ### Overview
 Extended the PubMed search with four optional filters: date range, article type, publication status, and language. Filters are translated into PubMed E-utilities query clauses and are stored alongside each saved search for history display.
@@ -81,7 +81,7 @@ Extended the PubMed search with four optional filters: date range, article type,
 - Inline JavaScript auto-expands the panel if any filter is already selected (e.g. after a validation error round-trip)
 
 
-## LitReview Review Feature — Genie Integration (v1.7)
+## LitReview Review Feature — Genie Integration
 
 ### Overview
 Adds a full article-categorization workflow ("LitReview Review") that lets users classify each article in a PubMed search result set (Useful / Possibly useful / Probably not useful / Not useful) and submit the classifications to the **Genie** gene-literature knowledge base. Genie classifications stored by previous reviews are fetched and displayed on the search-results page for instant context.
@@ -129,4 +129,49 @@ Adds a full article-categorization workflow ("LitReview Review") that lets users
 - `status='complete'` now committed before Genie submission so the UI always reflects the final state; Genie failure is non-fatal with a warning flash
 - Duplicate `bulk_save_objects` call on same objects caused `23505 unique constraint` violation — fixed by fetching Genie prior categorizations before any DB write and applying them at construction time (single write)
 - Missing `@litreview_bp.route` decorator on `review_start` (accidentally dropped during editing) restored
+
+
+## Panel Library — Genie Integration & Gene Detail Page
+
+### "Add Genes to Genie" Wizard (Panel Library)
+- New full-page wizard at `GET /panels/<panel_id>/add-to-genie` rendered by `panel_genie_export.html`
+- Per-gene state machine: each gene card transitions through lookup → candidate selection → registration
+- Bulk operations replace all one-by-one API fan-outs:
+  - Ensembl ID resolution: single `POST /genes/ensembl-ids` via `genie_service.lookup_genes_bulk()`
+  - Gene registration: single `POST /genes` via `genie_service.create_genes_bulk()` (server skips existing genes)
+  - OMIM lookup: single `POST /genes/omim-ids` via `genie_service.get_omim_ids_bulk()`
+- `_build_candidates_bulk()` helper in `litreview/routes.py` fetches gene detail in parallel (ThreadPoolExecutor) then makes one bulk OMIM call, replacing N individual `_build_candidate` calls
+- New `POST /litreview/api/gene-lookup-bulk` route accepts `{"symbols": [...]}` and returns all candidates in one response
+- `api_panel_add_to_genie` (POST) refactored: partitions genes into to-register / skip, calls `create_genes_bulk` once, writes resolved Ensembl IDs back to `PanelGene` records, commits once
+- Fixed "Unexpected token '<'" error by adding `resp.ok` guards before `.json()` calls in the wizard template
+
+### Inline Genie Status in Panel Details Modal
+- New `GET /api/user/panels/<id>/genie-status` route: collects stored Ensembl IDs; for genes without a stored ID, bulk-resolves by symbol via `lookup_genes_bulk`, then calls `check_genes` once
+- `_updateGenieStatusBadges(panelId)` added to `PanelActionsManager.js`: fetches the status endpoint and injects teal "✓ In Genie" badge into each gene card's `.genie-status-badge` slot
+- Gene cards now carry both `data-ensembl-id` and `data-gene-symbol` attributes; badge injection falls back to symbol-based matching for genes whose Ensembl ID is not yet stored locally
+- "Add genes to Genie" button (`#genie-add-btn`) is automatically hidden when every gene in the panel is already registered in Genie
+
+### Gene Card UI (Panel Details Modal)
+- Numeric confidence badge replaced with traffic-light coloured dot: green (`bg-green-500`) for level 3, amber (`bg-amber-400`) for level 2, red (`bg-red-500`) for level 1; dot has a tooltip
+- Layout: outer `flex justify-between`; gene info (symbol + dot + name + Ensembl ID) fills `flex-1 min-w-0`; Genie badge sits as a `shrink-0` sibling on the right
+- Ensembl ID displayed left-aligned in monospace below the gene name
+
+### Panel Library Search
+- `get_panels()` in `panel_library_utils.py` extended to search panel **name**, **description**, and **gene symbols** (case-insensitive `ilike` with an `EXISTS` subquery on `PanelGene`)
+- Both the paginated query and the totals query use identical filter logic
+- `exists` imported from `sqlalchemy` to support the subquery
+
+### Gene Detail Page
+- New `GET /genes/<ensembl_id>` route (`gene_detail_page`) in `routes_panel_library.py`:
+  - Validates Ensembl ID format (`^ENSG\d{6,}$`)
+  - Fetches gene annotation via `genie_service.get_gene_detail()`
+  - Checks Genie registration via `genie_service.check_genes()`
+  - Fetches OMIM ID (only if gene is already in Genie)
+  - Renders `main/gene_detail.html`
+- New `POST /api/genes/<ensembl_id>/register` API route (`api_gene_register`): registers the gene via `create_genes_bulk`, idempotent
+- New template `app/templates/main/gene_detail.html`:
+  - **Gene found & in Genie**: annotation card (name, description, chromosome, coordinates, biotype, assembly, OMIM), external links to Ensembl / GeneCards / OMIM, teal "In Genie" badge
+  - **Gene found but not in Genie**: same annotation card + amber prompt with "Add to Genie" button; JS POSTs to register endpoint and on success updates badge and replaces prompt with confirmation
+  - **Unknown Ensembl ID**: error box
+  - **Service unavailable**: amber warning banner
 

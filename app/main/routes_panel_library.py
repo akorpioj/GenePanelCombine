@@ -1,6 +1,7 @@
 from flask import request, jsonify, render_template, abort
 from flask_login import current_user, login_required
 import datetime
+import re
 from app.extensions import limiter, cache
 from . import main_bp # Import the Blueprint object defined in __init__.py
 from ..models import (
@@ -1265,3 +1266,97 @@ def api_panel_genie_status(panel_id):
     ]
 
     return jsonify({'status': status}), 200
+
+
+# ===========================
+# GENE DETAIL PAGE
+# ===========================
+
+_ENSEMBL_ID_RE = re.compile(r'^ENSG\d{6,}$', re.IGNORECASE)
+
+
+@main_bp.route('/genes/<ensembl_id>')
+@login_required
+def gene_detail_page(ensembl_id):
+    """
+    GET /genes/<ensembl_id>
+
+    Render a detail page for a gene identified by Ensembl ID.
+    Fetches annotation from Genie/Ensembl and shows whether the gene
+    is already registered in Genie.  If not, prompts the user to add it.
+    """
+    if not _ENSEMBL_ID_RE.match(ensembl_id):
+        abort(404)
+
+    from ..litreview.genie_service import genie_service
+
+    gene_info = None
+    in_genie = False
+    omim_id = None
+    error = None
+
+    try:
+        gene_info = genie_service.get_gene_detail(ensembl_id)
+    except Exception as exc:
+        logger.warning('Genie get_gene_detail failed for %s: %s', ensembl_id, exc)
+        error = 'Could not reach the Genie service. Please try again later.'
+
+    if gene_info is not None:
+        try:
+            check = genie_service.check_genes([ensembl_id])
+            in_genie = bool(check and check[0].get('exists'))
+        except Exception as exc:
+            logger.warning('Genie check_genes failed for %s: %s', ensembl_id, exc)
+
+        if in_genie:
+            try:
+                omim_id = genie_service.get_omim_id(ensembl_id)
+            except Exception as exc:
+                logger.warning('Genie get_omim_id failed for %s: %s', ensembl_id, exc)
+
+    return render_template(
+        'main/gene_detail.html',
+        ensembl_id=ensembl_id,
+        gene_info=gene_info,
+        in_genie=in_genie,
+        omim_id=omim_id,
+        error=error,
+    )
+
+
+@main_bp.route('/api/genes/<ensembl_id>/register', methods=['POST'])
+@login_required
+@limiter.limit('30 per minute')
+def api_gene_register(ensembl_id):
+    """
+    POST /api/genes/<ensembl_id>/register
+
+    Register a single gene in Genie by Ensembl ID.
+    Idempotent: safe to call when the gene already exists.
+
+    Response JSON:
+        {
+            "success": true,
+            "ensembl_id": "ENSG...",
+            "already_existed": false,
+            "message": "Gene added to Genie successfully."
+        }
+    """
+    if not _ENSEMBL_ID_RE.match(ensembl_id):
+        return jsonify({'error': 'Invalid Ensembl ID format'}), 400
+
+    from ..litreview.genie_service import genie_service
+
+    try:
+        result = genie_service.create_genes_bulk([ensembl_id])
+        already_existed = bool(result and result[0].get('exists'))
+        return jsonify({
+            'success': True,
+            'ensembl_id': ensembl_id,
+            'already_existed': already_existed,
+            'message': 'Gene is already in Genie.' if already_existed
+                       else 'Gene added to Genie successfully.',
+        }), 200
+    except Exception as exc:
+        logger.error('Genie register gene failed for %s: %s', ensembl_id, exc)
+        return jsonify({'error': 'Genie service unavailable. Please try again later.'}), 502

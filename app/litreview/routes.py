@@ -162,8 +162,11 @@ def search_results(search_id):
                 genie_ensembl_id, exc_info=True,
             )
     else:
-        # No session (e.g. history deleted) — look up by gene symbol and try each
-        # Ensembl ID until we find one that has stored categorizations.
+        # No session (e.g. history deleted) — look up by gene symbol, then do a
+        # single bulk check to find which Ensembl IDs are registered in Genie,
+        # and fetch categorizations only for the first one that has data.
+        # This replaces the old sequential per-ID fan-out which could stall for
+        # N × timeout seconds.
         try:
             ensembl_ids = genie_service.lookup_gene(search.search_query)
         except Exception:
@@ -171,26 +174,42 @@ def search_results(search_id):
             log.warning(
                 'Could not look up gene "%s" in Genie', search.search_query, exc_info=True,
             )
-        for eid in ensembl_ids:
+
+        if ensembl_ids:
+            # Bulk-check which IDs exist in Genie (one API call).
             try:
-                pmid_cats = genie_service.get_categorizations(eid)
-                cats = {
-                    str(item['pmid']): item['category']
-                    for item in pmid_cats
-                    if item.get('category', 0) > 0
-                }
-                if cats:
-                    genie_categories = cats
-                    genie_ensembl_id = eid
-                    break
+                check_results = genie_service.check_genes(ensembl_ids)
+                existing_ids = [r['ensembl_id'] for r in check_results if r.get('exists')]
             except Exception:
+                existing_ids = ensembl_ids  # fall back to trying all
                 log.warning(
-                    'Could not fetch Genie categorizations for %s', eid, exc_info=True,
+                    'Genie check_genes failed for gene "%s"', search.search_query, exc_info=True,
                 )
-        # If no Ensembl ID had data, fall back to the first one so the
-        # unclassified count and "Start LitReview" button still work.
-        if ensembl_ids and not genie_ensembl_id:
-            genie_ensembl_id = ensembl_ids[0]
+
+            # Fetch categorizations for the first Ensembl ID that is in Genie.
+            for eid in existing_ids:
+                try:
+                    pmid_cats = genie_service.get_categorizations(eid)
+                    cats = {
+                        str(item['pmid']): item['category']
+                        for item in pmid_cats
+                        if item.get('category', 0) > 0
+                    }
+                    if cats:
+                        genie_categories = cats
+                        genie_ensembl_id = eid
+                        break
+                except Exception:
+                    log.warning(
+                        'Could not fetch Genie categorizations for %s', eid, exc_info=True,
+                    )
+
+            # If no categorized ID was found, use the first registered ID so the
+            # "Start LitReview" button and unclassified count still work.
+            if not genie_ensembl_id and existing_ids:
+                genie_ensembl_id = existing_ids[0]
+            elif not genie_ensembl_id and ensembl_ids:
+                genie_ensembl_id = ensembl_ids[0]
 
     genie_unclassified_count = sum(
         1 for r in results

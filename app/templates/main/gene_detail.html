@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {{ gene_info.display_name if gene_info else ensembl_id }} – Gene Detail – PanelMerge
+{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-3xl">
+
+    <!-- Back link -->
+    <nav class="mb-6">
+        <a href="{{ url_for('auth.profile') }}#my-panels"
+           class="text-sky-600 hover:underline text-sm">&larr; Back to My Panels</a>
+    </nav>
+
+    <!-- Page header -->
+    <div class="flex items-start justify-between gap-4 mb-6">
+        <div class="min-w-0">
+            <h1 class="text-2xl font-bold text-sky-700 truncate">
+                {{ gene_info.display_name if gene_info else ensembl_id }}
+            </h1>
+            <p class="text-sm font-mono text-gray-400 mt-0.5">{{ ensembl_id }}</p>
+        </div>
+
+        {% if gene_info %}
+            {% if in_genie %}
+            <span id="genie-badge"
+                  class="shrink-0 inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800 border border-teal-300">
+                <i class="fas fa-check-circle mr-1.5"></i>In Genie
+            </span>
+            {% else %}
+            <span id="genie-badge"
+                  class="shrink-0 inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 border border-gray-300">
+                <i class="fas fa-times-circle mr-1.5"></i>Not in Genie
+            </span>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Service error banner -->
+    {% if error %}
+    <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-amber-800 text-sm mb-6">
+        <i class="fas fa-exclamation-triangle mr-2"></i>{{ error }}
+    </div>
+    {% endif %}
+
+    {% if not gene_info and not error %}
+    <!-- Unknown Ensembl ID -->
+    <div class="rounded-lg bg-red-50 border border-red-200 p-4 text-red-800 text-sm">
+        <i class="fas fa-exclamation-circle mr-2"></i>
+        No gene information was found for <code class="font-mono">{{ ensembl_id }}</code>.
+        This Ensembl ID may be invalid or not currently available in the Genie service.
+    </div>
+
+    {% elif gene_info %}
+
+    <!-- Gene annotation card -->
+    <dl class="bg-gray-50 rounded-xl border border-gray-200 divide-y divide-gray-200 mb-6">
+
+        <div class="px-5 py-3 grid grid-cols-3 gap-2 items-center">
+            <dt class="text-sm font-medium text-gray-500">Display name</dt>
+            <dd class="col-span-2 text-sm text-gray-900 font-semibold">
+                {{ gene_info.display_name or '—' }}
+            </dd>
+        </div>
+
+        {% if gene_info.description %}
+        <div class="px-5 py-3 grid grid-cols-3 gap-2 items-start">
+            <dt class="text-sm font-medium text-gray-500 pt-0.5">Description</dt>
+            <dd class="col-span-2 text-sm text-gray-900">
+                {{ gene_info.description }}
+            </dd>
+        </div>
+        {% endif %}
+
+        {% if gene_info.seq_region_name %}
+        <div class="px-5 py-3 grid grid-cols-3 gap-2 items-center">
+            <dt class="text-sm font-medium text-gray-500">Chromosome</dt>
+            <dd class="col-span-2 text-sm text-gray-900">{{ gene_info.seq_region_name }}</dd>
+        </div>
+        {% endif %}
+
+        {% if gene_info.start and gene_info.end %}
+        <div class="px-5 py-3 grid grid-cols-3 gap-2 items-center">
+            <dt class="text-sm font-medium text-gray-500">Location</dt>
+            <dd class="col-span-2 text-sm font-mono text-gray-900">
+                {{ gene_info.seq_region_name }}:{{ '{:,}'.format(gene_info.start | int) }}–{{ '{:,}'.format(gene_info.end | int) }}
+                {% if gene_info.strand is not none %}
+                <span class="ml-1 text-gray-500 font-sans">
+                    ({{ '+' if gene_info.strand == 1 else '−' }} strand)
+                </span>
+                {% endif %}
+            </dd>
+        </div>
+        {% endif %}
+
+        {% if gene_info.biotype %}
+        <div class="px-5 py-3 grid grid-cols-3 gap-2 items-center">
+            <dt class="text-sm font-medium text-gray-500">Biotype</dt>
+            <dd class="col-span-2 text-sm text-gray-900">{{ gene_info.biotype }}</dd>
+        </div>
+        {% endif %}
+
+        {% if gene_info.assembly_name %}
+        <div class="px-5 py-3 grid grid-cols-3 gap-2 items-center">
+            <dt class="text-sm font-medium text-gray-500">Assembly</dt>
+            <dd class="col-span-2 text-sm text-gray-900">{{ gene_info.assembly_name }}</dd>
+        </div>
+        {% endif %}
+
+        {% if omim_id %}
+        <div class="px-5 py-3 grid grid-cols-3 gap-2 items-center">
+            <dt class="text-sm font-medium text-gray-500">OMIM</dt>
+            <dd class="col-span-2 text-sm text-gray-900">
+                <a href="https://www.omim.org/entry/{{ omim_id }}"
+                   target="_blank" rel="noopener noreferrer"
+                   class="text-blue-600 hover:underline font-mono">
+                    {{ omim_id }}&nbsp;<i class="fas fa-external-link-alt text-xs"></i>
+                </a>
+            </dd>
+        </div>
+        {% endif %}
+
+    </dl>
+
+    <!-- External links -->
+    <div class="flex flex-wrap gap-3 mb-6">
+        <a href="https://www.ensembl.org/id/{{ ensembl_id }}"
+           target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center px-3 py-1.5 text-sm bg-purple-50 text-purple-700 border border-purple-200 rounded-md hover:bg-purple-100 transition">
+            <i class="fas fa-external-link-alt mr-1.5 text-xs"></i>Ensembl
+        </a>
+        {% if gene_info.display_name %}
+        <a href="https://www.genecards.org/cgi-bin/carddisp.pl?gene={{ gene_info.display_name }}"
+           target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 transition">
+            <i class="fas fa-external-link-alt mr-1.5 text-xs"></i>GeneCards
+        </a>
+        {% endif %}
+        {% if omim_id %}
+        <a href="https://www.omim.org/entry/{{ omim_id }}"
+           target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center px-3 py-1.5 text-sm bg-green-50 text-green-700 border border-green-200 rounded-md hover:bg-green-100 transition">
+            <i class="fas fa-external-link-alt mr-1.5 text-xs"></i>OMIM
+        </a>
+        {% endif %}
+    </div>
+
+    {% if not in_genie %}
+    <!-- Add-to-Genie prompt -->
+    <div id="add-genie-section" class="rounded-xl border border-amber-200 bg-amber-50 p-5">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-info-circle text-amber-500 mt-0.5 text-lg shrink-0"></i>
+            <div class="flex-1">
+                <h3 class="font-semibold text-amber-900 mb-1">
+                    This gene is not yet registered in Genie
+                </h3>
+                <p class="text-sm text-amber-800 mb-4">
+                    Registering the gene in Genie lets you categorise related literature
+                    and track PubMed evidence. Would you like to add it now?
+                </p>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <button id="btn-add-genie"
+                            class="inline-flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700
+                                   text-white text-sm font-medium rounded-lg transition
+                                   focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500
+                                   disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-dna mr-2"></i>Add to Genie
+                    </button>
+                    <span id="add-genie-status" class="text-sm hidden"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}{# end if gene_info #}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if gene_info and not in_genie %}
+<script>
+(function () {
+    'use strict';
+
+    const REGISTER_URL = {{ url_for('main.api_gene_register', ensembl_id=ensembl_id) | tojson }};
+    const CSRF_TOKEN   = {{ session['csrf_token'] | tojson }};
+
+    const btn       = document.getElementById('btn-add-genie');
+    const statusEl  = document.getElementById('add-genie-status');
+    const badge     = document.getElementById('genie-badge');
+    const section   = document.getElementById('add-genie-section');
+
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding…';
+        statusEl.classList.add('hidden');
+
+        try {
+            const resp = await fetch(REGISTER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN,
+                },
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || `Server error ${resp.status}`);
+            }
+
+            const data = await resp.json();
+
+            // Update badge
+            if (badge) {
+                badge.className = 'shrink-0 inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800 border border-teal-300';
+                badge.innerHTML = '<i class="fas fa-check-circle mr-1.5"></i>In Genie';
+            }
+
+            // Replace prompt with success confirmation
+            if (section) {
+                section.className = 'rounded-xl border border-teal-200 bg-teal-50 p-5';
+                section.innerHTML = `
+                    <div class="flex items-center gap-3 text-teal-800">
+                        <i class="fas fa-check-circle text-teal-500 text-lg shrink-0"></i>
+                        <div>
+                            <h3 class="font-semibold">Gene added to Genie</h3>
+                            <p class="text-sm mt-0.5">${data.message || 'The gene has been registered successfully.'}</p>
+                        </div>
+                    </div>`;
+            }
+
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-dna mr-2"></i>Add to Genie';
+            statusEl.textContent = 'Error: ' + err.message;
+            statusEl.className = 'text-sm text-red-600';
+            statusEl.classList.remove('hidden');
+        }
+    });
+}());
+</script>
+{% endif %}
+{% endblock %}
