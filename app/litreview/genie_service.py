@@ -97,6 +97,20 @@ class GenieService:
         response.raise_for_status()
         return response.json()
 
+    def _patch(self, path: str, payload) -> dict:
+        """
+        Perform a PATCH request to the Genie API.
+
+        Returns the parsed JSON dict on success.
+        Raises requests.HTTPError for any non-2xx response (including 404).
+        """
+        self._configure()
+        url = f'{self.base_url}{path}'
+        log.debug('Genie PATCH %s payload=%s', url, payload)
+        response = requests.patch(url, json=payload, headers=self._headers(), timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -194,13 +208,64 @@ class GenieService:
         Returns:
             dict with keys:
               'added':   list of PMIDEntry dicts that were newly created
-              'skipped': list of int PMIDs that already existed
+              'skipped': list of int PMIDs that already existed (NOT updated)
+
+        Note: The Genie API is add-only for this endpoint.  PMIDs that already
+        have a classification will appear in 'skipped' and their category will
+        NOT be changed.  Use set_categorization() to update a single existing
+        entry via the non-bulk endpoint (which may have upsert semantics).
         """
         payload = [
             {'pmid': int(item['pmid']), 'category': int(item['category'])}
             for item in pmid_category_list
         ]
         return self._post(f'/gene/id:{ensembl_id}/pmids/bulk', payload)
+
+    def update_categorization(self, ensembl_id: str, pmid: int, category: int) -> dict:
+        """
+        Update the category for an existing PMID via PATCH /gene/id:{ensembl_id}/pmids/{pmid}.
+
+        Args:
+            ensembl_id: Ensembl gene ID.
+            pmid:       PubMed ID (must already exist for this gene in Genie).
+            category:   0–4.
+
+        Returns:
+            PMIDEntry dict: {'pmid': int, 'category': int}
+
+        Raises:
+            requests.HTTPError: 404 if gene/PMID not found; other status on error.
+        """
+        return self._patch(
+            f'/gene/id:{ensembl_id}/pmids/{int(pmid)}',
+            {'category': int(category)},
+        )
+
+    def update_categorizations_bulk(
+        self,
+        ensembl_id: str,
+        pmid_category_list: list[dict],
+    ) -> list:
+        """
+        Update multiple PMID/category pairs via PATCH /gene/id:{ensembl_id}/pmids.
+
+        PMIDs not found in Genie are silently skipped (no error).
+
+        Args:
+            ensembl_id:        Ensembl gene ID.
+            pmid_category_list: List of dicts with 'pmid' (int) and 'category' (0–4).
+
+        Returns:
+            List of updated PMIDEntry dicts.
+
+        Raises:
+            requests.HTTPError on any non-2xx response.
+        """
+        payload = [
+            {'pmid': int(item['pmid']), 'category': int(item['category'])}
+            for item in pmid_category_list
+        ]
+        return self._patch(f'/gene/id:{ensembl_id}/pmids', payload)
 
     def register_gene(self, ensembl_id: str) -> dict:
         """

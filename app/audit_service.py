@@ -6,6 +6,7 @@ Provides comprehensive logging of user actions and system changes
 import json
 import time
 import datetime
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any, Union
 from flask import request, session, current_app
 from flask_login import current_user
@@ -17,6 +18,21 @@ from app.models import db, AuditLog, AuditActionType
 
 # Use Flask's logger
 logger = logging.getLogger(__name__)
+
+# Background thread pool for audit DB writes — keeps request threads unblocked.
+# max_workers=4 is deliberately small: audit writes are low-priority fire-and-forget.
+_audit_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix='audit')
+
+
+def _write_audit_record(app, row: dict) -> None:
+    """Write a single audit record inside its own app context. Runs in the pool."""
+    try:
+        with app.app_context():
+            audit_log = AuditLog(**row)
+            db.session.add(audit_log)
+            db.session.commit()
+    except Exception as exc:
+        logger.error('Background audit write failed: %s', exc)
 
 def make_serializable(obj):
     """Convert SQLAlchemy objects and other non-serializable objects to JSON-serializable format"""
@@ -92,38 +108,33 @@ class AuditService:
             AuditLog instance if successful, None if failed
         """
         try:
-            # Get user information
+            # ── Capture all request-context values NOW (we're still on the request
+            # thread where Flask's context locals are valid). ──────────────────────
             if user_id is not None:
                 audit_user_id = user_id
-                username = None  # Will be populated from database if needed
+                username = None
             elif current_user and current_user.is_authenticated:
                 audit_user_id = current_user.id
                 username = current_user.username
             else:
                 audit_user_id = None
                 username = None
-            
-            logger.info(f"🔍 AUDIT DEBUG: User info - audit_user_id: {audit_user_id}, username: {username}")
-            
-            # Get request information
+
             if ip_address is None:
                 ip_address = AuditService._get_client_ip()
-            
+
             user_agent = None
             session_id = None
-            
             if request:
-                user_agent = request.headers.get('User-Agent', '')[:500]  # Limit length
+                user_agent = request.headers.get('User-Agent', '')[:500]
                 session_id = session.get('_id') if session else None
-            
-            logger.info(f"🔍 AUDIT DEBUG: Request info - ip: {ip_address}, user_agent exists: {user_agent is not None}")
-            
-            # Create audit log entry
-            audit_log = AuditLog(
+
+            # Serialise JSON blobs here while we still have the ORM objects.
+            row = dict(
                 user_id=audit_user_id,
                 username=username,
                 action_type=action_type,
-                action_description=action_description[:500],  # Limit length
+                action_description=action_description[:500],
                 ip_address=ip_address,
                 user_agent=user_agent,
                 session_id=session_id,
@@ -135,25 +146,16 @@ class AuditService:
                 timestamp=datetime.datetime.now(),
                 success=success,
                 error_message=error_message[:1000] if error_message else None,
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )
-            
-            logger.info(f"🔍 AUDIT DEBUG: Created audit_log object: {audit_log.action_type}, {audit_log.action_description}")
-            
-            db.session.add(audit_log)
-            logger.info(f"🔍 AUDIT DEBUG: Added to session")
-            
-            db.session.commit()
-            logger.info(f"🔍 AUDIT DEBUG: Committed to database, ID: {audit_log.id}")
-            
-            return audit_log
-            
-        except SQLAlchemyError as e:
-            logger.error(f"Failed to log audit action: {e}")
-            db.session.rollback()
+
+            # ── Hand the DB write off to the pool and return immediately. ──────────
+            app = current_app._get_current_object()
+            _audit_pool.submit(_write_audit_record, app, row)
             return None
+
         except Exception as e:
-            logger.error(f"Unexpected error logging audit action: {e}")
+            logger.error(f"Unexpected error queuing audit action: {e}")
             return None
     
     @staticmethod

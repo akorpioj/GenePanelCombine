@@ -175,3 +175,34 @@ Adds a full article-categorization workflow ("LitReview Review") that lets users
   - **Unknown Ensembl ID**: error box
   - **Service unavailable**: amber warning banner
 
+
+## v1.9 — LitReview Performance & Genie Reclassify Fix
+
+### Async Genie loading on search-results page
+- `search_results` route previously blocked ~8 s per request on three sequential Genie API calls (`lookup_gene`, `check_genes`, `get_categorizations`) before sending any HTML
+- All Genie logic moved to a new endpoint `GET /litreview/api/results/<id>/genie-context` that returns `{ensembl_id, categories}` as JSON
+- `search_results` now returns immediately after DB queries (sub-second); the browser fetches Genie data client-side after the page is displayed
+- `results.html` updated for progressive enhancement:
+  - Article left-border strips default to gray (`bg-gray-200`) at render time
+  - Genie context bar (Ensembl ID + "Wrong gene?" button) and colour legend start hidden
+  - "Start LitReview" button replaced with a small "Loading Genie…" spinner; the real button is revealed once data arrives
+  - Async loader script fetches `/genie-context`, then updates strip colours, legend, context bar, LitReview button, and the reclassify modal's `ENSEMBL_ID` in one callback
+
+### N+1 SQL query fix
+- `search.results.options(joinedload(...))` was silently ignored because `LiteratureSearch.results` is a `lazy='dynamic'` relationship — incompatible with `joinedload`
+- Fixed by querying `SearchResult` directly: `db.session.query(SearchResult).options(joinedload(SearchResult.article)).filter(SearchResult.search_id == search_id)` — reduces 51 round-trips to 1 JOIN
+
+### AuditService made fully non-blocking
+- `AuditService.log_action` previously called `db.session.commit()` synchronously on every invocation, adding a Cloud SQL round-trip to every audited request
+- Added a module-level `ThreadPoolExecutor(max_workers=4)` (`_audit_pool`) and helper `_write_audit_record(app, row)`
+- `log_action` now captures all request-context values (user ID, username, IP, user agent, session ID, serialised JSON blobs) synchronously on the request thread, then submits only the DB write to the pool and returns immediately
+- All 142 call sites across 10 files benefit automatically; no call-site changes required
+- Removed leftover `🔍 AUDIT DEBUG` log lines that were spamming the application log
+
+### Genie reclassify fix
+- `api_reclassify` route previously used `POST /pmids/bulk` (add-only); existing classifications were silently skipped and the old category was restored on page refresh
+- Genie API added `PATCH /gene/id:{ensembl_id}/pmids/{pmid}` (single) and `PATCH /gene/id:{ensembl_id}/pmids` (bulk) endpoints that support updates
+- Added `_patch()` helper to `GenieService`, plus `update_categorization()` and `update_categorizations_bulk()` public methods
+- `api_reclassify` now: PATCHes first (update existing), falls back to POST bulk only on 404 (PMID not yet stored in Genie); any other error returns 502 with a clear message
+- Removed the previous 409-handling workaround from the template JS
+
