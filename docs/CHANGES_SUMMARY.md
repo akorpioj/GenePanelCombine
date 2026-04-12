@@ -206,3 +206,12 @@ Adds a full article-categorization workflow ("LitReview Review") that lets users
 - `api_reclassify` now: PATCHes first (update existing), falls back to POST bulk only on 404 (PMID not yet stored in Genie); any other error returns 502 with a clear message
 - Removed the previous 409-handling workaround from the template JS
 
+### LitReview index page redesign
+- Replaced the stale "Coming Soon" placeholder with a functional dashboard
+- **`app/litreview/routes.py`** `index()` now additionally queries `total_searches` (count) and `active_reviews` (in-progress `LitReviewSession` count) and passes them to the template
+- **`app/templates/litreview/index.html`** rewritten:
+  - Header with **New Search** and **Search History** (with total count badge) buttons
+  - Three quick-action cards: Search PubMed, Search History, Genie Reviews (shows in-progress count if any)
+  - Recent searches table (last 5): query, result count, date, and direct "View results" link per row
+  - Empty state with "Start your first search" CTA when no searches exist yet
+

@@ -35,19 +35,29 @@ _RETENTION_DAYS = 365  # 12 months
 @login_required
 def index():
     """Literature Review main page"""
-    # Get recent searches
     recent_searches = LiteratureSearch.query.filter_by(
         user_id=current_user.id
-    ).order_by(LiteratureSearch.created_at.desc()).limit(10).all()
-    
-    # Log page view
+    ).order_by(LiteratureSearch.created_at.desc()).limit(5).all()
+
+    total_searches = LiteratureSearch.query.filter_by(user_id=current_user.id).count()
+
+    active_reviews = LitReviewSession.query.filter_by(
+        user_id=current_user.id,
+        status='in_progress',
+    ).count()
+
     AuditService.log_view(
         resource_type='page',
         resource_id='litreview_index',
         description='Accessed LitReview page'
     )
-    
-    return render_template('litreview/index.html', recent_searches=recent_searches)
+
+    return render_template(
+        'litreview/index.html',
+        recent_searches=recent_searches,
+        total_searches=total_searches,
+        active_reviews=active_reviews,
+    )
 
 
 @litreview_bp.route('/search', methods=['GET', 'POST'])

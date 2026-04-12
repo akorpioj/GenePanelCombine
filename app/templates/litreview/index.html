@@ -3,56 +3,111 @@
 {% block title %}LitReview - PanelMerge{% endblock %}
 
 {% block content %}
-<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-6xl">
-    <header class="mb-6 sm:mb-8 text-center">
-        <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">Literature Review</h1>
-        <p class="text-gray-600 mt-2">
-            Comprehensive literature review tools for gene panels and genomic data.
-        </p>
-        <div class="mt-4">
-            <a href="{{ url_for('main.index') }}" class="inline-flex items-center px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition">
-                ← Back to Main Page
-            </a>
+<div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-5xl">
+
+    <!-- Header -->
+    <header class="mb-8">
+        <div class="flex items-start justify-between flex-wrap gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-sky-700">LitReview</h1>
+                <p class="text-gray-500 mt-1 text-sm">PubMed literature search &amp; Genie classification</p>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <a href="{{ url_for('litreview.search') }}"
+                   class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition text-sm font-medium">
+                    New Search
+                </a>
+                <a href="{{ url_for('litreview.search_history') }}"
+                   class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
+                    Search History
+                    {% if total_searches %}
+                    <span class="ml-1 bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded-full">{{ total_searches }}</span>
+                    {% endif %}
+                </a>
+            </div>
         </div>
     </header>
 
-    <div class="space-y-6">
-        <div class="border-l-4 border-sky-500 pl-4 py-4">
-            <h2 class="text-2xl font-semibold text-sky-700 mb-4">Welcome to LitReview</h2>
-            <p class="text-gray-700 mb-4">
-                This feature is currently under development. LitReview will provide comprehensive 
-                literature analysis tools for gene panels, including:
-            </p>
-            <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4">
-                <li>PubMed article search and retrieval</li>
-                <li>Integration with genomic databases</li>
-                <li>Citation analysis and tracking</li>
-                <li>Automatic literature summarization</li>
-                <li>Gene-disease relationship mapping</li>
-                <li>Evidence level assessment</li>
-            </ul>
-        </div>
-
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-blue-800 mb-2">
-                <svg class="inline-block w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    <!-- Quick-action cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <a href="{{ url_for('litreview.search') }}"
+           class="group flex flex-col gap-2 border border-gray-200 rounded-xl p-5 hover:border-sky-400 hover:shadow-md transition">
+            <div class="w-10 h-10 bg-sky-100 text-sky-600 rounded-lg flex items-center justify-center group-hover:bg-sky-200 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z"/>
                 </svg>
-                Coming Soon
-            </h3>
-            <p class="text-blue-700">
-                This feature is being actively developed and will be available in a future release.
-                Stay tuned for updates in our version history page.
-            </p>
-        </div>
+            </div>
+            <p class="font-semibold text-gray-800">Search PubMed</p>
+            <p class="text-xs text-gray-500">Search by gene symbol or free text, with optional filters for date, article type, and language.</p>
+        </a>
 
-        <div class="mt-8 p-4 bg-gray-50 rounded-lg">
-            <h3 class="text-lg font-semibold text-gray-700 mb-2">Need Help?</h3>
-            <p class="text-sm text-gray-600">
-                If you have suggestions for LitReview features or would like to contribute to its development,
-                please contact the development team.
+        <a href="{{ url_for('litreview.search_history') }}"
+           class="group flex flex-col gap-2 border border-gray-200 rounded-xl p-5 hover:border-sky-400 hover:shadow-md transition">
+            <div class="w-10 h-10 bg-violet-100 text-violet-600 rounded-lg flex items-center justify-center group-hover:bg-violet-200 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <p class="font-semibold text-gray-800">Search History</p>
+            <p class="text-xs text-gray-500">Browse and revisit your previous searches. View results or delete old records.</p>
+        </a>
+
+        <div class="flex flex-col gap-2 border border-gray-200 rounded-xl p-5">
+            <div class="w-10 h-10 bg-teal-100 text-teal-600 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                </svg>
+            </div>
+            <p class="font-semibold text-gray-800">Genie Reviews</p>
+            <p class="text-xs text-gray-500">
+                {% if active_reviews > 0 %}
+                <span class="text-violet-600 font-medium">{{ active_reviews }} review{{ 's' if active_reviews != 1 }} in progress.</span>
+                Go to Search History to continue.
+                {% else %}
+                Classify articles as Useful / Not useful and submit to the Genie knowledge base via a search.
+                {% endif %}
             </p>
         </div>
     </div>
+
+    <!-- Recent searches -->
+    {% if recent_searches %}
+    <section>
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold text-gray-700">Recent searches</h2>
+            <a href="{{ url_for('litreview.search_history') }}"
+               class="text-xs text-sky-600 hover:underline">View all →</a>
+        </div>
+        <div class="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
+            {% for s in recent_searches %}
+            <div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition">
+                <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-800 truncate">{{ s.search_query }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">
+                        {{ s.result_count }} result{{ 's' if s.result_count != 1 }} &middot;
+                        {{ s.created_at.strftime('%d %b %Y') }}
+                    </p>
+                </div>
+                <a href="{{ url_for('litreview.search_results', search_id=s.id) }}"
+                   class="ml-4 shrink-0 px-3 py-1.5 text-xs font-medium bg-sky-50 text-sky-700 rounded-lg hover:bg-sky-100 transition">
+                    View results
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% else %}
+    <div class="text-center py-12 border border-dashed border-gray-200 rounded-xl">
+        <p class="text-gray-500 text-sm mb-4">No searches yet.</p>
+        <a href="{{ url_for('litreview.search') }}"
+           class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition text-sm font-medium">
+            Start your first search
+        </a>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}
