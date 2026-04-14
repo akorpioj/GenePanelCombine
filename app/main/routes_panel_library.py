@@ -1,4 +1,5 @@
-from flask import request, jsonify, render_template, abort
+import secrets
+from flask import request, jsonify, render_template, abort, session
 from flask_login import current_user, login_required
 import datetime
 import re
@@ -1099,6 +1100,9 @@ def panel_add_to_genie(panel_id):
         }
         for g in genes
     ]
+
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_urlsafe(32)
 
     return render_template(
         'main/panel_genie_export.html',
