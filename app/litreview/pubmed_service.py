@@ -357,10 +357,13 @@ class PubMedService:
         Returns:
             LiteratureSearch object
         """
+        filters = search_params or {}
+        filters['search_type'] = search_type
+
         search = LiteratureSearch(
             user_id=user_id,
             search_query=search_term,
-            filters=search_params or {},
+            filters=filters,
             result_count=results_count
         )
         

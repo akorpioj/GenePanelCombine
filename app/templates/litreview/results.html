@@ -55,8 +55,8 @@
                     </span>
                 </a>
                 {% endif %}
-                {# Genie-driven LitReview button — populated asynchronously #}
-                {% if not (review_session and review_session.status in ('complete', 'in_progress')) %}
+                {# Genie-driven LitReview button — populated asynchronously, gene searches only #}
+                {% if is_gene_search and not (review_session and review_session.status in ('complete', 'in_progress')) %}
                 <div id="genie-btn-loading"
                      class="inline-flex items-center gap-1.5 px-4 py-2 text-gray-400 text-sm">
                     <svg class="animate-spin h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24">
@@ -78,8 +78,8 @@
         </div>
     </header>
 
-    {# ── Genie classification context bar — filled asynchronously ── #}
-    {% if not (review_session and review_session.status == 'complete') %}
+    {# ── Genie classification context bar — filled asynchronously, gene searches only ── #}
+    {% if is_gene_search and not (review_session and review_session.status == 'complete') %}
     <div id="genie-context-bar" class="hidden flex items-center gap-2 mb-2 text-xs text-gray-500">
         <span>Genie classifications for:</span>
         <a id="genie-ensembl-link" href="#" target="_blank" rel="noopener"
@@ -90,7 +90,8 @@
     {% endif %}
 
     <!-- Results List -->
-    {# Colour legend for Genie classifications — shown asynchronously #}
+    {# Colour legend + Genie info modal — gene searches only #}
+    {% if is_gene_search %}
     <div id="genie-legend" class="hidden flex items-center gap-4 mb-4 text-xs text-gray-500 flex-wrap">
         <span class="font-medium">Genie:</span>
         <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-green-500"></span>Useful</span>
@@ -154,6 +155,7 @@
         modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
     })();
     </script>
+    {% endif %}{# end is_gene_search legend block #}
 
     {# ── Sort controls ──────────────────────────────────────────────────────── #}
     <div class="flex items-center gap-3 mb-3">
@@ -165,12 +167,14 @@
                     data-sort="newest">Newest</button>
             <button class="sort-btn px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition"
                     data-sort="oldest">Oldest</button>
+            {% if is_gene_search %}
             <button id="sort-genie-desc"
                     class="sort-btn px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-400 transition cursor-not-allowed"
                     data-sort="genie-desc" disabled title="Waiting for Genie…">Genie: most relevant</button>
             <button id="sort-genie-asc"
                     class="sort-btn px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-400 transition cursor-not-allowed"
                     data-sort="genie-asc" disabled title="Waiting for Genie…">Genie: least relevant</button>
+            {% endif %}
         </div>
     </div>
 
@@ -180,12 +184,16 @@
              data-rank="{{ result.rank }}"
              data-date="{{ result.article.publication_date.isoformat() if result.article.publication_date else '' }}"
              data-gcat="0">
-        {# Clickable colour strip — colour applied asynchronously by Genie fetch #}
+        {# Left colour strip — interactive (reclassify) only for gene searches #}
+        {% if is_gene_search %}
         <button class="reclass-strip absolute left-0 inset-y-0 w-1.5 bg-gray-200 hover:w-3 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-400"
                 data-pmid="{{ result.article.pubmed_id }}"
                 data-current="0"
                 title="Genie: loading…"
                 aria-label="Genie: loading…"></button>
+        {% else %}
+        <div class="absolute left-0 inset-y-0 w-1.5 bg-gray-200"></div>
+        {% endif %}
         <div class="p-4 pl-5">
             <!-- Title -->
             <h3 class="text-lg font-semibold text-gray-900 mb-2">
@@ -549,7 +557,8 @@
 </script>
 {% endif %}
 
-{# ── Reclassify modal (always rendered so JS can attach; hidden by default) ── #}
+{# ── Reclassify modal — gene searches only ── #}
+{% if is_gene_search %}
 <!-- Reclassify dialog -->
 <div id="reclass-modal"
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -702,6 +711,7 @@
     });
 })();
 </script>
+{% endif %}{# end is_gene_search reclassify block #}
 
 {# ── Client-side sort ────────────────────────────────────────────────────────── #}
 <script>
@@ -780,7 +790,8 @@
 })();
 </script>
 
-{# ── Async Genie context loader ────────────────────────────────────────────── #}
+{# ── Async Genie context loader — gene searches only ─────────────────────── #}
+{% if is_gene_search %}
 <script>
 (function () {
     'use strict';
@@ -878,4 +889,5 @@
         });
 })();
 </script>
+{% endif %}{# end is_gene_search Genie loader #}
 {% endblock %}

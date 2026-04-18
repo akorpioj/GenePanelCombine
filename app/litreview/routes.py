@@ -10,7 +10,8 @@ import click
 from datetime import datetime, timedelta
 import openpyxl
 from openpyxl.styles import Font, PatternFill
-from flask import render_template, request, flash, redirect, url_for, jsonify, make_response, send_file, current_app
+import secrets
+from flask import render_template, request, flash, redirect, url_for, jsonify, make_response, send_file, current_app, session
 from flask_login import login_required, current_user
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
@@ -159,6 +160,10 @@ def search_results(search_id):
 
     # Genie data is fetched asynchronously by the client via /api/results/<id>/genie-context
     # so we pass empty defaults here — the template populates them via JavaScript after load.
+    is_gene_search = (search.filters or {}).get('search_type', 'gene') == 'gene'
+
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_urlsafe(32)
 
     # Log view (AuditService.log_action is non-blocking; DB write runs in background pool)
     AuditService.log_view(
@@ -174,6 +179,7 @@ def search_results(search_id):
         review_session=review_session,
         review_categorized_count=review_categorized_count,
         review_total=review_total,
+        is_gene_search=is_gene_search,
     )
 
 
@@ -988,6 +994,9 @@ def review(search_id):
     total             = len(articles_with_categories)
     categorized_count = sum(1 for a in articles_with_categories if a['category'] > 0)
     remaining_count   = total - categorized_count
+
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_urlsafe(32)
 
     return render_template(
         'litreview/review.html',
